@@ -2,20 +2,28 @@ name: CI
 
 on:
   push:
-    branches: [staging, master, main]
+    branches: [staging, master, main, ci-cd]
   pull_request:
     branches: [staging, master, main]
+  workflow_dispatch:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
-  build-lint:
+  build-test-lint-sonar:
     runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+      SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -26,8 +34,124 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate SonarCloud configuration
+        run: |
+          set -euo pipefail
+          test -n "${SONAR_TOKEN}" || (echo "SONAR_TOKEN is not set" && exit 1)
+          test -n "${SONAR_PROJECT_KEY}" || (echo "SONAR_PROJECT_KEY is not set" && exit 1)
+          test -n "${SONAR_ORGANIZATION}" || (echo "SONAR_ORGANIZATION is not set" && exit 1)
+
       - name: Run lint
         run: npm run lint
 
+      - name: Run type check
+        run: npm run type-check
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
       - name: Build app
         run: npm run build
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            coverage
+            reports
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=${{ env.SONAR_ORGANIZATION }}
+            -Dsonar.sources=src
+            -Dsonar.tests=src
+            -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx
+            -Dsonar.typescript.tsconfigPath=tsconfig.json
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+
+      - name: Fail if SonarCloud Quality Gate fails
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import time
+          import urllib.request
+
+          token = os.environ["SONAR_TOKEN"]
+          report_file = ".scannerwork/report-task.txt"
+
+          if not os.path.exists(report_file):
+              raise SystemExit(".scannerwork/report-task.txt not found after Sonar scan")
+
+          with open(report_file, "r", encoding="utf-8") as f:
+              props = dict(line.strip().split("=", 1) for line in f if "=" in line)
+
+          ce_task_url = props.get("ceTaskUrl")
+          if not ce_task_url:
+              raise SystemExit("ceTaskUrl missing in .scannerwork/report-task.txt")
+
+          def get(url: str):
+              req = urllib.request.Request(url)
+              auth = base64.b64encode((token + ":").encode()).decode()
+              req.add_header("Authorization", "Basic " + auth)
+              with urllib.request.urlopen(req) as resp:
+                  return json.loads(resp.read().decode())
+
+          analysis_id = None
+          for _ in range(60):
+              data = get(ce_task_url)
+              status = data["task"]["status"]
+              print("Sonar CE status:", status)
+              if status == "SUCCESS":
+                  analysis_id = data["task"].get("analysisId")
+                  break
+              if status in ("PENDING", "IN_PROGRESS"):
+                  time.sleep(5)
+                  continue
+              raise SystemExit(f"Unexpected Sonar CE status: {status}")
+
+          if not analysis_id:
+              raise SystemExit("analysisId not found; Sonar task may not have finished")
+
+          qg = get(f"https://sonarcloud.io/api/qualitygates/project_status?analysisId={analysis_id}")
+          project_status = qg["projectStatus"]
+          qg_status = project_status["status"]
+          print("Quality Gate:", qg_status)
+          conditions = project_status.get("conditions", [])
+          if conditions:
+              print("Quality Gate conditions:")
+              for condition in conditions:
+                  metric_key = condition.get("metricKey", "unknown_metric")
+                  condition_status = condition.get("status", "UNKNOWN")
+                  actual_value = condition.get("actualValue", "n/a")
+                  comparator = condition.get("comparator", "")
+                  threshold = condition.get("errorThreshold", "n/a")
+                  print(
+                      f"- {metric_key}: {condition_status} "
+                      f"(actual={actual_value}, comparator={comparator}, threshold={threshold})"
+                  )
+          if qg_status != "OK":
+              failed_conditions = [c for c in conditions if c.get("status") == "ERROR"]
+              if failed_conditions:
+                  print("Failed Quality Gate conditions:")
+                  for condition in failed_conditions:
+                      print(
+                          f"- {condition.get('metricKey', 'unknown_metric')} "
+                          f"(actual={condition.get('actualValue', 'n/a')}, "
+                          f"threshold={condition.get('errorThreshold', 'n/a')})"
+                      )
+              raise SystemExit("Quality Gate failed")
+          PY
