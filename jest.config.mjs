@@ -17,6 +17,14 @@ const customJestConfig = {
     "!src/**/*.d.ts",
     "!src/app/layout.tsx",
   ],
+  coverageThreshold: {
+    global: {
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100,
+    },
+  },
 };
 
 export default createJestConfig(customJestConfig);
