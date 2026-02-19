@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [staging, master, main, ci-cd]
+  pull_request:
+    branches: [staging, master, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  build-test-lint-sonar:
+    runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN_RAW: ${{ secrets.SONAR_TOKEN }}
+      SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+      SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate and normalize SonarCloud configuration
+        id: sonar_config
+        if: ${{ (github.event_name == 'push' && github.ref_name == 'main') || (github.event_name == 'pull_request' && github.base_ref == 'main') }}
+        run: |
+          set -euo pipefail
+          clean_sonar_token="$(printf '%s' "${SONAR_TOKEN_RAW:-}" | tr -d '\r\n')"
+          test -n "${clean_sonar_token}" || (echo "SONAR_TOKEN is not set" && exit 1)
+          test -n "${SONAR_PROJECT_KEY}" || (echo "SONAR_PROJECT_KEY is not set" && exit 1)
+          test -n "${SONAR_ORGANIZATION}" || (echo "SONAR_ORGANIZATION is not set" && exit 1)
+
+          project_key="$(printf '%s' "${SONAR_PROJECT_KEY:-}" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          organization="$(printf '%s' "${SONAR_ORGANIZATION:-}" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+
+          test -n "${project_key}" || (echo "SONAR_PROJECT_KEY is empty after trimming spaces" && exit 1)
+          test -n "${organization}" || (echo "SONAR_ORGANIZATION is empty after trimming spaces" && exit 1)
+
+          echo "SONAR_TOKEN=${clean_sonar_token}" >> "${GITHUB_ENV}"
+          echo "project_key=${project_key}" >> "${GITHUB_OUTPUT}"
+          echo "organization=${organization}" >> "${GITHUB_OUTPUT}"
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run type check
+        run: npm run type-check
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: Build app
+        run: npm run build
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            coverage
+            reports
+
+      - name: SonarCloud Scan
+        if: ${{ (github.event_name == 'push' && github.ref_name == 'main') || (github.event_name == 'pull_request' && github.base_ref == 'main') }}
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.projectKey=${{ steps.sonar_config.outputs.project_key }}
+            -Dsonar.organization=${{ steps.sonar_config.outputs.organization }}
+            -Dsonar.sources=src
+            -Dsonar.tests=src
+            -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx
+            -Dsonar.typescript.tsconfigPath=tsconfig.json
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
