@@ -36,6 +36,7 @@ jobs:
 
       - name: Validate and normalize SonarCloud configuration
         id: sonar_config
+        if: ${{ (github.event_name == 'push' && github.ref_name == 'main') || (github.event_name == 'pull_request' && github.base_ref == 'main') }}
         run: |
           set -euo pipefail
           clean_sonar_token="$(printf '%s' "${SONAR_TOKEN_RAW:-}" | tr -d '\r\n')"
@@ -75,6 +76,7 @@ jobs:
             reports
 
       - name: SonarCloud Scan
+        if: ${{ (github.event_name == 'push' && github.ref_name == 'main') || (github.event_name == 'pull_request' && github.base_ref == 'main') }}
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
