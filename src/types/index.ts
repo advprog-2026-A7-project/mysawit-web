@@ -100,6 +100,63 @@ export interface ShipmentRequest {
   notes?: string;
 }
 
+// Payroll Types
+export interface Employee {
+  id: number;
+  name: string;
+  employeeCode: string;
+  position: string;
+  plantationId?: number;
+  phoneNumber?: string;
+  address?: string;
+  hireDate?: string;
+  baseSalary: number;
+  status: 'ACTIVE' | 'INACTIVE' | 'TERMINATED';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EmployeeRequest {
+  name: string;
+  employeeCode: string;
+  position: string;
+  plantationId?: number;
+  phoneNumber?: string;
+  address?: string;
+  hireDate?: string;
+  baseSalary: number;
+  status?: string;
+}
+
+export interface Payroll {
+  id: number;
+  employeeId: number;
+  periodStart: string;
+  periodEnd: string;
+  baseAmount: number;
+  bonusAmount: number;
+  deductionAmount: number;
+  totalAmount: number;
+  status: 'PENDING' | 'APPROVED' | 'PAID' | 'CANCELLED';
+  paymentDate?: string;
+  paymentMethod?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PayrollRequest {
+  employeeId: number;
+  periodStart: string;
+  periodEnd: string;
+  baseAmount: number;
+  bonusAmount?: number;
+  deductionAmount?: number;
+  status: string;
+  paymentMethod?: string;
+  notes?: string;
+}
+
 // API Response Types
 export interface ApiError {
   error: string;

@@ -40,4 +40,12 @@ export const API_ENDPOINTS = {
     BY_STATUS: (status: string) => `${API_CONFIG.SHIPMENT_SERVICE}/api/shipments?status=${status}`,
     HEALTH: `${API_CONFIG.SHIPMENT_SERVICE}/api/shipments/health`,
   },
+
+  // Payroll endpoints
+  PAYROLL: {
+    EMPLOYEES: `${API_CONFIG.PAYROLL_SERVICE}/api/employees`,
+    EMPLOYEE_BY_ID: (id: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/employees/${id}`,
+    PAYROLLS: `${API_CONFIG.PAYROLL_SERVICE}/api/payrolls`,
+    PAYROLL_BY_ID: (id: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/payrolls/${id}`,
+  },
 };
