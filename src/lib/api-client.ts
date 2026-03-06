@@ -69,7 +69,26 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Request failed');
+    }
+
+    if (response.status === 204 || response.headers.get('content-length') === '0') {
+      return undefined as T;
+    }
+
+    return response.json();
+  }
+
+  async patch<T>(url: string, data?: unknown): Promise<T> {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: this.getAuthHeader(),
+      body: data !== undefined ? JSON.stringify(data) : undefined,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
       throw new Error(error.error || 'Request failed');
     }
 

@@ -40,4 +40,34 @@ export const API_ENDPOINTS = {
     BY_STATUS: (status: string) => `${API_CONFIG.SHIPMENT_SERVICE}/api/shipments?status=${status}`,
     HEALTH: `${API_CONFIG.SHIPMENT_SERVICE}/api/shipments/health`,
   },
+
+  // Employee endpoints (Payroll Service)
+  EMPLOYEES: {
+    BASE: `${API_CONFIG.PAYROLL_SERVICE}/api/employees`,
+    BY_ID: (id: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/employees/${id}`,
+    BY_CODE: (code: string) => `${API_CONFIG.PAYROLL_SERVICE}/api/employees/code/${code}`,
+    BY_PLANTATION: (plantationId: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/employees/plantation/${plantationId}`,
+    BY_STATUS: (status: string) => `${API_CONFIG.PAYROLL_SERVICE}/api/employees/status/${status}`,
+    HEALTH: `${API_CONFIG.PAYROLL_SERVICE}/actuator/health`,
+  },
+
+  // Payroll endpoints (Payroll Service)
+  PAYROLLS: {
+    BASE: `${API_CONFIG.PAYROLL_SERVICE}/api/payrolls`,
+    BY_ID: (id: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/payrolls/${id}`,
+    BY_EMPLOYEE: (employeeId: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/payrolls/employee/${employeeId}`,
+    BY_STATUS: (status: string) => `${API_CONFIG.PAYROLL_SERVICE}/api/payrolls/status/${status}`,
+    APPROVE: (id: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/payrolls/${id}/approve`,
+    ACCEPT: (id: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/payrolls/${id}/accept`,
+    REJECT: (id: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/payrolls/${id}/reject`,
+    PAY: (id: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/payrolls/${id}/pay`,
+  },
+
+  // WageConfig endpoints (Payroll Service)
+  WAGE_CONFIGS: {
+    BASE: `${API_CONFIG.PAYROLL_SERVICE}/api/admin/wage-configs`,
+    BY_ID: (id: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/admin/wage-configs/${id}`,
+    BY_ROLE: (role: string) => `${API_CONFIG.PAYROLL_SERVICE}/api/admin/wage-configs/role/${role}`,
+    BY_ROLE_ACTIVE: (role: string) => `${API_CONFIG.PAYROLL_SERVICE}/api/admin/wage-configs/role/${role}/active`,
+  },
 };
