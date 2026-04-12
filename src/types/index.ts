@@ -9,7 +9,7 @@ export interface User {
 }
 
 export interface LoginRequest {
-  username: string;
+  email: string;
   password: string;
 }
 
@@ -22,7 +22,7 @@ export interface RegisterRequest {
 export interface AuthResponse {
   token: string;
   type: string;
-  id: number;
+  id: string;
   username: string;
   email: string;
   role: string;
