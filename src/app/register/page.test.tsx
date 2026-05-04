@@ -76,6 +76,10 @@ describe('RegisterPage', () => {
         username: 'user',
         email: 'user@mail.com',
         password: 'secret123',
+        role: 'BURUH',
+        certificationNumber: undefined,
+        mandorId: undefined,
+        kebunId: undefined,
       });
     });
 

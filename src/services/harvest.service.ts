@@ -1,17 +1,38 @@
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-config';
-import { Harvest, HarvestRequest } from '@/types';
+import { EntityId, Harvest, HarvestRequest, UpdateHarvestStatusRequest } from '@/types';
+
+interface HarvestFilters {
+  harvesterName?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+const appendFilters = (url: string, filters?: HarvestFilters): string => {
+  const params = new URLSearchParams();
+
+  if (filters?.harvesterName) params.set('harvesterName', filters.harvesterName);
+  if (filters?.startDate) params.set('startDate', filters.startDate);
+  if (filters?.endDate) params.set('endDate', filters.endDate);
+
+  const query = params.toString();
+  return query ? `${url}?${query}` : url;
+};
 
 export const harvestService = {
-  async getAll(): Promise<Harvest[]> {
-    return apiClient.get(API_ENDPOINTS.HARVESTS.BASE);
+  async getAll(filters?: HarvestFilters): Promise<Harvest[]> {
+    return apiClient.get(appendFilters(API_ENDPOINTS.HARVESTS.BASE, filters));
   },
 
-  async getById(id: number): Promise<Harvest> {
+  async getMine(filters?: Omit<HarvestFilters, 'harvesterName'>): Promise<Harvest[]> {
+    return apiClient.get(appendFilters(API_ENDPOINTS.HARVESTS.MY, filters));
+  },
+
+  async getById(id: EntityId): Promise<Harvest> {
     return apiClient.get(API_ENDPOINTS.HARVESTS.BY_ID(id));
   },
 
-  async getByPlantation(plantationId: number): Promise<Harvest[]> {
+  async getByPlantation(plantationId: EntityId): Promise<Harvest[]> {
     return apiClient.get(API_ENDPOINTS.HARVESTS.BY_PLANTATION(plantationId));
   },
 
@@ -19,11 +40,15 @@ export const harvestService = {
     return apiClient.post(API_ENDPOINTS.HARVESTS.BASE, data);
   },
 
-  async update(id: number, data: HarvestRequest): Promise<Harvest> {
+  async update(id: EntityId, data: HarvestRequest): Promise<Harvest> {
     return apiClient.put(API_ENDPOINTS.HARVESTS.BY_ID(id), data);
   },
 
-  async delete(id: number): Promise<{ message: string }> {
+  async updateStatus(data: UpdateHarvestStatusRequest): Promise<Harvest> {
+    return apiClient.patch(API_ENDPOINTS.HARVESTS.UPDATE_STATUS, data);
+  },
+
+  async delete(id: EntityId): Promise<{ message: string }> {
     return apiClient.delete(API_ENDPOINTS.HARVESTS.BY_ID(id));
   },
 

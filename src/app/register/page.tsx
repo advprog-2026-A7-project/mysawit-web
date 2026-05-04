@@ -4,6 +4,11 @@ import { useState, FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/services/auth.service';
+import { UserRole } from '@/types';
+
+const roles: UserRole[] = ['BURUH', 'MANDOR', 'SUPIR', 'ADMIN'];
+const fieldClassName =
+  'w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 font-semibold placeholder:font-normal placeholder:text-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -11,6 +16,10 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [role, setRole] = useState<UserRole>('BURUH');
+  const [certificationNumber, setCertificationNumber] = useState('');
+  const [mandorId, setMandorId] = useState('');
+  const [kebunId, setKebunId] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -31,7 +40,15 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      await authService.register({ username, email, password });
+      await authService.register({
+        username,
+        email,
+        password,
+        role,
+        certificationNumber: certificationNumber || undefined,
+        mandorId: mandorId || undefined,
+        kebunId: kebunId || undefined,
+      });
       router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
@@ -63,7 +80,7 @@ export default function RegisterPage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className={fieldClassName}
               placeholder="Choose a username"
               required
               minLength={3}
@@ -78,7 +95,7 @@ export default function RegisterPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className={fieldClassName}
               placeholder="Enter your email"
               required
             />
@@ -92,7 +109,7 @@ export default function RegisterPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className={fieldClassName}
               placeholder="Create a password"
               required
               minLength={6}
@@ -107,12 +124,73 @@ export default function RegisterPage() {
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className={fieldClassName}
               placeholder="Confirm your password"
               required
               minLength={6}
             />
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Role
+            </label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as UserRole)}
+              className={fieldClassName}
+            >
+              {roles.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {(role === 'MANDOR' || role === 'SUPIR') && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Certification Number
+              </label>
+              <input
+                type="text"
+                value={certificationNumber}
+                onChange={(e) => setCertificationNumber(e.target.value)}
+                className={fieldClassName}
+                placeholder="Enter certification number"
+              />
+            </div>
+          )}
+
+          {role === 'BURUH' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Mandor ID
+                </label>
+                <input
+                  type="text"
+                  value={mandorId}
+                  onChange={(e) => setMandorId(e.target.value)}
+                  className={fieldClassName}
+                  placeholder="Optional mandor ID"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Kebun ID
+                </label>
+                <input
+                  type="text"
+                  value={kebunId}
+                  onChange={(e) => setKebunId(e.target.value)}
+                  className={fieldClassName}
+                  placeholder="Optional kebun ID"
+                />
+              </div>
+            </div>
+          )}
 
           <button
             type="submit"

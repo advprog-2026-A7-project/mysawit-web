@@ -24,7 +24,10 @@ jest.mock('@/services/plantation.service', () => ({
   plantationService: {
     getAll: jest.fn(),
     create: jest.fn(),
+    update: jest.fn(),
     delete: jest.fn(),
+    assignMandor: jest.fn(),
+    transferMandor: jest.fn(),
   },
 }));
 
@@ -44,25 +47,26 @@ describe('PlantationsPage', () => {
     (authService.getUserInfo as jest.Mock).mockReturnValue({ id: '10' });
     (plantationService.getAll as jest.Mock).mockResolvedValue([]);
     (plantationService.create as jest.Mock).mockResolvedValue({ id: 1 });
+    (plantationService.update as jest.Mock).mockResolvedValue({ id: 1 });
     (plantationService.delete as jest.Mock).mockResolvedValue({ message: 'deleted' });
+    (plantationService.assignMandor as jest.Mock).mockResolvedValue({ id: 1 });
+    (plantationService.transferMandor as jest.Mock).mockResolvedValue(undefined);
     confirmMock.mockReturnValue(true);
   });
 
   const openAndFillForm = () => {
     fireEvent.click(screen.getByRole('button', { name: /add plantation/i }));
 
-    const textboxes = screen.getAllByRole('textbox');
-
-    fireEvent.change(textboxes[0], {
+    fireEvent.change(screen.getByLabelText(/plantation name/i), {
       target: { value: 'Plantation A' },
     });
-    fireEvent.change(textboxes[1], {
+    fireEvent.change(screen.getByLabelText(/^location$/i), {
       target: { value: 'Riau' },
     });
-    fireEvent.change(screen.getByRole('spinbutton'), {
+    fireEvent.change(screen.getByLabelText(/area/i), {
       target: { value: '15.5' },
     });
-    fireEvent.change(textboxes[2], {
+    fireEvent.change(screen.getByLabelText(/description/i), {
       target: { value: 'Sample plantation' },
     });
   };
@@ -157,7 +161,7 @@ describe('PlantationsPage', () => {
     expect(screen.getByRole('button', { name: /add plantation/i })).toBeInTheDocument();
   });
 
-  it('creates plantation with parsed owner id and reloads list', async () => {
+  it('creates plantation with session owner id and reloads list', async () => {
     (plantationService.getAll as jest.Mock)
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
@@ -176,7 +180,14 @@ describe('PlantationsPage', () => {
         location: 'Riau',
         area: 15.5,
         description: 'Sample plantation',
-        ownerId: 10,
+        ownerId: '10',
+        plantDate: undefined,
+        coordinates: [
+          { latitude: 0, longitude: 0 },
+          { latitude: 0, longitude: 1 },
+          { latitude: 1, longitude: 1 },
+          { latitude: 1, longitude: 0 },
+        ],
       });
     });
 
@@ -204,6 +215,13 @@ describe('PlantationsPage', () => {
         area: 15.5,
         description: 'Sample plantation',
         ownerId: undefined,
+        plantDate: undefined,
+        coordinates: [
+          { latitude: 0, longitude: 0 },
+          { latitude: 0, longitude: 1 },
+          { latitude: 1, longitude: 1 },
+          { latitude: 1, longitude: 0 },
+        ],
       });
     });
   });

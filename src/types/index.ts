@@ -1,11 +1,18 @@
 // User & Auth Types
+export type EntityId = string | number;
+export type UserRole = 'BURUH' | 'MANDOR' | 'SUPIR' | 'ADMIN';
+
 export interface User {
-  id: number;
+  id: string;
   username: string;
   email: string;
-  role: string;
+  name?: string;
+  role: UserRole | string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
+  mandorId?: string;
+  certificationNumber?: string;
+  kebunId?: string;
 }
 
 export interface LoginRequest {
@@ -17,26 +24,47 @@ export interface RegisterRequest {
   username: string;
   email: string;
   password: string;
+  role?: UserRole;
+  certificationNumber?: string;
+  mandorId?: string;
+  kebunId?: string;
 }
 
 export interface AuthResponse {
   token: string;
+  refreshToken?: string;
   type: string;
-  id: number;
+  id: EntityId;
   username: string;
   email: string;
   role: string;
 }
 
+export interface AssignMandorRequest {
+  mandorId: string;
+}
+
+export interface MessageResponse {
+  message: string;
+}
+
 // Plantation Types
+export interface Coordinate {
+  latitude: number;
+  longitude: number;
+}
+
 export interface Plantation {
-  id: number;
+  id: EntityId;
+  code?: string;
   name: string;
   location: string;
   area: number; // in hectares
-  ownerId: number;
+  ownerId?: EntityId;
+  mandorId?: string;
   description?: string;
   plantDate?: string;
+  coordinates?: Coordinate[];
   createdAt: string;
   updatedAt: string;
 }
@@ -45,40 +73,89 @@ export interface PlantationRequest {
   name: string;
   location: string;
   area: number;
-  ownerId?: number;
+  ownerId?: EntityId;
   description?: string;
   plantDate?: string;
+  coordinates: Coordinate[];
+}
+
+export interface AssignPlantationMandorRequest {
+  mandorId: string;
+}
+
+export interface TransferPlantationMandorRequest {
+  mandorId: string;
+  fromPlantationId: EntityId;
+  toPlantationId: EntityId;
 }
 
 // Harvest Types
+export type HarvestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type HarvestQuality = 'PREMIUM' | 'STANDARD' | 'LOW';
+
 export interface Harvest {
-  id: number;
-  plantationId: number;
-  harvestDate: string;
+  id: EntityId;
+  plantationId: EntityId;
   weight: number; // in kg
-  quality: 'PREMIUM' | 'STANDARD' | 'LOW';
-  harvesterId?: number;
+  harvestDate?: string;
+  quality?: HarvestQuality;
+  harvesterId?: EntityId;
+  foremanId?: EntityId;
+  harvesterName?: string;
+  news?: string;
+  photos?: string[];
+  status?: HarvestStatus;
+  rejectionReason?: string;
+  statusUpdatedDate?: string;
   notes?: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface HarvestRequest {
-  plantationId: number;
-  harvestDate: string;
+  plantationId: EntityId;
+  harvestDate?: string;
   weight: number;
-  quality?: string;
-  harvesterId?: number;
+  news?: string;
+  photos?: string[];
+  quality?: HarvestQuality | string;
+  harvesterId?: EntityId;
   notes?: string;
 }
 
+export interface UpdateHarvestStatusRequest {
+  id: EntityId;
+  status: HarvestStatus;
+  rejectionReason?: string;
+}
+
 // Shipment Types
+export type ShipmentStatus =
+  | 'MEMUAT'
+  | 'MENGIRIM'
+  | 'TIBA'
+  | 'ADMIN_APPROVED'
+  | 'PARTIALLY_REJECTED'
+  | 'PENDING'
+  | 'IN_TRANSIT'
+  | 'DELIVERED'
+  | 'CANCELLED';
+
+export interface ShipmentItem {
+  harvestId: EntityId;
+  weightKg: number;
+}
+
 export interface Shipment {
-  id: number;
-  harvestId: number;
+  id: EntityId;
+  mandorUserId?: EntityId;
+  supirUserId?: EntityId;
+  harvestId?: EntityId;
   destination: string;
-  weight: number; // in kg
-  status: 'PENDING' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED';
+  totalKg?: number;
+  weight?: number; // in kg, kept for the older dummy contract
+  status: ShipmentStatus;
+  items?: ShipmentItem[];
   shipperName?: string;
   vehicleNumber?: string;
   shipmentDate?: string;
@@ -89,8 +166,10 @@ export interface Shipment {
 }
 
 export interface ShipmentRequest {
-  harvestId: number;
+  supirUserId?: EntityId;
   destination: string;
+  items?: ShipmentItem[];
+  harvestId?: EntityId;
   weight: number;
   status?: string;
   shipperName?: string;
@@ -100,13 +179,17 @@ export interface ShipmentRequest {
   notes?: string;
 }
 
+export interface ShipmentStatusRequest {
+  status: ShipmentStatus;
+}
+
 // Payroll Types
 export interface Employee {
-  id: number;
+  id: EntityId;
   name: string;
   employeeCode: string;
   position: string;
-  plantationId?: number;
+  plantationId?: EntityId;
   phoneNumber?: string;
   address?: string;
   hireDate?: string;
@@ -118,9 +201,9 @@ export interface Employee {
 
 export interface EmployeeRequest {
   name: string;
-  employeeCode: string;
+  employeeCode?: string;
   position: string;
-  plantationId?: number;
+  plantationId?: EntityId;
   phoneNumber?: string;
   address?: string;
   hireDate?: string;
@@ -129,8 +212,8 @@ export interface EmployeeRequest {
 }
 
 export interface Payroll {
-  id: number;
-  employeeId: number;
+  id: EntityId;
+  employeeId: EntityId;
   periodStart: string;
   periodEnd: string;
   baseAmount: number;
@@ -146,7 +229,7 @@ export interface Payroll {
 }
 
 export interface PayrollRequest {
-  employeeId: number;
+  employeeId: EntityId;
   periodStart: string;
   periodEnd: string;
   baseAmount: number;

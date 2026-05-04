@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MySawit Web
 
-## Getting Started
+Frontend MySawit dibangun dengan Next.js App Router, React, TypeScript, dan Tailwind CSS.
 
-First, run the development server:
+## Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## API Gateway
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Browser code only calls the frontend gateway under `/api/gateway`. The gateway route proxies requests to each Spring Boot service from the server side:
 
-## Learn More
+- `/api/gateway/identity/*` -> Identity service
+- `/api/gateway/plantation/*` -> Plantation service
+- `/api/gateway/harvest/*` -> Harvest service
+- `/api/gateway/shipment/*` -> Shipment service
+- `/api/gateway/payroll/*` -> Payroll service
 
-To learn more about Next.js, take a look at the following resources:
+Default service URLs:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+IDENTITY_SERVICE_URL=http://localhost:8081
+PLANTATION_SERVICE_URL=http://localhost:8082
+HARVEST_SERVICE_URL=http://localhost:8083
+SHIPMENT_SERVICE_URL=http://localhost:8084
+PAYROLL_SERVICE_URL=http://localhost:8085
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The gateway also accepts the existing `NEXT_PUBLIC_*_SERVICE_URL` variables as fallback values, but new deployments should prefer the non-public variables above.
 
-## Deploy on Vercel
+## Verification
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run lint
+npm run type-check
+npm test -- --runInBand
+npm run build
+```

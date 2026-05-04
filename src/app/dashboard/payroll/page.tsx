@@ -60,7 +60,7 @@ export default function PayrollPage() {
   });
 
   const employeeMap = useMemo(() => {
-    const map = new Map<number, Employee>();
+    const map = new Map<Employee['id'], Employee>();
     for (const employee of employees) {
       map.set(employee.id, employee);
     }
@@ -157,6 +157,46 @@ export default function PayrollPage() {
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create payroll');
+    }
+  };
+
+  const handleDeleteEmployee = async (id: Employee['id']) => {
+    if (!confirm('Delete this employee?')) return;
+
+    try {
+      await payrollService.deleteEmployee(id);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete employee');
+    }
+  };
+
+  const handleApprovePayroll = async (id: Payroll['id']) => {
+    try {
+      await payrollService.approvePayroll(id);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to approve payroll');
+    }
+  };
+
+  const handlePayPayroll = async (payroll: Payroll) => {
+    try {
+      await payrollService.payPayroll(payroll.id, payroll.paymentMethod || 'BANK_TRANSFER');
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to mark payroll as paid');
+    }
+  };
+
+  const handleDeletePayroll = async (id: Payroll['id']) => {
+    if (!confirm('Delete this payroll record?')) return;
+
+    try {
+      await payrollService.deletePayroll(id);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete payroll');
     }
   };
 
@@ -407,15 +447,26 @@ export default function PayrollPage() {
                 <div className="space-y-3">
                   {employees.map((employee) => (
                     <div key={employee.id} className="p-3 rounded-lg bg-gray-50 border border-gray-200">
-                      <p className="font-semibold text-gray-800">
-                        {employee.employeeCode} - {employee.name}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {employee.position} | {employee.status}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Base Salary: {formatCurrency(employee.baseSalary)}
-                      </p>
+                      <div className="flex flex-wrap gap-3 justify-between items-start">
+                        <div>
+                          <p className="font-semibold text-gray-800">
+                            {employee.employeeCode} - {employee.name}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {employee.position} | {employee.status}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Base Salary: {formatCurrency(employee.baseSalary)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteEmployee(employee.id)}
+                          className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -430,15 +481,46 @@ export default function PayrollPage() {
                 <div className="space-y-3">
                   {payrolls.map((payroll) => (
                     <div key={payroll.id} className="p-3 rounded-lg bg-gray-50 border border-gray-200">
-                      <p className="font-semibold text-gray-800">
-                        Payroll #{payroll.id} - {employeeMap.get(payroll.employeeId)?.name || `Employee #${payroll.employeeId}`}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Status: {payroll.status} | Total: {formatCurrency(payroll.totalAmount)}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Periode: {formatDateTime(payroll.periodStart)} - {formatDateTime(payroll.periodEnd)}
-                      </p>
+                      <div className="flex flex-wrap gap-3 justify-between items-start">
+                        <div>
+                          <p className="font-semibold text-gray-800">
+                            Payroll #{payroll.id} - {employeeMap.get(payroll.employeeId)?.name || `Employee #${payroll.employeeId}`}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Status: {payroll.status} | Total: {formatCurrency(payroll.totalAmount)}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Periode: {formatDateTime(payroll.periodStart)} - {formatDateTime(payroll.periodEnd)}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2 justify-end">
+                          {payroll.status === 'PENDING' && (
+                            <button
+                              type="button"
+                              onClick={() => handleApprovePayroll(payroll.id)}
+                              className="px-3 py-1 border border-green-600 text-green-700 rounded-lg hover:bg-green-50 text-sm"
+                            >
+                              Approve
+                            </button>
+                          )}
+                          {payroll.status === 'APPROVED' && (
+                            <button
+                              type="button"
+                              onClick={() => handlePayPayroll(payroll)}
+                              className="px-3 py-1 border border-green-600 text-green-700 rounded-lg hover:bg-green-50 text-sm"
+                            >
+                              Pay
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePayroll(payroll.id)}
+                            className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>

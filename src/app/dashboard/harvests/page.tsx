@@ -1,16 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/services/auth.service';
 import { harvestService } from '@/services/harvest.service';
-import { Harvest } from '@/types';
+import { Harvest, HarvestStatus } from '@/types';
 
-const toLocalDateTimeInput = (value: Date): string => {
-  const localDate = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
-  return localDate.toISOString().slice(0, 16);
-};
+const statusOptions: HarvestStatus[] = ['PENDING', 'APPROVED', 'REJECTED'];
 
 const formatDateTime = (value?: string): string => {
   if (!value) return '-';
@@ -19,32 +16,66 @@ const formatDateTime = (value?: string): string => {
   return date.toLocaleString('id-ID');
 };
 
+const parsePhotos = (value: string): string[] =>
+  value
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+interface HarvestFilters {
+  harvesterName: string;
+  startDate: string;
+  endDate: string;
+}
+
+const emptyFilters: HarvestFilters = {
+  harvesterName: '',
+  startDate: '',
+  endDate: '',
+};
+
 export default function HarvestsPage() {
   const router = useRouter();
   const [harvests, setHarvests] = useState<Harvest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [filters, setFilters] = useState<HarvestFilters>(emptyFilters);
   const [formData, setFormData] = useState({
     plantationId: '',
-    harvestDate: toLocalDateTimeInput(new Date()),
     weight: '',
-    quality: 'STANDARD',
-    notes: '',
+    news: '',
+    photos: '',
+  });
+  const [statusForm, setStatusForm] = useState({
+    id: '',
+    status: 'APPROVED' as HarvestStatus,
+    rejectionReason: '',
   });
 
-  useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
-    void loadHarvests();
-  }, [router]);
+  const totals = useMemo(() => {
+    const totalWeight = harvests.reduce((sum, harvest) => sum + harvest.weight, 0);
+    const pending = harvests.filter((harvest) => harvest.status === 'PENDING').length;
+    const approved = harvests.filter((harvest) => harvest.status === 'APPROVED').length;
+    const rejected = harvests.filter((harvest) => harvest.status === 'REJECTED').length;
 
-  const loadHarvests = async () => {
+    return {
+      totalWeight,
+      pending,
+      approved,
+      rejected,
+    };
+  }, [harvests]);
+
+  const loadHarvests = useCallback(async (nextFilters: HarvestFilters = emptyFilters) => {
     try {
       setLoading(true);
-      const data = await harvestService.getAll();
+      const data = await harvestService.getAll({
+        harvesterName: nextFilters.harvesterName || undefined,
+        startDate: nextFilters.startDate || undefined,
+        endDate: nextFilters.endDate || undefined,
+      });
       setHarvests(data);
       setError('');
     } catch (err) {
@@ -52,45 +83,64 @@ export default function HarvestsPage() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    if (!authService.isAuthenticated()) {
+      router.push('/login');
+      return;
+    }
+    void loadHarvests();
+  }, [loadHarvests, router]);
+
+  const handleFilter = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await loadHarvests(filters);
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     try {
-      const userInfo = authService.getUserInfo();
-      const parsedHarvesterId = userInfo?.id ? Number.parseInt(userInfo.id, 10) : undefined;
-
+      setSaving(true);
       await harvestService.create({
-        plantationId: Number.parseInt(formData.plantationId, 10),
-        harvestDate: formData.harvestDate,
+        plantationId: formData.plantationId,
         weight: Number.parseFloat(formData.weight),
-        quality: formData.quality,
-        harvesterId: Number.isNaN(parsedHarvesterId ?? NaN) ? undefined : parsedHarvesterId,
-        notes: formData.notes || undefined,
+        news: formData.news,
+        photos: parsePhotos(formData.photos),
       });
 
       setShowForm(false);
       setFormData({
         plantationId: '',
-        harvestDate: toLocalDateTimeInput(new Date()),
         weight: '',
-        quality: 'STANDARD',
-        notes: '',
+        news: '',
+        photos: '',
       });
-      await loadHarvests();
+      await loadHarvests(filters);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create harvest');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Delete this harvest record?')) return;
-
+  const handleStatusSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     try {
-      await harvestService.delete(id);
-      await loadHarvests();
+      await harvestService.updateStatus({
+        id: statusForm.id,
+        status: statusForm.status,
+        rejectionReason:
+          statusForm.status === 'REJECTED' ? statusForm.rejectionReason || undefined : undefined,
+      });
+      setStatusForm({
+        id: '',
+        status: 'APPROVED',
+        rejectionReason: '',
+      });
+      await loadHarvests(filters);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete harvest');
+      setError(err instanceof Error ? err.message : 'Failed to update harvest status');
     }
   };
 
@@ -104,134 +154,194 @@ export default function HarvestsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap gap-3 justify-between items-center">
           <div>
             <Link href="/dashboard" className="text-green-600 hover:text-green-700 text-sm">
-              ← Back to Dashboard
+              Back to Dashboard
             </Link>
-            <h1 className="text-2xl font-bold text-green-800">Harvest Module (Dummy)</h1>
+            <h1 className="text-2xl font-bold text-green-800">Harvest Management</h1>
           </div>
           <button
             onClick={() => setShowForm(!showForm)}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
-            {showForm ? 'Cancel' : '+ Add Harvest'}
+            {showForm ? 'Cancel' : '+ Log Harvest'}
           </button>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
             {error}
           </div>
         )}
 
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <p className="text-sm text-gray-600">Total Logs</p>
+            <p className="text-2xl font-bold text-green-800">{harvests.length}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <p className="text-sm text-gray-600">Total Weight</p>
+            <p className="text-2xl font-bold text-green-800">{totals.totalWeight.toLocaleString('id-ID')} kg</p>
+          </div>
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <p className="text-sm text-gray-600">Approved</p>
+            <p className="text-2xl font-bold text-green-800">{totals.approved}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <p className="text-sm text-gray-600">Pending / Rejected</p>
+            <p className="text-2xl font-bold text-green-800">{totals.pending} / {totals.rejected}</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleFilter} className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Filter Harvest Logs</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <input
+              type="text"
+              value={filters.harvesterName}
+              onChange={(event) => setFilters({ ...filters, harvesterName: event.target.value })}
+              placeholder="Harvester name"
+              className="px-4 py-2 border border-gray-300 rounded-lg"
+            />
+            <input
+              type="datetime-local"
+              value={filters.startDate}
+              onChange={(event) => setFilters({ ...filters, startDate: event.target.value })}
+              className="px-4 py-2 border border-gray-300 rounded-lg"
+            />
+            <input
+              type="datetime-local"
+              value={filters.endDate}
+              onChange={(event) => setFilters({ ...filters, endDate: event.target.value })}
+              className="px-4 py-2 border border-gray-300 rounded-lg"
+            />
+            <button
+              type="submit"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+            >
+              Apply Filter
+            </button>
+          </div>
+        </form>
+
         {showForm && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Add Harvest</h2>
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Log Harvest</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Plantation ID</label>
-                  <input
-                    type="number"
-                    value={formData.plantationId}
-                    onChange={(event) => setFormData({ ...formData, plantationId: event.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Weight (kg)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.weight}
-                    onChange={(event) => setFormData({ ...formData, weight: event.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Harvest Date</label>
-                  <input
-                    type="datetime-local"
-                    value={formData.harvestDate}
-                    onChange={(event) => setFormData({ ...formData, harvestDate: event.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Quality</label>
-                  <select
-                    value={formData.quality}
-                    onChange={(event) => setFormData({ ...formData, quality: event.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  >
-                    <option value="PREMIUM">PREMIUM</option>
-                    <option value="STANDARD">STANDARD</option>
-                    <option value="LOW">LOW</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-                <textarea
-                  rows={3}
-                  value={formData.notes}
-                  onChange={(event) => setFormData({ ...formData, notes: event.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                <input
+                  type="text"
+                  value={formData.plantationId}
+                  onChange={(event) => setFormData({ ...formData, plantationId: event.target.value })}
+                  placeholder="Plantation UUID"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  required
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.weight}
+                  onChange={(event) => setFormData({ ...formData, weight: event.target.value })}
+                  placeholder="Weight kg"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  required
                 />
               </div>
+              <textarea
+                rows={3}
+                value={formData.news}
+                onChange={(event) => setFormData({ ...formData, news: event.target.value })}
+                placeholder="Harvest news"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                required
+              />
+              <textarea
+                rows={3}
+                value={formData.photos}
+                onChange={(event) => setFormData({ ...formData, photos: event.target.value })}
+                placeholder="Photo URLs, one per line"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              />
               <button
                 type="submit"
-                className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors font-semibold"
+                disabled={saving}
+                className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
-                Save Harvest
+                {saving ? 'Saving Harvest...' : 'Save Harvest'}
               </button>
             </form>
           </div>
         )}
 
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Update Harvest Status</h2>
+          <form onSubmit={handleStatusSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <input
+              type="text"
+              value={statusForm.id}
+              onChange={(event) => setStatusForm({ ...statusForm, id: event.target.value })}
+              placeholder="Harvest log UUID"
+              className="px-4 py-2 border border-gray-300 rounded-lg"
+              required
+            />
+            <select
+              value={statusForm.status}
+              onChange={(event) => setStatusForm({ ...statusForm, status: event.target.value as HarvestStatus })}
+              className="px-4 py-2 border border-gray-300 rounded-lg"
+            >
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+            <input
+              type="text"
+              value={statusForm.rejectionReason}
+              onChange={(event) => setStatusForm({ ...statusForm, rejectionReason: event.target.value })}
+              placeholder="Rejection reason"
+              className="px-4 py-2 border border-gray-300 rounded-lg"
+            />
+            <button
+              type="submit"
+              className="px-4 py-2 border border-green-600 text-green-700 rounded-lg hover:bg-green-50 transition-colors font-semibold"
+            >
+              Update Status
+            </button>
+          </form>
+        </div>
+
         {loading ? (
           <div className="text-center py-12 text-gray-600">Loading harvest records...</div>
         ) : harvests.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <div className="text-5xl mb-4">🌾</div>
             <h3 className="text-xl font-semibold text-gray-800 mb-2">No Harvest Data</h3>
-            <p className="text-gray-600">Create one from the form above.</p>
+            <p className="text-gray-600">Create a log or adjust the filter.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {harvests.map((harvest) => (
               <div key={harvest.id} className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-green-800 mb-2">Harvest #{harvest.id}</h3>
-                <div className="space-y-2 text-sm text-gray-600 mb-4">
-                  <p>
-                    <span className="font-medium">Plantation:</span> #{harvest.plantationId}
-                  </p>
-                  <p>
-                    <span className="font-medium">Weight:</span> {harvest.weight} kg
-                  </p>
-                  <p>
-                    <span className="font-medium">Quality:</span> {harvest.quality}
-                  </p>
-                  <p>
-                    <span className="font-medium">Date:</span> {formatDateTime(harvest.harvestDate)}
-                  </p>
-                  {harvest.notes && (
-                    <p>
-                      <span className="font-medium">Notes:</span> {harvest.notes}
-                    </p>
+                <div className="flex justify-between gap-3 items-start mb-3">
+                  <h3 className="text-lg font-semibold text-green-800">Harvest #{String(harvest.id).slice(0, 8)}</h3>
+                  <span className="px-2 py-1 rounded bg-green-50 text-green-700 text-xs font-semibold">
+                    {harvest.status || 'PENDING'}
+                  </span>
+                </div>
+                <div className="space-y-2 text-sm text-gray-600">
+                  <p><span className="font-medium">Plantation:</span> {harvest.plantationId}</p>
+                  <p><span className="font-medium">Harvester:</span> {harvest.harvesterName || harvest.harvesterId || '-'}</p>
+                  <p><span className="font-medium">Foreman:</span> {harvest.foremanId || '-'}</p>
+                  <p><span className="font-medium">Weight:</span> {harvest.weight} kg</p>
+                  <p><span className="font-medium">Date:</span> {formatDateTime(harvest.harvestDate)}</p>
+                  {harvest.news && <p><span className="font-medium">News:</span> {harvest.news}</p>}
+                  {harvest.rejectionReason && (
+                    <p><span className="font-medium">Rejection:</span> {harvest.rejectionReason}</p>
+                  )}
+                  {harvest.photos && harvest.photos.length > 0 && (
+                    <p><span className="font-medium">Photos:</span> {harvest.photos.length} attached</p>
                   )}
                 </div>
-                <button
-                  onClick={() => handleDelete(harvest.id)}
-                  className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
-                >
-                  Delete
-                </button>
               </div>
             ))}
           </div>
