@@ -401,7 +401,10 @@ describe('api-client (browser)', () => {
     expect(apiClient.getUserInfo()).toEqual({
       id: '10',
       username: 'user',
+      email: 'user@mail.com',
       role: 'USER',
+      googleLinked: false,
+      hasPassword: false,
     });
 
     apiClient.clearAuth();

@@ -1,17 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { FormEvent, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { authService } from '@/services/auth.service';
-import { UserRole } from '@/types';
-
-const roles: UserRole[] = ['BURUH', 'MANDOR', 'SUPIR', 'ADMIN'];
-const fieldClassName =
-  'w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 font-semibold placeholder:font-normal placeholder:text-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent';
 
 type RegistrableRole = 'BURUH' | 'MANDOR' | 'SUPIR';
+
+const roles: RegistrableRole[] = ['BURUH', 'MANDOR', 'SUPIR'];
+const fieldClassName =
+  'w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 font-semibold placeholder:font-normal placeholder:text-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -19,10 +18,12 @@ export default function RegisterPage() {
 
   // Shared fields
   const [username, setUsername] = useState('');
-  const [role, setRole] = useState<RegistrableRole | ''>('');
+  const [role, setRole] = useState<RegistrableRole>('BURUH');
   const [certificationNumber, setCertificationNumber] = useState('');
+  const [mandorId, setMandorId] = useState('');
+  const [kebunId, setKebunId] = useState('');
 
-  // Standard mode fields
+  // Email-mode-only fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -32,18 +33,21 @@ export default function RegisterPage() {
 
   const isGoogleFormValid =
     username.trim().length >= 3 &&
-    role !== '' &&
     (role !== 'MANDOR' || certificationNumber.trim().length > 0);
 
-  const handleStandardSubmit = async (e: FormEvent) => {
-  const [role, setRole] = useState<UserRole>('BURUH');
-  const [certificationNumber, setCertificationNumber] = useState('');
-  const [mandorId, setMandorId] = useState('');
-  const [kebunId, setKebunId] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const resetForm = () => {
+    setUsername('');
+    setRole('BURUH');
+    setCertificationNumber('');
+    setMandorId('');
+    setKebunId('');
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setError('');
+  };
 
-  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
+  const handleEmailSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
 
@@ -54,11 +58,6 @@ export default function RegisterPage() {
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters');
-      return;
-    }
-
-    if (!role) {
-      setError('Please select a role');
       return;
     }
 
@@ -95,7 +94,7 @@ export default function RegisterPage() {
       await authService.googleLogin({
         idToken: credentialResponse.credential,
         username,
-        role: role as RegistrableRole,
+        role,
         ...(role === 'MANDOR' ? { certificationNumber } : {}),
       });
       router.push('/dashboard');
@@ -106,16 +105,6 @@ export default function RegisterPage() {
     }
   };
 
-  const resetForm = () => {
-    setUsername('');
-    setRole('');
-    setCertificationNumber('');
-    setEmail('');
-    setPassword('');
-    setConfirmPassword('');
-    setError('');
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100 px-4">
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
@@ -124,7 +113,6 @@ export default function RegisterPage() {
           <p className="text-gray-600 mt-2">Register for MySawit</p>
         </div>
 
-        {/* Mode Toggle */}
         <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
           <button
             type="button"
@@ -156,135 +144,182 @@ export default function RegisterPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Username
-            </label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className={fieldClassName}
-              placeholder="Choose a username"
-              required
-              minLength={3}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={fieldClassName}
-              placeholder="Enter your email"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={fieldClassName}
-              placeholder="Create a password"
-              required
-              minLength={6}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className={fieldClassName}
-              placeholder="Confirm your password"
-              required
-              minLength={6}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Role
-            </label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
-              className={fieldClassName}
-            >
-              {roles.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {(role === 'MANDOR' || role === 'SUPIR') && (
+        {!isGoogleMode ? (
+          <form onSubmit={handleEmailSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Certification Number
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
               <input
                 type="text"
-                value={certificationNumber}
-                onChange={(e) => setCertificationNumber(e.target.value)}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className={fieldClassName}
-                placeholder="Enter certification number"
+                placeholder="Choose a username"
+                required
+                minLength={3}
               />
             </div>
-          )}
 
-          {role === 'BURUH' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mandor ID
-                </label>
-                <input
-                  type="text"
-                  value={mandorId}
-                  onChange={(e) => setMandorId(e.target.value)}
-                  className={fieldClassName}
-                  placeholder="Optional mandor ID"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Kebun ID
-                </label>
-                <input
-                  type="text"
-                  value={kebunId}
-                  onChange={(e) => setKebunId(e.target.value)}
-                  className={fieldClassName}
-                  placeholder="Optional kebun ID"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={fieldClassName}
+                placeholder="Enter your email"
+                required
+              />
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Creating Account...' : 'Register'}
-          </button>
-        </form>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={fieldClassName}
+                placeholder="Create a password"
+                required
+                minLength={6}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className={fieldClassName}
+                placeholder="Confirm your password"
+                required
+                minLength={6}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as RegistrableRole)}
+                className={fieldClassName}
+              >
+                {roles.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+            </div>
+
+            {(role === 'MANDOR' || role === 'SUPIR') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Certification Number
+                </label>
+                <input
+                  type="text"
+                  value={certificationNumber}
+                  onChange={(e) => setCertificationNumber(e.target.value)}
+                  className={fieldClassName}
+                  placeholder="Enter certification number"
+                />
+              </div>
+            )}
+
+            {role === 'BURUH' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Mandor ID</label>
+                  <input
+                    type="text"
+                    value={mandorId}
+                    onChange={(e) => setMandorId(e.target.value)}
+                    className={fieldClassName}
+                    placeholder="Optional mandor ID"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Kebun ID</label>
+                  <input
+                    type="text"
+                    value={kebunId}
+                    onChange={(e) => setKebunId(e.target.value)}
+                    className={fieldClassName}
+                    placeholder="Optional kebun ID"
+                  />
+                </div>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Creating Account...' : 'Register'}
+            </button>
+          </form>
+        ) : (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className={fieldClassName}
+                placeholder="Choose a username"
+                required
+                minLength={3}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as RegistrableRole)}
+                className={fieldClassName}
+              >
+                {roles.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+            </div>
+
+            {role === 'MANDOR' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Certification Number
+                </label>
+                <input
+                  type="text"
+                  value={certificationNumber}
+                  onChange={(e) => setCertificationNumber(e.target.value)}
+                  className={fieldClassName}
+                  placeholder="Enter certification number"
+                  required
+                />
+              </div>
+            )}
+
+            <p className="text-sm text-gray-600">
+              Fill in your details above, then continue with Google to finish creating your account.
+            </p>
+
+            {loading ? (
+              <p className="text-sm text-gray-500 text-center">Creating account...</p>
+            ) : (
+              <div className={isGoogleFormValid ? '' : 'opacity-50 pointer-events-none'}>
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => setError('Google authentication failed')}
+                  text="signup_with"
+                  shape="rectangular"
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="mt-6 text-center text-sm text-gray-600">
           Already have an account?{' '}

@@ -12,9 +12,12 @@ class ApiClient {
   private getRefreshToken(): string | null {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem('refreshToken');
-  private getStoredUserInfo() {
-    if (typeof window === 'undefined') return null;
+  }
 
+  private getStoredUserInfo() {
+    if (typeof window === 'undefined') {
+      return { id: null, username: null, role: null };
+    }
     return {
       id: localStorage.getItem('userId'),
       username: localStorage.getItem('username'),
@@ -28,6 +31,35 @@ class ApiClient {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    if (user.id) {
+      headers['X-User-Id'] = user.id;
+      headers['X-Requester-Id'] = user.id;
+    }
+
+    if (user.username) {
+      headers['X-User-Name'] = user.username;
+    }
+
+    if (user.role) {
+      headers['X-User-Role'] = user.role;
+
+      if (user.id && user.role === 'BURUH') {
+        headers['X-Harvester-Id'] = user.id;
+        headers['X-Harvester-Name'] = user.username ?? user.id;
+      }
+
+      if (user.id && user.role === 'MANDOR') {
+        headers['X-Foreman-Id'] = user.id;
+      }
+    }
+
+    return headers;
+  }
 
   private async refreshAuthToken(): Promise<boolean> {
     const refreshToken = this.getRefreshToken();
@@ -61,106 +93,6 @@ class ApiClient {
       });
     }
     return refreshPromise;
-  }
-
-  async get<T>(url: string): Promise<T> {
-    let response = await fetch(url, {
-      method: 'GET',
-      headers: this.getAuthHeader(),
-    });
-
-    if (response.status === 401) {
-      const refreshed = await this.handleTokenRefresh();
-      if (refreshed) {
-        response = await fetch(url, {
-          method: 'GET',
-          headers: this.getAuthHeader(),
-        });
-      }
-    }
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || error.error || 'Request failed');
-    }
-
-    return response.json();
-  }
-
-  async post<T>(url: string, data: unknown): Promise<T> {
-    let response = await fetch(url, {
-      method: 'POST',
-      headers: this.getAuthHeader(),
-      body: JSON.stringify(data),
-    });
-
-    if (response.status === 401) {
-      const refreshed = await this.handleTokenRefresh();
-      if (refreshed) {
-        response = await fetch(url, {
-          method: 'POST',
-          headers: this.getAuthHeader(),
-          body: JSON.stringify(data),
-        });
-      }
-    }
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || error.error || 'Request failed');
-    }
-
-    return response.json();
-  }
-
-  async put<T>(url: string, data: unknown): Promise<T> {
-    let response = await fetch(url, {
-      method: 'PUT',
-      headers: this.getAuthHeader(),
-      body: JSON.stringify(data),
-    });
-
-    if (response.status === 401) {
-      const refreshed = await this.handleTokenRefresh();
-      if (refreshed) {
-        response = await fetch(url, {
-          method: 'PUT',
-          headers: this.getAuthHeader(),
-          body: JSON.stringify(data),
-        });
-      }
-    }
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || error.error || 'Request failed');
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    if (user?.id) {
-      headers['X-User-Id'] = user.id;
-      headers['X-Requester-Id'] = user.id;
-    }
-
-    if (user?.username) {
-      headers['X-User-Name'] = user.username;
-    }
-
-    if (user?.role) {
-      headers['X-User-Role'] = user.role;
-
-      if (user.id && user.role === 'BURUH') {
-        headers['X-Harvester-Id'] = user.id;
-        headers['X-Harvester-Name'] = user.username ?? user.id;
-      }
-
-      if (user.id && user.role === 'MANDOR') {
-        headers['X-Foreman-Id'] = user.id;
-      }
-    }
-
-    return headers;
   }
 
   private async parseResponse<T>(response: Response): Promise<T> {
@@ -199,7 +131,6 @@ class ApiClient {
     }
 
     const text = await response.text();
-
     if (!text) {
       return response.statusText || 'Request failed';
     }
@@ -216,19 +147,14 @@ class ApiClient {
   }
 
   private async request<T>(url: string, init: RequestInit): Promise<T> {
-    const response = await fetch(url, {
-      headers: this.getAuthHeader(),
-      ...init,
-    });
+    const fetchOnce = () => fetch(url, { headers: this.getAuthHeader(), ...init });
+
+    let response = await fetchOnce();
 
     if (response.status === 401) {
       const refreshed = await this.handleTokenRefresh();
       if (refreshed) {
-        response = await fetch(url, {
-          method: 'PATCH',
-          headers: this.getAuthHeader(),
-          body: data !== undefined ? JSON.stringify(data) : undefined,
-        });
+        response = await fetchOnce();
       }
     }
 
@@ -240,9 +166,7 @@ class ApiClient {
   }
 
   async get<T>(url: string): Promise<T> {
-    return this.request<T>(url, {
-      method: 'GET',
-    });
+    return this.request<T>(url, { method: 'GET' });
   }
 
   async post<T>(url: string, data: unknown): Promise<T> {
@@ -267,9 +191,7 @@ class ApiClient {
   }
 
   async delete<T>(url: string): Promise<T> {
-    return this.request<T>(url, {
-      method: 'DELETE',
-    });
+    return this.request<T>(url, { method: 'DELETE' });
   }
 
   saveAuth(authResponse: AuthResponse): void {
@@ -282,8 +204,8 @@ class ApiClient {
     localStorage.setItem('username', authResponse.username);
     localStorage.setItem('userEmail', authResponse.email);
     localStorage.setItem('userRole', authResponse.role);
-    localStorage.setItem('googleLinked', String(authResponse.googleLinked));
-    localStorage.setItem('hasPassword', String(authResponse.hasPassword));
+    localStorage.setItem('googleLinked', String(authResponse.googleLinked ?? false));
+    localStorage.setItem('hasPassword', String(authResponse.hasPassword ?? false));
   }
 
   clearAuth(): void {
@@ -312,7 +234,6 @@ class ApiClient {
       googleLinked: localStorage.getItem('googleLinked') === 'true',
       hasPassword: localStorage.getItem('hasPassword') === 'true',
     };
-    return this.getStoredUserInfo();
   }
 }
 
