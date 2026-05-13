@@ -67,6 +67,24 @@ describe('shipment.service', () => {
     expect(result).toEqual(payload);
   });
 
+  it('create normalizes date-only shipmentDate/deliveryDate to ISO datetime', async () => {
+    const body = { harvestId: 1, destination: 'Jakarta', weight: 10, shipmentDate: '2026-01-01', deliveryDate: '2026-01-05' };
+    (apiClient.post as jest.Mock).mockResolvedValue({ id: 5, ...body });
+    await shipmentService.create(body);
+    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.SHIPMENTS.BASE, {
+      ...body,
+      shipmentDate: '2026-01-01T00:00:00',
+      deliveryDate: '2026-01-05T00:00:00',
+    });
+  });
+
+  it('create leaves shipmentDate/deliveryDate untouched when they already include time', async () => {
+    const body = { harvestId: 1, destination: 'Jakarta', weight: 10, shipmentDate: '2026-01-01T08:00:00', deliveryDate: '2026-01-05T17:00:00' };
+    (apiClient.post as jest.Mock).mockResolvedValue({ id: 5, ...body });
+    await shipmentService.create(body);
+    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.SHIPMENTS.BASE, body);
+  });
+
   it('update puts to BY_ID endpoint', async () => {
     const body = { harvestId: 1, destination: 'Bandung', weight: 15 };
     const payload = { id: 5, ...body };

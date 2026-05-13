@@ -9,7 +9,7 @@ describe('api-client (node)', () => {
     apiClient.saveAuth({
       token: 'jwt',
       type: 'Bearer',
-      id: 1,
+      id: '1',
       username: 'user',
       email: 'user@mail.com',
       role: 'USER',

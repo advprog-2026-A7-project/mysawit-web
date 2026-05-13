@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { authService } from '@/services/auth.service';
+import Link from 'next/link';
 import { shipmentService } from '@/services/shipment.service';
 import { Shipment, ShipmentStatus } from '@/types';
 
@@ -20,6 +20,14 @@ const formatDateTime = (value?: string): string => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString('id-ID');
+import { authService } from '@/services/auth.service';
+import { Shipment } from '@/types';
+
+const STATUS_COLORS: Record<string, string> = {
+  PENDING: 'bg-yellow-100 text-yellow-800',
+  IN_TRANSIT: 'bg-blue-100 text-blue-800',
+  DELIVERED: 'bg-green-100 text-green-800',
+  CANCELLED: 'bg-red-100 text-red-800',
 };
 
 const parseItems = (value: string) =>
@@ -93,8 +101,13 @@ export default function ShipmentsPage() {
     await loadShipments(statusFilter);
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const handleFilterChange = (status: string) => {
+    setFilterStatus(status);
+    loadShipments(status || undefined);
+  };
+
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
+    e.preventDefault();
     try {
       setSaving(true);
       const items = parseItems(formData.items);
@@ -105,7 +118,6 @@ export default function ShipmentsPage() {
         items,
         weight: items.reduce((sum, item) => sum + item.weightKg, 0),
       });
-
       setShowForm(false);
       setFormData({
         supirUserId: '',
@@ -150,14 +162,10 @@ export default function ShipmentsPage() {
     }
   };
 
-  if (!authService.isAuthenticated()) {
-    return null;
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap gap-3 justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div>
             <Link href="/dashboard" className="text-green-600 hover:text-green-700 text-sm">
               Back to Dashboard
@@ -333,7 +341,7 @@ export default function ShipmentsPage() {
         </div>
 
         {loading ? (
-          <div className="text-center py-12 text-gray-600">Loading shipment records...</div>
+          <div className="text-center py-12 text-gray-600">Loading shipments...</div>
         ) : shipments.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-12 text-center">
             <h3 className="text-xl font-semibold text-gray-800 mb-2">No Shipment Data</h3>

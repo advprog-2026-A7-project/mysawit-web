@@ -19,6 +19,14 @@ const appendFilters = (url: string, filters?: HarvestFilters): string => {
   return query ? `${url}?${query}` : url;
 };
 
+const toLocalDateTime = (value: string) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
+
+const normalizeHarvestRequest = (data: HarvestRequest): HarvestRequest => ({
+  ...data,
+  harvestDate: toLocalDateTime(data.harvestDate),
+});
+
 export const harvestService = {
   async getAll(filters?: HarvestFilters): Promise<Harvest[]> {
     return apiClient.get(appendFilters(API_ENDPOINTS.HARVESTS.BASE, filters));
@@ -37,11 +45,11 @@ export const harvestService = {
   },
 
   async create(data: HarvestRequest): Promise<Harvest> {
-    return apiClient.post(API_ENDPOINTS.HARVESTS.BASE, data);
+    return apiClient.post(API_ENDPOINTS.HARVESTS.BASE, normalizeHarvestRequest(data));
   },
 
-  async update(id: EntityId, data: HarvestRequest): Promise<Harvest> {
-    return apiClient.put(API_ENDPOINTS.HARVESTS.BY_ID(id), data);
+  async update(id: number, data: HarvestRequest): Promise<Harvest> {
+    return apiClient.put(API_ENDPOINTS.HARVESTS.BY_ID(id), normalizeHarvestRequest(data));
   },
 
   async updateStatus(data: UpdateHarvestStatusRequest): Promise<Harvest> {

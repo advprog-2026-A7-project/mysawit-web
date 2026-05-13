@@ -30,10 +30,10 @@ describe('auth.service', () => {
 
     (apiClient.post as jest.Mock).mockResolvedValue(response);
 
-    const result = await authService.login({ username: 'user', password: 'secret' });
+    const result = await authService.login({ email: 'user@mail.com', password: 'secret' });
 
     expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.AUTH.LOGIN, {
-      username: 'user',
+      email: 'user@mail.com',
       password: 'secret',
     });
     expect(apiClient.saveAuth).toHaveBeenCalledWith(response);
