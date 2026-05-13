@@ -101,7 +101,39 @@ describe('HarvestsPage', () => {
   it('shows fallback load error when thrown value is not Error', async () => {
     (harvestService.getAll as jest.Mock).mockRejectedValue('bad');
     render(<HarvestsPage />);
-    expect(await screen.findByText('Failed to load harvests')).toBeInTheDocument();
+    expect(await screen.findByText('Failed to fetch harvests')).toBeInTheDocument();
+  });
+
+  it('paginates harvests when more than ten records are returned', async () => {
+    (harvestService.getAll as jest.Mock).mockResolvedValue(
+      Array.from({ length: 11 }, (_, index) => ({
+        id: index + 1,
+        plantationId: 1,
+        harvestDate: '2026-01-01',
+        weight: 100,
+        quality: 'STANDARD',
+      }))
+    );
+
+    render(<HarvestsPage />);
+
+    expect(await screen.findByText('Harvest #1')).toBeInTheDocument();
+    expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 1 to 10 of 11 entries');
+    expect(screen.queryByText('Harvest #11')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    expect(screen.getByText('Harvest #11')).toBeInTheDocument();
+    expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 11 to 11 of 11 entries');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+
+    expect(screen.getByText('Harvest #1')).toBeInTheDocument();
+    expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 1 to 10 of 11 entries');
+
+    fireEvent.click(screen.getByRole('button', { name: '2' }));
+
+    expect(screen.getByText('Harvest #11')).toBeInTheDocument();
   });
 
   it('toggles add harvest form visibility', async () => {
@@ -147,6 +179,26 @@ describe('HarvestsPage', () => {
         harvestDate: '2026-05-10',
         weight: 120.5,
         quality: 'PREMIUM',
+        harvesterId: undefined,
+        notes: undefined,
+      });
+    });
+  });
+
+  it('creates harvest with zero numeric fallbacks when numeric inputs are blank', async () => {
+    const { container } = render(<HarvestsPage />);
+    await screen.findByText(/no harvests yet/i);
+    fireEvent.click(screen.getByRole('button', { name: /add harvest/i }));
+
+    const form = container.querySelector('form') as HTMLFormElement;
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(harvestService.create).toHaveBeenCalledWith({
+        plantationId: 0,
+        harvestDate: '',
+        weight: 0,
+        quality: 'STANDARD',
         harvesterId: undefined,
         notes: undefined,
       });
