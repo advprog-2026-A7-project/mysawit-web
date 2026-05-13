@@ -2,7 +2,11 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="f0bd431f-481d-4ccb-bd65-859f74781dfe" name="Changes" comment="fix issue">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/jest.config.mjs" beforeDir="false" afterPath="$PROJECT_DIR$/jest.config.mjs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/page.test.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/page.test.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/api-config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/api-config.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/types/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/types/index.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -39,12 +43,14 @@
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "git-widget-placeholder": "ci-cd",
+    "git-widget-placeholder": "staging",
     "js.debugger.nextJs.config.created.client": "true",
     "js.debugger.nextJs.config.created.server": "true",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "/Users/Shandy/Documents/Kuliah/Semester 4/ADPRO/TK/group-project/mysawit-web",
     "nodejs_package_manager_path": "npm",
+    "npm.Next.js: server-side.executor": "Run",
+    "ts.external.directory.path": "/Users/Shandy/Library/Application Support/JetBrains/IntelliJIdea2025.3/plugins/javascript-plugin/jsLanguageServicesImpl/external",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
@@ -81,7 +87,7 @@
       <workItem from="1771342520496" duration="1818000" />
       <workItem from="1771345758811" duration="14000" />
       <workItem from="1771345783690" duration="8108000" />
-      <workItem from="1771438301655" duration="562000" />
+      <workItem from="1771438301655" duration="8429000" />
     </task>
     <task id="LOCAL-00001" summary="fix issue">
       <option name="closed" value="true" />
