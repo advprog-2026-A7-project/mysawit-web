@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-config';
-import { Shipment, ShipmentRequest } from '@/types';
+import { EntityId, Shipment, ShipmentRequest, ShipmentStatus, ShipmentStatusRequest } from '@/types';
 
 const toLocalDateTime = (value?: string) =>
   value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
@@ -16,11 +16,11 @@ export const shipmentService = {
     return apiClient.get(API_ENDPOINTS.SHIPMENTS.BASE);
   },
 
-  async getById(id: number): Promise<Shipment> {
+  async getById(id: EntityId): Promise<Shipment> {
     return apiClient.get(API_ENDPOINTS.SHIPMENTS.BY_ID(id));
   },
 
-  async getByHarvest(harvestId: number): Promise<Shipment[]> {
+  async getByHarvest(harvestId: EntityId): Promise<Shipment[]> {
     return apiClient.get(API_ENDPOINTS.SHIPMENTS.BY_HARVEST(harvestId));
   },
 
@@ -36,7 +36,15 @@ export const shipmentService = {
     return apiClient.put(API_ENDPOINTS.SHIPMENTS.BY_ID(id), normalizeShipmentRequest(data));
   },
 
-  async delete(id: number): Promise<{ message: string }> {
+  async updateStatus(id: EntityId, data: ShipmentStatusRequest): Promise<Shipment> {
+    return apiClient.patch(API_ENDPOINTS.SHIPMENTS.UPDATE_STATUS(id), data);
+  },
+
+  async approveByAdmin(id: EntityId, status: ShipmentStatus): Promise<Shipment> {
+    return apiClient.patch(API_ENDPOINTS.SHIPMENTS.ADMIN_APPROVAL(id), { status });
+  },
+
+  async delete(id: EntityId): Promise<{ message: string }> {
     return apiClient.delete(API_ENDPOINTS.SHIPMENTS.BY_ID(id));
   },
 

@@ -76,6 +76,10 @@ describe('RegisterPage', () => {
         username: 'user',
         email: 'user@mail.com',
         password: 'secret123',
+        role: 'BURUH',
+        certificationNumber: undefined,
+        mandorId: undefined,
+        kebunId: undefined,
       });
     });
 
@@ -113,6 +117,42 @@ describe('RegisterPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /register/i }));
 
     expect(await screen.findByText('Registration failed from API')).toBeInTheDocument();
+  });
+
+  it('registers MANDOR with certification number', async () => {
+    (authService.register as jest.Mock).mockResolvedValue(undefined);
+    render(<RegisterPage />);
+    fillRequiredFields('secret123', 'secret123');
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'MANDOR' } });
+    fireEvent.change(screen.getByPlaceholderText(/enter certification number/i), { target: { value: 'CERT-99' } });
+    fireEvent.click(screen.getByRole('button', { name: /register/i }));
+
+    await waitFor(() => {
+      expect(authService.register).toHaveBeenCalledWith(expect.objectContaining({
+        role: 'MANDOR',
+        certificationNumber: 'CERT-99',
+        mandorId: undefined,
+        kebunId: undefined,
+      }));
+    });
+  });
+
+  it('registers BURUH with mandor and kebun ids', async () => {
+    (authService.register as jest.Mock).mockResolvedValue(undefined);
+    render(<RegisterPage />);
+    fillRequiredFields('secret123', 'secret123');
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'BURUH' } });
+    fireEvent.change(screen.getByPlaceholderText(/optional mandor id/i), { target: { value: 'mandor-9' } });
+    fireEvent.change(screen.getByPlaceholderText(/optional kebun id/i), { target: { value: 'kebun-9' } });
+    fireEvent.click(screen.getByRole('button', { name: /register/i }));
+
+    await waitFor(() => {
+      expect(authService.register).toHaveBeenCalledWith(expect.objectContaining({
+        role: 'BURUH',
+        mandorId: 'mandor-9',
+        kebunId: 'kebun-9',
+      }));
+    });
   });
 
   it('shows fallback error when thrown value is not Error', async () => {

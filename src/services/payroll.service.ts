@@ -122,4 +122,5 @@ export const wageConfigService = {
   async delete(id: number): Promise<void> {
     return apiClient.delete(API_ENDPOINTS.WAGE_CONFIGS.BY_ID(id));
   },
+
 };

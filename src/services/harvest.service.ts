@@ -1,9 +1,26 @@
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-config';
-import { Harvest, HarvestRequest } from '@/types';
+import { EntityId, Harvest, HarvestRequest, UpdateHarvestStatusRequest } from '@/types';
 
-const toLocalDateTime = (value: string) =>
-  /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
+interface HarvestFilters {
+  harvesterName?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+const appendFilters = (url: string, filters?: HarvestFilters): string => {
+  const params = new URLSearchParams();
+
+  if (filters?.harvesterName) params.set('harvesterName', filters.harvesterName);
+  if (filters?.startDate) params.set('startDate', filters.startDate);
+  if (filters?.endDate) params.set('endDate', filters.endDate);
+
+  const query = params.toString();
+  return query ? `${url}?${query}` : url;
+};
+
+const toLocalDateTime = (value?: string) =>
+  value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
 
 const normalizeHarvestRequest = (data: HarvestRequest): HarvestRequest => ({
   ...data,
@@ -11,15 +28,19 @@ const normalizeHarvestRequest = (data: HarvestRequest): HarvestRequest => ({
 });
 
 export const harvestService = {
-  async getAll(): Promise<Harvest[]> {
-    return apiClient.get(API_ENDPOINTS.HARVESTS.BASE);
+  async getAll(filters?: HarvestFilters): Promise<Harvest[]> {
+    return apiClient.get(appendFilters(API_ENDPOINTS.HARVESTS.BASE, filters));
   },
 
-  async getById(id: number): Promise<Harvest> {
+  async getMine(filters?: Omit<HarvestFilters, 'harvesterName'>): Promise<Harvest[]> {
+    return apiClient.get(appendFilters(API_ENDPOINTS.HARVESTS.MY, filters));
+  },
+
+  async getById(id: EntityId): Promise<Harvest> {
     return apiClient.get(API_ENDPOINTS.HARVESTS.BY_ID(id));
   },
 
-  async getByPlantation(plantationId: number): Promise<Harvest[]> {
+  async getByPlantation(plantationId: EntityId): Promise<Harvest[]> {
     return apiClient.get(API_ENDPOINTS.HARVESTS.BY_PLANTATION(plantationId));
   },
 
@@ -31,7 +52,11 @@ export const harvestService = {
     return apiClient.put(API_ENDPOINTS.HARVESTS.BY_ID(id), normalizeHarvestRequest(data));
   },
 
-  async delete(id: number): Promise<{ message: string }> {
+  async updateStatus(data: UpdateHarvestStatusRequest): Promise<Harvest> {
+    return apiClient.patch(API_ENDPOINTS.HARVESTS.UPDATE_STATUS, data);
+  },
+
+  async delete(id: EntityId): Promise<{ message: string }> {
     return apiClient.delete(API_ENDPOINTS.HARVESTS.BY_ID(id));
   },
 

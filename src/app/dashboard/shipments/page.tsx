@@ -1,51 +1,65 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { shipmentService } from '@/services/shipment.service';
 import { authService } from '@/services/auth.service';
-import { Shipment } from '@/types';
+import { Shipment, ShipmentStatus } from '@/types';
 
-const STATUS_COLORS: Record<string, string> = {
-  PENDING: 'bg-yellow-100 text-yellow-800',
-  IN_TRANSIT: 'bg-blue-100 text-blue-800',
-  DELIVERED: 'bg-green-100 text-green-800',
-  CANCELLED: 'bg-red-100 text-red-800',
+const shipmentStatuses: ShipmentStatus[] = [
+  'MEMUAT',
+  'MENGIRIM',
+  'TIBA',
+  'ADMIN_APPROVED',
+  'PARTIALLY_REJECTED',
+];
+
+const formatDateTime = (value?: string): string => {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('id-ID');
 };
+
+const parseItems = (value: string) =>
+  value
+    .split('\n')
+    .map((line) => {
+      const [harvestId, weightKg] = line.split(',').map((part) => part.trim());
+      return {
+        harvestId,
+        weightKg: Number.parseFloat(weightKg),
+      };
+    })
+    .filter((item) => item.harvestId && Number.isFinite(item.weightKg));
 
 export default function ShipmentsPage() {
   const router = useRouter();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [filterStatus, setFilterStatus] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [formData, setFormData] = useState({
-    harvestId: '',
+    supirUserId: '',
     destination: '',
-    weight: '',
-    status: 'PENDING',
-    shipperName: '',
-    vehicleNumber: '',
-    shipmentDate: '',
-    notes: '',
+    items: '',
+  });
+  const [statusForm, setStatusForm] = useState({
+    shipmentId: '',
+    status: 'MENGIRIM' as ShipmentStatus,
+  });
+  const [adminForm, setAdminForm] = useState({
+    shipmentId: '',
+    status: 'ADMIN_APPROVED' as ShipmentStatus,
   });
 
-  useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
-    loadShipments();
-  }, [router]);
-
-  const loadShipments = async (status?: string) => {
+  const loadShipments = useCallback(async (status = '') => {
     try {
       setLoading(true);
-      const data = status
-        ? await shipmentService.getByStatus(status)
-        : await shipmentService.getAll();
+      const data = status ? await shipmentService.getByStatus(status) : await shipmentService.getAll();
       setShipments(data);
       setError('');
     } catch (err) {
@@ -53,41 +67,85 @@ export default function ShipmentsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleFilterChange = (status: string) => {
-    setFilterStatus(status);
-    loadShipments(status || undefined);
+  const totals = useMemo(() => {
+    const totalKg = shipments.reduce((sum, shipment) => sum + (shipment.totalKg ?? shipment.weight ?? 0), 0);
+    const active = shipments.filter((shipment) => shipment.status === 'MEMUAT' || shipment.status === 'MENGIRIM').length;
+
+    return {
+      totalKg,
+      active,
+      completed: shipments.filter((shipment) => shipment.status === 'TIBA').length,
+    };
+  }, [shipments]);
+
+  useEffect(() => {
+    if (!authService.isAuthenticated()) {
+      router.push('/login');
+      return;
+    }
+    void loadShipments();
+  }, [loadShipments, router]);
+
+  const handleFilter = async (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
+    event.preventDefault();
+    await loadShipments(statusFilter);
   };
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     e.preventDefault();
     try {
+      setSaving(true);
+      const items = parseItems(formData.items);
+
       await shipmentService.create({
-        harvestId: parseInt(formData.harvestId),
+        supirUserId: formData.supirUserId,
         destination: formData.destination,
-        weight: parseFloat(formData.weight),
-        status: formData.status,
-        shipperName: formData.shipperName || undefined,
-        vehicleNumber: formData.vehicleNumber || undefined,
-        shipmentDate: formData.shipmentDate || undefined,
-        notes: formData.notes || undefined,
+        items,
+        weight: items.reduce((sum, item) => sum + item.weightKg, 0),
       });
       setShowForm(false);
-      setFormData({ harvestId: '', destination: '', weight: '', status: 'PENDING', shipperName: '', vehicleNumber: '', shipmentDate: '', notes: '' });
-      loadShipments(filterStatus || undefined);
+      setFormData({
+        supirUserId: '',
+        destination: '',
+        items: '',
+      });
+      await loadShipments(statusFilter);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create shipment');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this shipment?')) return;
+  const handleStatusSubmit = async (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
+    event.preventDefault();
     try {
-      await shipmentService.delete(id);
-      loadShipments(filterStatus || undefined);
+      await shipmentService.updateStatus(statusForm.shipmentId, {
+        status: statusForm.status,
+      });
+      setStatusForm({
+        shipmentId: '',
+        status: 'MENGIRIM',
+      });
+      await loadShipments(statusFilter);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete shipment');
+      setError(err instanceof Error ? err.message : 'Failed to update shipment status');
+    }
+  };
+
+  const handleAdminSubmit = async (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
+    event.preventDefault();
+    try {
+      await shipmentService.approveByAdmin(adminForm.shipmentId, adminForm.status);
+      setAdminForm({
+        shipmentId: '',
+        status: 'ADMIN_APPROVED',
+      });
+      await loadShipments(statusFilter);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to submit admin approval');
     }
   };
 
@@ -97,180 +155,214 @@ export default function ShipmentsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div>
             <Link href="/dashboard" className="text-green-600 hover:text-green-700 text-sm">
-              ← Back to Dashboard
+              Back to Dashboard
             </Link>
-            <h1 className="text-2xl font-bold text-green-800">Shipments Management</h1>
+            <h1 className="text-2xl font-bold text-green-800">Shipment Management</h1>
           </div>
           <button
             onClick={() => setShowForm(!showForm)}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
-            {showForm ? 'Cancel' : '+ Add Shipment'}
+            {showForm ? 'Cancel' : '+ Create Shipment'}
           </button>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
             {error}
           </div>
         )}
 
-        {/* Filter bar */}
-        <div className="flex gap-2 mb-6 flex-wrap">
-          {['', 'PENDING', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'].map((s) => (
-            <button
-              key={s}
-              onClick={() => handleFilterChange(s)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                filterStatus === s
-                  ? 'bg-green-600 text-white'
-                  : 'bg-white border border-gray-300 text-gray-600 hover:border-green-500'
-              }`}
-            >
-              {s || 'All'}
-            </button>
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <p className="text-sm text-gray-600">Shipments</p>
+            <p className="text-2xl font-bold text-green-800">{shipments.length}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <p className="text-sm text-gray-600">Total Weight</p>
+            <p className="text-2xl font-bold text-green-800">{totals.totalKg.toLocaleString('id-ID')} kg</p>
+          </div>
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <p className="text-sm text-gray-600">Active</p>
+            <p className="text-2xl font-bold text-green-800">{totals.active}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <p className="text-sm text-gray-600">Arrived</p>
+            <p className="text-2xl font-bold text-green-800">{totals.completed}</p>
+          </div>
         </div>
 
+        <form onSubmit={handleFilter} className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Filter Shipments</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg"
+            >
+              <option value="">All Statuses</option>
+              {shipmentStatuses.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+            >
+              Apply Filter
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter('');
+                void loadShipments('');
+              }}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Reset
+            </button>
+          </div>
+        </form>
+
         {showForm && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Add New Shipment</h2>
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Create Shipment</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Harvest ID</label>
-                  <input
-                    type="number"
-                    value={formData.harvestId}
-                    onChange={(e) => setFormData({ ...formData, harvestId: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Destination</label>
-                  <input
-                    type="text"
-                    value={formData.destination}
-                    onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Weight (kg)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.weight}
-                    onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  >
-                    <option value="PENDING">PENDING</option>
-                    <option value="IN_TRANSIT">IN_TRANSIT</option>
-                    <option value="DELIVERED">DELIVERED</option>
-                    <option value="CANCELLED">CANCELLED</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Shipper Name (optional)</label>
-                  <input
-                    type="text"
-                    value={formData.shipperName}
-                    onChange={(e) => setFormData({ ...formData, shipperName: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Vehicle Number (optional)</label>
-                  <input
-                    type="text"
-                    value={formData.vehicleNumber}
-                    onChange={(e) => setFormData({ ...formData, vehicleNumber: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Shipment Date (optional)</label>
-                  <input
-                    type="date"
-                    value={formData.shipmentDate}
-                    onChange={(e) => setFormData({ ...formData, shipmentDate: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Notes (optional)</label>
-                  <input
-                    type="text"
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={formData.supirUserId}
+                  onChange={(event) => setFormData({ ...formData, supirUserId: event.target.value })}
+                  placeholder="Supir UUID"
+                  className="px-4 py-2 border border-gray-300 rounded-lg"
+                  required
+                />
+                <input
+                  type="text"
+                  value={formData.destination}
+                  onChange={(event) => setFormData({ ...formData, destination: event.target.value })}
+                  placeholder="Destination"
+                  className="px-4 py-2 border border-gray-300 rounded-lg"
+                  required
+                />
               </div>
+              <textarea
+                rows={4}
+                value={formData.items}
+                onChange={(event) => setFormData({ ...formData, items: event.target.value })}
+                placeholder="Harvest UUID, weight kg per line"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                required
+              />
               <button
                 type="submit"
-                className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors font-semibold"
+                disabled={saving}
+                className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
-                Create Shipment
+                {saving ? 'Creating Shipment...' : 'Save Shipment'}
               </button>
             </form>
           </div>
         )}
 
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Driver Status Update</h2>
+            <form onSubmit={handleStatusSubmit} className="space-y-4">
+              <input
+                type="text"
+                value={statusForm.shipmentId}
+                onChange={(event) => setStatusForm({ ...statusForm, shipmentId: event.target.value })}
+                placeholder="Shipment UUID"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                required
+              />
+              <select
+                value={statusForm.status}
+                onChange={(event) => setStatusForm({ ...statusForm, status: event.target.value as ShipmentStatus })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              >
+                <option value="MENGIRIM">MENGIRIM</option>
+                <option value="TIBA">TIBA</option>
+              </select>
+              <button
+                type="submit"
+                className="w-full border border-green-600 text-green-700 py-2 rounded-lg hover:bg-green-50 transition-colors font-semibold"
+              >
+                Update Status
+              </button>
+            </form>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Admin Approval</h2>
+            <form onSubmit={handleAdminSubmit} className="space-y-4">
+              <input
+                type="text"
+                value={adminForm.shipmentId}
+                onChange={(event) => setAdminForm({ ...adminForm, shipmentId: event.target.value })}
+                placeholder="Shipment UUID"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                required
+              />
+              <select
+                value={adminForm.status}
+                onChange={(event) => setAdminForm({ ...adminForm, status: event.target.value as ShipmentStatus })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              >
+                <option value="ADMIN_APPROVED">ADMIN_APPROVED</option>
+                <option value="PARTIALLY_REJECTED">PARTIALLY_REJECTED</option>
+              </select>
+              <button
+                type="submit"
+                className="w-full border border-green-600 text-green-700 py-2 rounded-lg hover:bg-green-50 transition-colors font-semibold"
+              >
+                Submit Approval
+              </button>
+            </form>
+          </div>
+        </div>
+
         {loading ? (
           <div className="text-center py-12 text-gray-600">Loading shipments...</div>
         ) : shipments.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <div className="text-5xl mb-4">🚚</div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">No Shipments Found</h3>
-            <p className="text-gray-600">Click &quot;Add Shipment&quot; to create a new one</p>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">No Shipment Data</h3>
+            <p className="text-gray-600">Create a shipment or adjust the filter.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {shipments.map((shipment) => (
               <div key={shipment.id} className="bg-white rounded-lg shadow-md p-6">
-                <div className="flex justify-between items-start mb-3">
-                  <h3 className="text-lg font-semibold text-green-800">Shipment #{shipment.id}</h3>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${STATUS_COLORS[shipment.status] || 'bg-gray-100 text-gray-800'}`}>
+                <div className="flex justify-between gap-3 items-start mb-3">
+                  <h3 className="text-lg font-semibold text-green-800">Shipment #{String(shipment.id).slice(0, 8)}</h3>
+                  <span className="px-2 py-1 rounded bg-green-50 text-green-700 text-xs font-semibold">
                     {shipment.status}
                   </span>
                 </div>
-                <div className="space-y-2 text-sm text-gray-600 mb-4">
-                  <p><span className="font-medium">🌾 Harvest ID:</span> {shipment.harvestId}</p>
-                  <p><span className="font-medium">📍 Destination:</span> {shipment.destination}</p>
-                  <p><span className="font-medium">⚖️ Weight:</span> {shipment.weight} kg</p>
-                  {shipment.shipperName && (
-                    <p><span className="font-medium">👤 Shipper:</span> {shipment.shipperName}</p>
-                  )}
-                  {shipment.vehicleNumber && (
-                    <p><span className="font-medium">🚛 Vehicle:</span> {shipment.vehicleNumber}</p>
-                  )}
-                  {shipment.shipmentDate && (
-                    <p><span className="font-medium">📅 Shipped:</span> {new Date(shipment.shipmentDate).toLocaleDateString()}</p>
-                  )}
-                  {shipment.deliveryDate && (
-                    <p><span className="font-medium">✅ Delivered:</span> {new Date(shipment.deliveryDate).toLocaleDateString()}</p>
+                <div className="space-y-2 text-sm text-gray-600">
+                  <p><span className="font-medium">Destination:</span> {shipment.destination}</p>
+                  <p><span className="font-medium">Mandor:</span> {shipment.mandorUserId || '-'}</p>
+                  <p><span className="font-medium">Supir:</span> {shipment.supirUserId || '-'}</p>
+                  <p><span className="font-medium">Total:</span> {shipment.totalKg ?? shipment.weight ?? 0} kg</p>
+                  <p><span className="font-medium">Created:</span> {formatDateTime(shipment.createdAt)}</p>
+                  {shipment.items && shipment.items.length > 0 && (
+                    <div>
+                      <p className="font-medium text-gray-700">Items</p>
+                      <ul className="mt-1 space-y-1">
+                        {shipment.items.map((item) => (
+                          <li key={`${item.harvestId}-${item.weightKg}`}>
+                            {item.harvestId}: {item.weightKg} kg
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
                 </div>
-                <button
-                  onClick={() => handleDelete(shipment.id)}
-                  className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
-                >
-                  Delete
-                </button>
               </div>
             ))}
           </div>
