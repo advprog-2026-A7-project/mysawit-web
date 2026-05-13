@@ -1,7 +1,9 @@
 import { apiClient } from './api-client';
 
-const createJsonResponse = (ok: boolean, body: unknown) => ({
+const createJsonResponse = (ok: boolean, body: unknown, status = 200) => ({
   ok,
+  status,
+  headers: { get: jest.fn().mockReturnValue(null) },
   json: jest.fn().mockResolvedValue(body),
 }) as unknown as Response;
 
@@ -119,6 +121,85 @@ describe('api-client (browser)', () => {
     (global.fetch as jest.Mock).mockResolvedValue(createJsonResponse(false, { detail: 'delete failed' }));
 
     await expect(apiClient.delete('/resource/2')).rejects.toThrow('Request failed');
+  });
+
+  it('delete returns undefined for 204 No Content responses', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      status: 204,
+      headers: { get: jest.fn().mockReturnValue(null) },
+      json: jest.fn().mockResolvedValue({}),
+    } as unknown as Response);
+
+    const result = await apiClient.delete('/resource/1');
+
+    expect(result).toBeUndefined();
+  });
+
+  it('delete returns undefined when content-length header is 0', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: jest.fn().mockReturnValue('0') },
+      json: jest.fn().mockResolvedValue({}),
+    } as unknown as Response);
+
+    const result = await apiClient.delete('/resource/1');
+
+    expect(result).toBeUndefined();
+  });
+
+  it('delete throws fallback error when response json cannot be parsed', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 500,
+      headers: { get: jest.fn().mockReturnValue(null) },
+      json: jest.fn().mockRejectedValue(new Error('not json')),
+    } as unknown as Response);
+
+    await expect(apiClient.delete('/resource/1')).rejects.toThrow('Request failed');
+  });
+
+  it('patch sends body and returns json', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(createJsonResponse(true, { id: 3 }));
+
+    const result = await apiClient.patch<{ id: number }>('/resource/3', { name: 'patched' });
+
+    expect(result).toEqual({ id: 3 });
+    expect(global.fetch).toHaveBeenCalledWith('/resource/3', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'patched' }),
+    });
+  });
+
+  it('patch sends no body when data is undefined', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(createJsonResponse(true, { id: 3 }));
+
+    await apiClient.patch<{ id: number }>('/resource/3');
+
+    expect(global.fetch).toHaveBeenCalledWith('/resource/3', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: undefined,
+    });
+  });
+
+  it('patch throws API-provided error message', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(createJsonResponse(false, { error: 'patch failed' }));
+
+    await expect(apiClient.patch('/resource/3')).rejects.toThrow('patch failed');
+  });
+
+  it('patch throws fallback error when response json cannot be parsed', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 500,
+      headers: { get: jest.fn().mockReturnValue(null) },
+      json: jest.fn().mockRejectedValue(new Error('not json')),
+    } as unknown as Response);
+
+    await expect(apiClient.patch('/resource/3')).rejects.toThrow('Request failed');
   });
 
   it('saves and clears auth data', () => {

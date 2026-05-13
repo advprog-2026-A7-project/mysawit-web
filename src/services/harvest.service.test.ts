@@ -53,7 +53,10 @@ describe('harvest.service', () => {
 
     const result = await harvestService.create(body);
 
-    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.HARVESTS.BASE, body);
+    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.HARVESTS.BASE, {
+      ...body,
+      harvestDate: '2026-01-01T00:00:00',
+    });
     expect(result).toEqual(payload);
   });
 
@@ -64,7 +67,10 @@ describe('harvest.service', () => {
 
     const result = await harvestService.update(4, body);
 
-    expect(apiClient.put).toHaveBeenCalledWith(API_ENDPOINTS.HARVESTS.BY_ID(4), body);
+    expect(apiClient.put).toHaveBeenCalledWith(API_ENDPOINTS.HARVESTS.BY_ID(4), {
+      ...body,
+      harvestDate: '2026-01-02T00:00:00',
+    });
     expect(result).toEqual(payload);
   });
 
