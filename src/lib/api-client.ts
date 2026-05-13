@@ -53,8 +53,8 @@ class ApiClient {
   }
 
   private async parseResponse<T>(response: Response): Promise<T> {
-    if (response.status === 204) {
-      return {} as T;
+    if (response.status === 204 || response.headers.get('content-length') === '0') {
+      return undefined as T;
     }
 
     if (typeof response.text !== 'function' && typeof response.json === 'function') {
@@ -76,11 +76,15 @@ class ApiClient {
 
   private async parseError(response: Response): Promise<string> {
     if (typeof response.text !== 'function' && typeof response.json === 'function') {
-      const error = (await response.json()) as {
-        error?: string;
-        message?: string;
-      };
-      return error.message || error.error || response.statusText || 'Request failed';
+      try {
+        const error = (await response.json()) as {
+          error?: string;
+          message?: string;
+        };
+        return error.message || error.error || response.statusText || 'Request failed';
+      } catch {
+        return response.statusText || 'Request failed';
+      }
     }
 
     const text = await response.text();
