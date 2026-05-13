@@ -9,7 +9,7 @@ export interface User {
 }
 
 export interface LoginRequest {
-  username: string;
+  email: string;
   password: string;
 }
 
@@ -22,7 +22,7 @@ export interface RegisterRequest {
 export interface AuthResponse {
   token: string;
   type: string;
-  id: number;
+  id: string;
   username: string;
   email: string;
   role: string;
@@ -100,7 +100,7 @@ export interface ShipmentRequest {
   notes?: string;
 }
 
-// Payroll Types
+// Employee Types
 export interface Employee {
   id: number;
   name: string;
@@ -128,6 +128,7 @@ export interface EmployeeRequest {
   status?: string;
 }
 
+// Payroll Types
 export interface Payroll {
   id: number;
   employeeId: number;
@@ -137,7 +138,7 @@ export interface Payroll {
   bonusAmount: number;
   deductionAmount: number;
   totalAmount: number;
-  status: 'PENDING' | 'APPROVED' | 'PAID' | 'CANCELLED';
+  status: 'PENDING' | 'APPROVED' | 'ACCEPTED' | 'REJECTED' | 'PAID' | 'CANCELLED';
   paymentDate?: string;
   paymentMethod?: string;
   notes?: string;
@@ -152,9 +153,29 @@ export interface PayrollRequest {
   baseAmount: number;
   bonusAmount?: number;
   deductionAmount?: number;
-  status: string;
+  status?: string;
   paymentMethod?: string;
   notes?: string;
+}
+
+// WageConfig Types
+export interface WageConfig {
+  id: number;
+  roleType: string;
+  ratePerKg: number;
+  effectiveDate: string;
+  description?: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WageConfigRequest {
+  roleType: string;
+  ratePerKg: number;
+  effectiveDate: string;
+  description?: string;
+  createdBy?: string;
 }
 
 // API Response Types

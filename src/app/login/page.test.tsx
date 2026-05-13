@@ -33,8 +33,8 @@ describe('LoginPage', () => {
 
     render(<LoginPage />);
 
-    fireEvent.change(screen.getByPlaceholderText(/enter your username/i), {
-      target: { value: 'user' },
+    fireEvent.change(screen.getByPlaceholderText(/enter your email/i), {
+      target: { value: 'user@example.com' },
     });
     fireEvent.change(screen.getByPlaceholderText(/enter your password/i), {
       target: { value: 'secret' },
@@ -43,7 +43,7 @@ describe('LoginPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
 
     await waitFor(() => {
-      expect(authService.login).toHaveBeenCalledWith({ username: 'user', password: 'secret' });
+      expect(authService.login).toHaveBeenCalledWith({ email: 'user@example.com', password: 'secret' });
     });
 
     await waitFor(() => {
@@ -60,8 +60,8 @@ describe('LoginPage', () => {
 
     render(<LoginPage />);
 
-    fireEvent.change(screen.getByPlaceholderText(/enter your username/i), {
-      target: { value: 'user' },
+    fireEvent.change(screen.getByPlaceholderText(/enter your email/i), {
+      target: { value: 'user@example.com' },
     });
     fireEvent.change(screen.getByPlaceholderText(/enter your password/i), {
       target: { value: 'secret' },
@@ -82,8 +82,8 @@ describe('LoginPage', () => {
 
     render(<LoginPage />);
 
-    fireEvent.change(screen.getByPlaceholderText(/enter your username/i), {
-      target: { value: 'user' },
+    fireEvent.change(screen.getByPlaceholderText(/enter your email/i), {
+      target: { value: 'user@example.com' },
     });
     fireEvent.change(screen.getByPlaceholderText(/enter your password/i), {
       target: { value: 'wrong' },
@@ -99,8 +99,8 @@ describe('LoginPage', () => {
 
     render(<LoginPage />);
 
-    fireEvent.change(screen.getByPlaceholderText(/enter your username/i), {
-      target: { value: 'user' },
+    fireEvent.change(screen.getByPlaceholderText(/enter your email/i), {
+      target: { value: 'user@example.com' },
     });
     fireEvent.change(screen.getByPlaceholderText(/enter your password/i), {
       target: { value: 'wrong' },

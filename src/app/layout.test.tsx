@@ -8,8 +8,12 @@ describe('RootLayout', () => {
   });
 
   it('wraps children in html and body elements', () => {
-    const element = RootLayout({ children: <div>Child</div> }) as React.ReactElement;
-    const body = element.props.children as React.ReactElement;
+    type HtmlProps = { lang: string; children: React.ReactElement<BodyProps> };
+    type BodyProps = { className: string; children: React.ReactElement<DivProps> };
+    type DivProps = { children: string };
+
+    const element = RootLayout({ children: <div>Child</div> }) as React.ReactElement<HtmlProps>;
+    const body = element.props.children;
 
     expect(element.type).toBe('html');
     expect(element.props.lang).toBe('en');

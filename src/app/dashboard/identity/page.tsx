@@ -54,7 +54,7 @@ export default function IdentityPage() {
     setFormData(buildDummyIdentity());
   };
 
-  const handleCreateDummyUser = async (event: React.FormEvent) => {
+  const handleCreateDummyUser = async (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     event.preventDefault();
     try {
       setSaving(true);

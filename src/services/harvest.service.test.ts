@@ -53,8 +53,18 @@ describe('harvest.service', () => {
 
     const result = await harvestService.create(body);
 
-    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.HARVESTS.BASE, body);
+    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.HARVESTS.BASE, {
+      ...body,
+      harvestDate: '2026-01-01T00:00:00',
+    });
     expect(result).toEqual(payload);
+  });
+
+  it('create leaves harvestDate untouched when it already includes time', async () => {
+    const body = { plantationId: 1, harvestDate: '2026-01-01T08:00:00', weight: 10 };
+    (apiClient.post as jest.Mock).mockResolvedValue({ id: 4, ...body });
+    await harvestService.create(body);
+    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.HARVESTS.BASE, body);
   });
 
   it('update puts to BY_ID endpoint', async () => {
@@ -64,7 +74,10 @@ describe('harvest.service', () => {
 
     const result = await harvestService.update(4, body);
 
-    expect(apiClient.put).toHaveBeenCalledWith(API_ENDPOINTS.HARVESTS.BY_ID(4), body);
+    expect(apiClient.put).toHaveBeenCalledWith(API_ENDPOINTS.HARVESTS.BY_ID(4), {
+      ...body,
+      harvestDate: '2026-01-02T00:00:00',
+    });
     expect(result).toEqual(payload);
   });
 

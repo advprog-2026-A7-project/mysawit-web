@@ -1,449 +1,467 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { employeeService, payrollService } from '@/services/payroll.service';
 import { authService } from '@/services/auth.service';
-import { payrollService } from '@/services/payroll.service';
 import { Employee, Payroll } from '@/types';
 
-const toLocalDateTimeInput = (value: Date): string => {
-  const localDate = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
-  return localDate.toISOString().slice(0, 16);
+type Tab = 'employees' | 'payrolls';
+
+const PAYROLL_STATUS_COLORS: Record<string, string> = {
+  PENDING: 'bg-yellow-100 text-yellow-800',
+  APPROVED: 'bg-blue-100 text-blue-800',
+  ACCEPTED: 'bg-indigo-100 text-indigo-800',
+  REJECTED: 'bg-red-100 text-red-800',
+  PAID: 'bg-green-100 text-green-800',
+  CANCELLED: 'bg-gray-100 text-gray-800',
 };
 
-const formatCurrency = (value: number): string =>
-  new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    maximumFractionDigits: 0,
-  }).format(value);
-
-const formatDateTime = (value?: string): string => {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString('id-ID');
+const EMPLOYEE_STATUS_COLORS: Record<string, string> = {
+  ACTIVE: 'bg-green-100 text-green-800',
+  INACTIVE: 'bg-yellow-100 text-yellow-800',
+  TERMINATED: 'bg-red-100 text-red-800',
 };
 
 export default function PayrollPage() {
   const router = useRouter();
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [payrolls, setPayrolls] = useState<Payroll[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [showEmployeeForm, setShowEmployeeForm] = useState(false);
-  const [showPayrollForm, setShowPayrollForm] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>('employees');
 
-  const [employeeForm, setEmployeeForm] = useState({
+  // Employee state
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [empLoading, setEmpLoading] = useState(true);
+  const [empError, setEmpError] = useState('');
+  const [showEmpForm, setShowEmpForm] = useState(false);
+  const [empForm, setEmpForm] = useState({
     name: '',
     employeeCode: '',
     position: '',
     plantationId: '',
-    baseSalary: '',
     phoneNumber: '',
     address: '',
-    hireDate: toLocalDateTimeInput(new Date()),
+    baseSalary: '',
     status: 'ACTIVE',
   });
 
-  const [payrollForm, setPayrollForm] = useState({
+  // Payroll state
+  const [payrolls, setPayrolls] = useState<Payroll[]>([]);
+  const [payLoading, setPayLoading] = useState(true);
+  const [payError, setPayError] = useState('');
+  const [showPayForm, setShowPayForm] = useState(false);
+  const [payForm, setPayForm] = useState({
     employeeId: '',
-    periodStart: toLocalDateTimeInput(new Date()),
-    periodEnd: toLocalDateTimeInput(new Date(Date.now() + 6 * 24 * 60 * 60 * 1000)),
+    periodStart: '',
+    periodEnd: '',
     baseAmount: '',
     bonusAmount: '0',
     deductionAmount: '0',
-    status: 'PENDING',
     paymentMethod: 'BANK_TRANSFER',
     notes: '',
   });
-
-  const employeeMap = useMemo(() => {
-    const map = new Map<number, Employee>();
-    for (const employee of employees) {
-      map.set(employee.id, employee);
-    }
-    return map;
-  }, [employees]);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
       router.push('/login');
       return;
     }
-    void loadData();
+    loadEmployees();
+    loadPayrolls();
   }, [router]);
 
-  const loadData = async () => {
+  const loadEmployees = async () => {
     try {
-      setLoading(true);
-      const [employeeData, payrollData] = await Promise.all([
-        payrollService.getEmployees(),
-        payrollService.getPayrolls(),
-      ]);
-      setEmployees(employeeData);
-      setPayrolls(payrollData);
-      setError('');
+      setEmpLoading(true);
+      const data = await employeeService.getAll();
+      setEmployees(data);
+      setEmpError('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load payroll data');
+      setEmpError(err instanceof Error ? err.message : 'Failed to load employees');
     } finally {
-      setLoading(false);
+      setEmpLoading(false);
     }
   };
 
-  const handleEmployeeSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const loadPayrolls = async () => {
     try {
-      await payrollService.createEmployee({
-        name: employeeForm.name,
-        employeeCode: employeeForm.employeeCode,
-        position: employeeForm.position,
-        plantationId: employeeForm.plantationId
-          ? Number.parseInt(employeeForm.plantationId, 10)
-          : undefined,
-        phoneNumber: employeeForm.phoneNumber || undefined,
-        address: employeeForm.address || undefined,
-        hireDate: employeeForm.hireDate || undefined,
-        baseSalary: Number.parseFloat(employeeForm.baseSalary),
-        status: employeeForm.status,
-      });
-
-      setEmployeeForm({
-        name: '',
-        employeeCode: '',
-        position: '',
-        plantationId: '',
-        baseSalary: '',
-        phoneNumber: '',
-        address: '',
-        hireDate: toLocalDateTimeInput(new Date()),
-        status: 'ACTIVE',
-      });
-      setShowEmployeeForm(false);
-      await loadData();
+      setPayLoading(true);
+      const data = await payrollService.getAll();
+      setPayrolls(data);
+      setPayError('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create employee');
+      setPayError(err instanceof Error ? err.message : 'Failed to load payrolls');
+    } finally {
+      setPayLoading(false);
     }
   };
 
-  const handlePayrollSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const handleCreateEmployee = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
+    e.preventDefault();
     try {
-      await payrollService.createPayroll({
-        employeeId: Number.parseInt(payrollForm.employeeId, 10),
-        periodStart: payrollForm.periodStart,
-        periodEnd: payrollForm.periodEnd,
-        baseAmount: Number.parseFloat(payrollForm.baseAmount),
-        bonusAmount: Number.parseFloat(payrollForm.bonusAmount),
-        deductionAmount: Number.parseFloat(payrollForm.deductionAmount),
-        status: payrollForm.status,
-        paymentMethod: payrollForm.paymentMethod || undefined,
-        notes: payrollForm.notes || undefined,
+      await employeeService.create({
+        name: empForm.name,
+        employeeCode: empForm.employeeCode,
+        position: empForm.position,
+        plantationId: empForm.plantationId ? parseInt(empForm.plantationId) : undefined,
+        phoneNumber: empForm.phoneNumber || undefined,
+        address: empForm.address || undefined,
+        baseSalary: parseFloat(empForm.baseSalary),
+        status: empForm.status,
       });
+      setShowEmpForm(false);
+      setEmpForm({ name: '', employeeCode: '', position: '', plantationId: '', phoneNumber: '', address: '', baseSalary: '', status: 'ACTIVE' });
+      loadEmployees();
+    } catch (err) {
+      setEmpError(err instanceof Error ? err.message : 'Failed to create employee');
+    }
+  };
 
-      setPayrollForm({
-        employeeId: '',
-        periodStart: toLocalDateTimeInput(new Date()),
-        periodEnd: toLocalDateTimeInput(new Date(Date.now() + 6 * 24 * 60 * 60 * 1000)),
-        baseAmount: '',
-        bonusAmount: '0',
-        deductionAmount: '0',
+  const handleDeleteEmployee = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this employee?')) return;
+    try {
+      await employeeService.delete(id);
+      loadEmployees();
+    } catch (err) {
+      setEmpError(err instanceof Error ? err.message : 'Failed to delete employee');
+    }
+  };
+
+  const handleCreatePayroll = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
+    e.preventDefault();
+    try {
+      await payrollService.create({
+        employeeId: parseInt(payForm.employeeId),
+        periodStart: payForm.periodStart,
+        periodEnd: payForm.periodEnd,
+        baseAmount: parseFloat(payForm.baseAmount),
+        bonusAmount: parseFloat(payForm.bonusAmount),
+        deductionAmount: parseFloat(payForm.deductionAmount),
+        paymentMethod: payForm.paymentMethod,
+        notes: payForm.notes || undefined,
         status: 'PENDING',
-        paymentMethod: 'BANK_TRANSFER',
-        notes: '',
       });
-      setShowPayrollForm(false);
-      await loadData();
+      setShowPayForm(false);
+      setPayForm({ employeeId: '', periodStart: '', periodEnd: '', baseAmount: '', bonusAmount: '0', deductionAmount: '0', paymentMethod: 'BANK_TRANSFER', notes: '' });
+      loadPayrolls();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create payroll');
+      setPayError(err instanceof Error ? err.message : 'Failed to create payroll');
     }
   };
 
-  if (!authService.isAuthenticated()) {
-    return null;
-  }
+  const handleApprovePayroll = async (id: number) => {
+    try {
+      await payrollService.approve(id);
+      loadPayrolls();
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : 'Failed to approve payroll');
+    }
+  };
+
+  const handlePayPayroll = async (id: number) => {
+    try {
+      await payrollService.pay(id);
+      loadPayrolls();
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : 'Failed to mark payroll as paid');
+    }
+  };
+
+  const handleDeletePayroll = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this payroll record?')) return;
+    try {
+      await payrollService.delete(id);
+      loadPayrolls();
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : 'Failed to delete payroll');
+    }
+  };
+
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap gap-3 justify-between items-center">
-          <div>
-            <Link href="/dashboard" className="text-green-600 hover:text-green-700 text-sm">
-              ← Back to Dashboard
-            </Link>
-            <h1 className="text-2xl font-bold text-green-800">Payroll Module (Dummy)</h1>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowEmployeeForm(!showEmployeeForm)}
-              className="px-4 py-2 border border-green-600 text-green-700 rounded-lg hover:bg-green-50 transition-colors"
-            >
-              {showEmployeeForm ? 'Cancel Employee' : '+ Add Employee'}
-            </button>
-            <button
-              onClick={() => setShowPayrollForm(!showPayrollForm)}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              {showPayrollForm ? 'Cancel Payroll' : '+ Add Payroll'}
-            </button>
-          </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <Link href="/dashboard" className="text-green-600 hover:text-green-700 text-sm">
+            ← Back to Dashboard
+          </Link>
+          <h1 className="text-2xl font-bold text-green-800">Payroll Management</h1>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            {error}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <p className="text-sm text-gray-600">Total Employees</p>
-            <p className="text-2xl font-bold text-green-800">{employees.length}</p>
-          </div>
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <p className="text-sm text-gray-600">Total Payroll Records</p>
-            <p className="text-2xl font-bold text-green-800">{payrolls.length}</p>
-          </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Tabs */}
+        <div className="flex gap-4 mb-6 border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab('employees')}
+            className={`pb-3 px-1 font-medium text-sm transition-colors border-b-2 ${
+              activeTab === 'employees'
+                ? 'border-green-600 text-green-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            👥 Employees
+          </button>
+          <button
+            onClick={() => setActiveTab('payrolls')}
+            className={`pb-3 px-1 font-medium text-sm transition-colors border-b-2 ${
+              activeTab === 'payrolls'
+                ? 'border-green-600 text-green-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            💰 Payrolls
+          </button>
         </div>
 
-        {showEmployeeForm && (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Add Employee</h2>
-            <form onSubmit={handleEmployeeSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <input
-                  type="text"
-                  placeholder="Name"
-                  value={employeeForm.name}
-                  onChange={(event) => setEmployeeForm({ ...employeeForm, name: event.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                  required
-                />
-                <input
-                  type="text"
-                  placeholder="Employee Code"
-                  value={employeeForm.employeeCode}
-                  onChange={(event) => setEmployeeForm({ ...employeeForm, employeeCode: event.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                  required
-                />
-                <input
-                  type="text"
-                  placeholder="Position"
-                  value={employeeForm.position}
-                  onChange={(event) => setEmployeeForm({ ...employeeForm, position: event.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <input
-                  type="number"
-                  placeholder="Plantation ID (optional)"
-                  value={employeeForm.plantationId}
-                  onChange={(event) => setEmployeeForm({ ...employeeForm, plantationId: event.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                />
-                <input
-                  type="number"
-                  step="1"
-                  placeholder="Base Salary"
-                  value={employeeForm.baseSalary}
-                  onChange={(event) => setEmployeeForm({ ...employeeForm, baseSalary: event.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                  required
-                />
-                <select
-                  value={employeeForm.status}
-                  onChange={(event) => setEmployeeForm({ ...employeeForm, status: event.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="INACTIVE">INACTIVE</option>
-                  <option value="TERMINATED">TERMINATED</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <input
-                  type="text"
-                  placeholder="Phone Number"
-                  value={employeeForm.phoneNumber}
-                  onChange={(event) => setEmployeeForm({ ...employeeForm, phoneNumber: event.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                />
-                <input
-                  type="text"
-                  placeholder="Address"
-                  value={employeeForm.address}
-                  onChange={(event) => setEmployeeForm({ ...employeeForm, address: event.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                />
-                <input
-                  type="datetime-local"
-                  value={employeeForm.hireDate}
-                  onChange={(event) => setEmployeeForm({ ...employeeForm, hireDate: event.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
+        {/* ── EMPLOYEES TAB ── */}
+        {activeTab === 'employees' && (
+          <div>
+            <div className="flex justify-end mb-4">
               <button
-                type="submit"
-                className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors font-semibold"
+                onClick={() => setShowEmpForm(!showEmpForm)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
-                Save Employee
+                {showEmpForm ? 'Cancel' : '+ Add Employee'}
               </button>
-            </form>
-          </div>
-        )}
+            </div>
 
-        {showPayrollForm && (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Add Payroll</h2>
-            <form onSubmit={handlePayrollSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <select
-                  value={payrollForm.employeeId}
-                  onChange={(event) => setPayrollForm({ ...payrollForm, employeeId: event.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                  required
-                >
-                  <option value="">Select Employee</option>
-                  {employees.map((employee) => (
-                    <option key={employee.id} value={employee.id}>
-                      {employee.employeeCode} - {employee.name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="datetime-local"
-                  value={payrollForm.periodStart}
-                  onChange={(event) => setPayrollForm({ ...payrollForm, periodStart: event.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                  required
-                />
-                <input
-                  type="datetime-local"
-                  value={payrollForm.periodEnd}
-                  onChange={(event) => setPayrollForm({ ...payrollForm, periodEnd: event.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                  required
-                />
+            {empError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">{empError}</div>
+            )}
+
+            {showEmpForm && (
+              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 className="text-xl font-semibold text-gray-800 mb-4">Add New Employee</h2>
+                <form onSubmit={handleCreateEmployee} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                      <input type="text" value={empForm.name} onChange={(e) => setEmpForm({ ...empForm, name: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Employee Code</label>
+                      <input type="text" value={empForm.employeeCode} onChange={(e) => setEmpForm({ ...empForm, employeeCode: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Position</label>
+                      <input type="text" value={empForm.position} onChange={(e) => setEmpForm({ ...empForm, position: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Base Salary (IDR)</label>
+                      <input type="number" value={empForm.baseSalary} onChange={(e) => setEmpForm({ ...empForm, baseSalary: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Plantation ID (optional)</label>
+                      <input type="number" value={empForm.plantationId} onChange={(e) => setEmpForm({ ...empForm, plantationId: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number (optional)</label>
+                      <input type="text" value={empForm.phoneNumber} onChange={(e) => setEmpForm({ ...empForm, phoneNumber: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Address (optional)</label>
+                      <input type="text" value={empForm.address} onChange={(e) => setEmpForm({ ...empForm, address: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                      <select value={empForm.status} onChange={(e) => setEmpForm({ ...empForm, status: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="INACTIVE">INACTIVE</option>
+                        <option value="TERMINATED">TERMINATED</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button type="submit" className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors font-semibold">
+                    Create Employee
+                  </button>
+                </form>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <input
-                  type="number"
-                  placeholder="Base Amount"
-                  value={payrollForm.baseAmount}
-                  onChange={(event) => setPayrollForm({ ...payrollForm, baseAmount: event.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                  required
-                />
-                <input
-                  type="number"
-                  placeholder="Bonus Amount"
-                  value={payrollForm.bonusAmount}
-                  onChange={(event) => setPayrollForm({ ...payrollForm, bonusAmount: event.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                />
-                <input
-                  type="number"
-                  placeholder="Deduction Amount"
-                  value={payrollForm.deductionAmount}
-                  onChange={(event) => setPayrollForm({ ...payrollForm, deductionAmount: event.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                />
+            )}
+
+            {empLoading ? (
+              <div className="text-center py-12 text-gray-600">Loading employees...</div>
+            ) : employees.length === 0 ? (
+              <div className="bg-white rounded-lg shadow-md p-12 text-center">
+                <div className="text-5xl mb-4">👥</div>
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">No Employees Yet</h3>
+                <p className="text-gray-600">Click &quot;Add Employee&quot; to register the first one</p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <select
-                  value={payrollForm.status}
-                  onChange={(event) => setPayrollForm({ ...payrollForm, status: event.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="PENDING">PENDING</option>
-                  <option value="APPROVED">APPROVED</option>
-                  <option value="PAID">PAID</option>
-                  <option value="CANCELLED">CANCELLED</option>
-                </select>
-                <input
-                  type="text"
-                  value={payrollForm.paymentMethod}
-                  onChange={(event) => setPayrollForm({ ...payrollForm, paymentMethod: event.target.value })}
-                  placeholder="Payment Method"
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                />
-                <input
-                  type="text"
-                  value={payrollForm.notes}
-                  onChange={(event) => setPayrollForm({ ...payrollForm, notes: event.target.value })}
-                  placeholder="Notes"
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {employees.map((emp) => (
+                  <div key={emp.id} className="bg-white rounded-lg shadow-md p-6">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="text-lg font-semibold text-green-800">{emp.name}</h3>
+                        <p className="text-xs text-gray-500">{emp.employeeCode}</p>
+                      </div>
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${EMPLOYEE_STATUS_COLORS[emp.status] || 'bg-gray-100 text-gray-800'}`}>
+                        {emp.status}
+                      </span>
+                    </div>
+                    <div className="space-y-2 text-sm text-gray-600 mb-4">
+                      <p><span className="font-medium">💼 Position:</span> {emp.position}</p>
+                      <p><span className="font-medium">💵 Base Salary:</span> {formatCurrency(emp.baseSalary)}</p>
+                      {emp.plantationId && (
+                        <p><span className="font-medium">🌴 Plantation ID:</span> {emp.plantationId}</p>
+                      )}
+                      {emp.phoneNumber && (
+                        <p><span className="font-medium">📞 Phone:</span> {emp.phoneNumber}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleDeleteEmployee(emp.id)}
+                      className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
               </div>
-              <button
-                type="submit"
-                disabled={employees.length === 0}
-                className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                Save Payroll
-              </button>
-            </form>
-            {employees.length === 0 && (
-              <p className="mt-3 text-sm text-amber-700">Create at least one employee first.</p>
             )}
           </div>
         )}
 
-        {loading ? (
-          <div className="text-center py-12 text-gray-600">Loading payroll records...</div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-green-800 mb-4">Employees</h3>
-              {employees.length === 0 ? (
-                <p className="text-gray-600 text-sm">No employee data.</p>
-              ) : (
-                <div className="space-y-3">
-                  {employees.map((employee) => (
-                    <div key={employee.id} className="p-3 rounded-lg bg-gray-50 border border-gray-200">
-                      <p className="font-semibold text-gray-800">
-                        {employee.employeeCode} - {employee.name}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {employee.position} | {employee.status}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Base Salary: {formatCurrency(employee.baseSalary)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
+        {/* ── PAYROLLS TAB ── */}
+        {activeTab === 'payrolls' && (
+          <div>
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={() => setShowPayForm(!showPayForm)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                {showPayForm ? 'Cancel' : '+ Add Payroll'}
+              </button>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-green-800 mb-4">Payrolls</h3>
-              {payrolls.length === 0 ? (
-                <p className="text-gray-600 text-sm">No payroll data.</p>
-              ) : (
-                <div className="space-y-3">
-                  {payrolls.map((payroll) => (
-                    <div key={payroll.id} className="p-3 rounded-lg bg-gray-50 border border-gray-200">
-                      <p className="font-semibold text-gray-800">
-                        Payroll #{payroll.id} - {employeeMap.get(payroll.employeeId)?.name || `Employee #${payroll.employeeId}`}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Status: {payroll.status} | Total: {formatCurrency(payroll.totalAmount)}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Periode: {formatDateTime(payroll.periodStart)} - {formatDateTime(payroll.periodEnd)}
-                      </p>
+            {payError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">{payError}</div>
+            )}
+
+            {showPayForm && (
+              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 className="text-xl font-semibold text-gray-800 mb-4">Create Payroll Record</h2>
+                <form onSubmit={handleCreatePayroll} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Employee ID</label>
+                      <input type="number" value={payForm.employeeId} onChange={(e) => setPayForm({ ...payForm, employeeId: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required />
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Base Amount (IDR)</label>
+                      <input type="number" value={payForm.baseAmount} onChange={(e) => setPayForm({ ...payForm, baseAmount: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Period Start</label>
+                      <input type="date" value={payForm.periodStart} onChange={(e) => setPayForm({ ...payForm, periodStart: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Period End</label>
+                      <input type="date" value={payForm.periodEnd} onChange={(e) => setPayForm({ ...payForm, periodEnd: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Bonus Amount (IDR)</label>
+                      <input type="number" value={payForm.bonusAmount} onChange={(e) => setPayForm({ ...payForm, bonusAmount: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Deduction Amount (IDR)</label>
+                      <input type="number" value={payForm.deductionAmount} onChange={(e) => setPayForm({ ...payForm, deductionAmount: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+                      <select value={payForm.paymentMethod} onChange={(e) => setPayForm({ ...payForm, paymentMethod: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        <option value="BANK_TRANSFER">BANK_TRANSFER</option>
+                        <option value="CASH">CASH</option>
+                        <option value="CHEQUE">CHEQUE</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Notes (optional)</label>
+                      <input type="text" value={payForm.notes} onChange={(e) => setPayForm({ ...payForm, notes: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+                    </div>
+                  </div>
+                  <button type="submit" className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors font-semibold">
+                    Create Payroll
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {payLoading ? (
+              <div className="text-center py-12 text-gray-600">Loading payrolls...</div>
+            ) : payrolls.length === 0 ? (
+              <div className="bg-white rounded-lg shadow-md p-12 text-center">
+                <div className="text-5xl mb-4">💰</div>
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">No Payroll Records Yet</h3>
+                <p className="text-gray-600">Click &quot;Add Payroll&quot; to create the first record</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {payrolls.map((payroll) => (
+                  <div key={payroll.id} className="bg-white rounded-lg shadow-md p-6">
+                    <div className="flex justify-between items-start mb-3">
+                      <h3 className="text-lg font-semibold text-green-800">Payroll #{payroll.id}</h3>
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${PAYROLL_STATUS_COLORS[payroll.status] || 'bg-gray-100 text-gray-800'}`}>
+                        {payroll.status}
+                      </span>
+                    </div>
+                    <div className="space-y-2 text-sm text-gray-600 mb-4">
+                      <p><span className="font-medium">👤 Employee ID:</span> {payroll.employeeId}</p>
+                      <p><span className="font-medium">📅 Period:</span> {new Date(payroll.periodStart).toLocaleDateString()} – {new Date(payroll.periodEnd).toLocaleDateString()}</p>
+                      <p><span className="font-medium">💵 Base:</span> {formatCurrency(payroll.baseAmount)}</p>
+                      <p><span className="font-medium">🎁 Bonus:</span> {formatCurrency(payroll.bonusAmount)}</p>
+                      <p><span className="font-medium">➖ Deduction:</span> {formatCurrency(payroll.deductionAmount)}</p>
+                      <p className="font-semibold text-green-700"><span>💰 Total:</span> {formatCurrency(payroll.totalAmount)}</p>
+                      {payroll.paymentMethod && (
+                        <p><span className="font-medium">🏦 Method:</span> {payroll.paymentMethod}</p>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {payroll.status === 'PENDING' && (
+                        <button
+                          onClick={() => handleApprovePayroll(payroll.id)}
+                          className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                        >
+                          Approve
+                        </button>
+                      )}
+                      {payroll.status === 'APPROVED' && (
+                        <button
+                          onClick={() => handlePayPayroll(payroll.id)}
+                          className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                        >
+                          Mark as Paid
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDeletePayroll(payroll.id)}
+                        className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </main>
