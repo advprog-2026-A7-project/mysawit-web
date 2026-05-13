@@ -375,7 +375,9 @@ describe('api-client (browser)', () => {
       id: '10',
       username: 'user',
       email: 'user@mail.com',
-      role: 'USER',
+      role: 'BURUH',
+      googleLinked: false,
+      hasPassword: false,
     });
 
     expect(localStorage.getItem('refreshToken')).toBe('refresh-1');
@@ -390,19 +392,21 @@ describe('api-client (browser)', () => {
       id: '10',
       username: 'user',
       email: 'user@mail.com',
-      role: 'USER',
+      role: 'BURUH',
+      googleLinked: false,
+      hasPassword: false,
     });
 
     expect(localStorage.getItem('authToken')).toBe('jwt');
     expect(localStorage.getItem('userId')).toBe('10');
     expect(localStorage.getItem('username')).toBe('user');
-    expect(localStorage.getItem('userRole')).toBe('USER');
+    expect(localStorage.getItem('userRole')).toBe('BURUH');
     expect(apiClient.isAuthenticated()).toBe(true);
     expect(apiClient.getUserInfo()).toEqual({
       id: '10',
       username: 'user',
       email: 'user@mail.com',
-      role: 'USER',
+      role: 'BURUH',
       googleLinked: false,
       hasPassword: false,
     });

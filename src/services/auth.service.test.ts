@@ -25,7 +25,7 @@ describe('auth.service', () => {
       id: 1,
       username: 'user',
       email: 'user@mail.com',
-      role: 'USER',
+      role: 'BURUH',
     };
 
     (apiClient.post as jest.Mock).mockResolvedValue(response);
@@ -47,7 +47,7 @@ describe('auth.service', () => {
       id: 1,
       username: 'user',
       email: 'user@mail.com',
-      role: 'USER',
+      role: 'BURUH',
     };
 
     (apiClient.post as jest.Mock).mockResolvedValue(response);
@@ -81,7 +81,7 @@ describe('auth.service', () => {
   });
 
   it('getUserInfo proxies apiClient', () => {
-    const userInfo = { id: '1', username: 'user', role: 'USER' };
+    const userInfo = { id: '1', username: 'user', role: 'BURUH' };
     (apiClient.getUserInfo as jest.Mock).mockReturnValue(userInfo);
 
     expect(authService.getUserInfo()).toEqual(userInfo);

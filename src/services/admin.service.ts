@@ -4,7 +4,7 @@ import { UserDetailResponse, UserSearchParams, MessageResponse } from '@/types';
 
 export const adminService = {
   async getUsers(params?: UserSearchParams): Promise<UserDetailResponse[]> {
-    let url = API_ENDPOINTS.ADMIN.USERS;
+    let url = API_ENDPOINTS.IDENTITY.USERS;
 
     if (params) {
       const searchParams = new URLSearchParams();
@@ -19,24 +19,24 @@ export const adminService = {
   },
 
   async getUserById(userId: string): Promise<UserDetailResponse> {
-    return apiClient.get<UserDetailResponse>(API_ENDPOINTS.ADMIN.USER_BY_ID(userId));
+    return apiClient.get<UserDetailResponse>(API_ENDPOINTS.IDENTITY.USER_BY_ID(userId));
   },
 
   async assignMandor(buruhId: string, mandorId: string): Promise<MessageResponse> {
     return apiClient.put<MessageResponse>(
-      API_ENDPOINTS.ADMIN.ASSIGN_MANDOR(buruhId),
+      API_ENDPOINTS.IDENTITY.ASSIGN_MANDOR(buruhId),
       { mandorId }
     );
   },
 
   async unassignMandor(buruhId: string): Promise<MessageResponse> {
     return apiClient.put<MessageResponse>(
-      API_ENDPOINTS.ADMIN.UNASSIGN_MANDOR(buruhId),
+      API_ENDPOINTS.IDENTITY.UNASSIGN_MANDOR(buruhId),
       {}
     );
   },
 
   async deleteUser(userId: string): Promise<MessageResponse> {
-    return apiClient.delete<MessageResponse>(API_ENDPOINTS.ADMIN.DELETE_USER(userId));
+    return apiClient.delete<MessageResponse>(API_ENDPOINTS.IDENTITY.USER_BY_ID(userId));
   },
 };

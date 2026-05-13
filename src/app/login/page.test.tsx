@@ -20,7 +20,12 @@ jest.mock('next/link', () => ({
 jest.mock('@/services/auth.service', () => ({
   authService: {
     login: jest.fn(),
+    googleLogin: jest.fn(),
   },
+}));
+
+jest.mock('@react-oauth/google', () => ({
+  GoogleLogin: () => <div data-testid="google-login" />,
 }));
 
 describe('LoginPage', () => {

@@ -34,15 +34,6 @@ export const API_ENDPOINTS = {
       gatewayUrl('identity', `/api/internal/users/${id}`),
   },
 
-  // Admin endpoints (Identity Service)
-  ADMIN: {
-    USERS: `${API_CONFIG.IDENTITY_SERVICE}/api/admin/users`,
-    USER_BY_ID: (userId: string) => `${API_CONFIG.IDENTITY_SERVICE}/api/admin/users/${userId}`,
-    ASSIGN_MANDOR: (buruhId: string) => `${API_CONFIG.IDENTITY_SERVICE}/api/admin/users/${buruhId}/assign-mandor`,
-    UNASSIGN_MANDOR: (buruhId: string) => `${API_CONFIG.IDENTITY_SERVICE}/api/admin/users/${buruhId}/unassign-mandor`,
-    DELETE_USER: (userId: string) => `${API_CONFIG.IDENTITY_SERVICE}/api/admin/users/${userId}`,
-  },
-  
   // Plantation endpoints
   PLANTATIONS: {
     BASE: gatewayUrl('plantation', '/api/plantations'),

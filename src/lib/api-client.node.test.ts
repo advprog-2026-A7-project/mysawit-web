@@ -12,7 +12,9 @@ describe('api-client (node)', () => {
       id: '1',
       username: 'user',
       email: 'user@mail.com',
-      role: 'USER',
+      role: 'BURUH',
+      googleLinked: false,
+      hasPassword: false,
     });
 
     apiClient.clearAuth();
