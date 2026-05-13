@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { adminService } from '@/services/admin.service';
@@ -30,11 +30,7 @@ export default function UserDetailPage() {
   const [selectedMandorId, setSelectedMandorId] = useState('');
   const [assigning, setAssigning] = useState(false);
 
-  useEffect(() => {
-    loadUser();
-  }, [userId]);
-
-  const loadUser = async () => {
+  const loadUser = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -50,7 +46,11 @@ export default function UserDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    loadUser();
+  }, [loadUser]);
 
   const handleAssignMandor = async () => {
     if (!selectedMandorId) return;

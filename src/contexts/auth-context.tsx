@@ -25,39 +25,35 @@ const AuthContext = createContext<AuthContextValue>({
   logout: () => {},
 });
 
+function readUser(): UserInfo | null {
+  if (typeof window === 'undefined') return null;
+  if (!authService.isAuthenticated()) return null;
+  const info = authService.getUserInfo();
+  if (!info) return null;
+  return {
+    id: info.id || '',
+    username: info.username || '',
+    email: info.email || '',
+    role: info.role || '',
+    googleLinked: info.googleLinked,
+    hasPassword: info.hasPassword,
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const [user, setUser] = useState<UserInfo | null>(null);
-  const [checked, setChecked] = useState(false);
+  const [user] = useState<UserInfo | null>(readUser);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
       router.push('/login');
-      return;
     }
-
-    const info = authService.getUserInfo();
-    if (info) {
-      setUser({
-        id: info.id || '',
-        username: info.username || '',
-        email: info.email || '',
-        role: info.role || '',
-        googleLinked: info.googleLinked,
-        hasPassword: info.hasPassword,
-      });
-    }
-    setChecked(true);
   }, [router]);
 
   const logout = () => {
     authService.logout();
     router.push('/');
   };
-
-  if (!checked) {
-    return null;
-  }
 
   return (
     <AuthContext.Provider value={{ user, isAdmin: user?.role === 'ADMIN', logout }}>
