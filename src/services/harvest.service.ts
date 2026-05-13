@@ -19,8 +19,8 @@ const appendFilters = (url: string, filters?: HarvestFilters): string => {
   return query ? `${url}?${query}` : url;
 };
 
-const toLocalDateTime = (value: string) =>
-  /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
+const toLocalDateTime = (value?: string) =>
+  value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
 
 const normalizeHarvestRequest = (data: HarvestRequest): HarvestRequest => ({
   ...data,

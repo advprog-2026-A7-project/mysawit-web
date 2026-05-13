@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { shipmentService } from '@/services/shipment.service';
+import { authService } from '@/services/auth.service';
 import { Shipment, ShipmentStatus } from '@/types';
 
 const shipmentStatuses: ShipmentStatus[] = [
@@ -20,14 +20,6 @@ const formatDateTime = (value?: string): string => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString('id-ID');
-import { authService } from '@/services/auth.service';
-import { Shipment } from '@/types';
-
-const STATUS_COLORS: Record<string, string> = {
-  PENDING: 'bg-yellow-100 text-yellow-800',
-  IN_TRANSIT: 'bg-blue-100 text-blue-800',
-  DELIVERED: 'bg-green-100 text-green-800',
-  CANCELLED: 'bg-red-100 text-red-800',
 };
 
 const parseItems = (value: string) =>
@@ -96,14 +88,9 @@ export default function ShipmentsPage() {
     void loadShipments();
   }, [loadShipments, router]);
 
-  const handleFilter = async (event: React.FormEvent) => {
+  const handleFilter = async (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     event.preventDefault();
     await loadShipments(statusFilter);
-  };
-
-  const handleFilterChange = (status: string) => {
-    setFilterStatus(status);
-    loadShipments(status || undefined);
   };
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
@@ -132,7 +119,7 @@ export default function ShipmentsPage() {
     }
   };
 
-  const handleStatusSubmit = async (event: React.FormEvent) => {
+  const handleStatusSubmit = async (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     event.preventDefault();
     try {
       await shipmentService.updateStatus(statusForm.shipmentId, {
@@ -148,7 +135,7 @@ export default function ShipmentsPage() {
     }
   };
 
-  const handleAdminSubmit = async (event: React.FormEvent) => {
+  const handleAdminSubmit = async (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     event.preventDefault();
     try {
       await shipmentService.approveByAdmin(adminForm.shipmentId, adminForm.status);

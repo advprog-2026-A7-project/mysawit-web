@@ -1,23 +1,4 @@
 import { API_CONFIG, API_ENDPOINTS } from './api-config';
-describe('api-config', () => {
-  const originalEnv = { ...process.env };
-
-  afterEach(() => {
-    process.env = { ...originalEnv };
-    jest.resetModules();
-  });
-
-  it('uses fallback URLs when env vars are missing', () => {
-    delete process.env.NEXT_PUBLIC_IDENTITY_SERVICE_URL;
-    delete process.env.NEXT_PUBLIC_PLANTATION_SERVICE_URL;
-    delete process.env.NEXT_PUBLIC_HARVEST_SERVICE_URL;
-    delete process.env.NEXT_PUBLIC_SHIPMENT_SERVICE_URL;
-    delete process.env.NEXT_PUBLIC_PAYROLL_SERVICE_URL;
-
-    // require() is intentional: api-config reads process.env at module-eval
-    // time, and jest.resetModules() needs a fresh require() to re-evaluate it.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { API_CONFIG, API_ENDPOINTS } = require('./api-config');
 
 describe('api-config', () => {
   it('uses the frontend API gateway for browser endpoints', () => {
@@ -34,30 +15,13 @@ describe('api-config', () => {
     expect(API_ENDPOINTS.SHIPMENTS.BY_STATUS('MEMUAT')).toBe('/api/gateway/shipment/api/shipments?status=MEMUAT');
   });
 
-  it('keeps endpoint URLs stable when microservice env vars change', () => {
+  it('keeps endpoint URLs stable for gateway-backed services', () => {
     expect(API_ENDPOINTS.AUTH.REGISTER).toBe('/api/gateway/identity/api/auth/register');
     expect(API_ENDPOINTS.PLANTATIONS.BASE).toBe('/api/gateway/plantation/api/plantations');
     expect(API_ENDPOINTS.HARVESTS.BASE).toBe('/api/gateway/harvest/harvests');
     expect(API_ENDPOINTS.SHIPMENTS.BASE).toBe('/api/gateway/shipment/api/shipments');
-  it('uses environment-provided URLs', () => {
-    process.env.NEXT_PUBLIC_IDENTITY_SERVICE_URL = 'https://identity.example.com';
-    process.env.NEXT_PUBLIC_PLANTATION_SERVICE_URL = 'https://plantation.example.com';
-    process.env.NEXT_PUBLIC_HARVEST_SERVICE_URL = 'https://harvest.example.com';
-    process.env.NEXT_PUBLIC_SHIPMENT_SERVICE_URL = 'https://shipment.example.com';
-    process.env.NEXT_PUBLIC_PAYROLL_SERVICE_URL = 'https://payroll.example.com';
-
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { API_CONFIG, API_ENDPOINTS } = require('./api-config');
-
-    expect(API_CONFIG.IDENTITY_SERVICE).toBe('https://identity.example.com');
-    expect(API_CONFIG.PLANTATION_SERVICE).toBe('https://plantation.example.com');
-    expect(API_CONFIG.HARVEST_SERVICE).toBe('https://harvest.example.com');
-    expect(API_CONFIG.SHIPMENT_SERVICE).toBe('https://shipment.example.com');
-    expect(API_CONFIG.PAYROLL_SERVICE).toBe('https://payroll.example.com');
-
-    expect(API_ENDPOINTS.AUTH.REGISTER).toBe('https://identity.example.com/api/auth/register');
-    expect(API_ENDPOINTS.PLANTATIONS.BASE).toBe('https://plantation.example.com/api/plantations');
-    expect(API_ENDPOINTS.HARVESTS.BASE).toBe('https://harvest.example.com/api/harvests');
-    expect(API_ENDPOINTS.SHIPMENTS.BASE).toBe('https://shipment.example.com/api/shipments');
+    expect(API_ENDPOINTS.EMPLOYEES.BASE).toBe('/api/gateway/payroll/api/employees');
+    expect(API_ENDPOINTS.PAYROLLS.BASE).toBe('/api/gateway/payroll/api/payrolls');
+    expect(API_ENDPOINTS.WAGE_CONFIGS.BASE).toBe('/api/gateway/payroll/api/wage-configs');
   });
 });

@@ -60,14 +60,6 @@ export default function PayrollPage() {
     notes: '',
   });
 
-  const employeeMap = useMemo(() => {
-    const map = new Map<Employee['id'], Employee>();
-    for (const employee of employees) {
-      map.set(employee.id, employee);
-    }
-    return map;
-  }, [employees]);
-
   useEffect(() => {
     if (!authService.isAuthenticated()) {
       router.push('/login');
@@ -124,10 +116,10 @@ export default function PayrollPage() {
     }
   };
 
-  const handleDeleteEmployee = async (id: number) => {
+  const handleDeleteEmployee = async (id: Employee['id']) => {
     if (!confirm('Are you sure you want to delete this employee?')) return;
     try {
-      await employeeService.delete(id);
+      await employeeService.delete(id as number);
       loadEmployees();
     } catch (err) {
       setEmpError(err instanceof Error ? err.message : 'Failed to delete employee');
@@ -156,45 +148,36 @@ export default function PayrollPage() {
     }
   };
 
-  const handleDeleteEmployee = async (id: Employee['id']) => {
-    if (!confirm('Delete this employee?')) return;
-
+  const handleApprovePayroll = async (id: number) => {
     try {
-      await payrollService.deleteEmployee(id);
-      await loadData();
+      await payrollService.approve(id);
+      loadPayrolls();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete employee');
+      setPayError(err instanceof Error ? err.message : 'Failed to approve payroll');
     }
   };
 
-  const handleApprovePayroll = async (id: Payroll['id']) => {
+  const handlePayPayroll = async (id: number) => {
     try {
-      await payrollService.approvePayroll(id);
-      await loadData();
+      await payrollService.pay(id);
+      loadPayrolls();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to approve payroll');
+      setPayError(err instanceof Error ? err.message : 'Failed to mark payroll as paid');
     }
   };
 
-  const handlePayPayroll = async (payroll: Payroll) => {
+  const handleDeletePayroll = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this payroll record?')) return;
     try {
-      await payrollService.payPayroll(payroll.id, payroll.paymentMethod || 'BANK_TRANSFER');
-      await loadData();
+      await payrollService.delete(id);
+      loadPayrolls();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to mark payroll as paid');
+      setPayError(err instanceof Error ? err.message : 'Failed to delete payroll');
     }
   };
 
-  const handleDeletePayroll = async (id: Payroll['id']) => {
-    if (!confirm('Delete this payroll record?')) return;
-
-    try {
-      await payrollService.deletePayroll(id);
-      await loadData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete payroll');
-    }
-  };
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 
   if (!authService.isAuthenticated()) {
     return null;
@@ -369,38 +352,15 @@ export default function PayrollPage() {
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">{payError}</div>
             )}
 
-        {loading ? (
-          <div className="text-center py-12 text-gray-600">Loading payroll records...</div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-green-800 mb-4">Employees</h3>
-              {employees.length === 0 ? (
-                <p className="text-gray-600 text-sm">No employee data.</p>
-              ) : (
-                <div className="space-y-3">
-                  {employees.map((employee) => (
-                    <div key={employee.id} className="p-3 rounded-lg bg-gray-50 border border-gray-200">
-                      <div className="flex flex-wrap gap-3 justify-between items-start">
-                        <div>
-                          <p className="font-semibold text-gray-800">
-                            {employee.employeeCode} - {employee.name}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {employee.position} | {employee.status}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Base Salary: {formatCurrency(employee.baseSalary)}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteEmployee(employee.id)}
-                          className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
-                        >
-                          Delete
-                        </button>
-                      </div>
+            {showPayForm && (
+              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 className="text-xl font-semibold text-gray-800 mb-4">Add New Payroll</h2>
+                <form onSubmit={handleCreatePayroll} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Employee ID</label>
+                      <input type="number" value={payForm.employeeId} onChange={(e) => setPayForm({ ...payForm, employeeId: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Base Amount (IDR)</label>
@@ -449,58 +409,27 @@ export default function PayrollPage() {
               </div>
             )}
 
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-green-800 mb-4">Payrolls</h3>
-              {payrolls.length === 0 ? (
-                <p className="text-gray-600 text-sm">No payroll data.</p>
-              ) : (
-                <div className="space-y-3">
-                  {payrolls.map((payroll) => (
-                    <div key={payroll.id} className="p-3 rounded-lg bg-gray-50 border border-gray-200">
-                      <div className="flex flex-wrap gap-3 justify-between items-start">
-                        <div>
-                          <p className="font-semibold text-gray-800">
-                            Payroll #{payroll.id} - {employeeMap.get(payroll.employeeId)?.name || `Employee #${payroll.employeeId}`}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Status: {payroll.status} | Total: {formatCurrency(payroll.totalAmount)}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Periode: {formatDateTime(payroll.periodStart)} - {formatDateTime(payroll.periodEnd)}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2 justify-end">
-                          {payroll.status === 'PENDING' && (
-                            <button
-                              type="button"
-                              onClick={() => handleApprovePayroll(payroll.id)}
-                              className="px-3 py-1 border border-green-600 text-green-700 rounded-lg hover:bg-green-50 text-sm"
-                            >
-                              Approve
-                            </button>
-                          )}
-                          {payroll.status === 'APPROVED' && (
-                            <button
-                              type="button"
-                              onClick={() => handlePayPayroll(payroll)}
-                              className="px-3 py-1 border border-green-600 text-green-700 rounded-lg hover:bg-green-50 text-sm"
-                            >
-                              Pay
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePayroll(payroll.id)}
-                            className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
+            {payLoading ? (
+              <div className="text-center py-12 text-gray-600">Loading payrolls...</div>
+            ) : payrolls.length === 0 ? (
+              <div className="bg-white rounded-lg shadow-md p-12 text-center">
+                <div className="text-5xl mb-4">💰</div>
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">No Payroll Records Yet</h3>
+                <p className="text-gray-600">Click &quot;Add Payroll&quot; to create the first payroll record</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {payrolls.map((payroll) => (
+                  <div key={payroll.id} className="bg-white rounded-lg shadow-md p-6">
+                    <div className="flex justify-between items-start mb-3">
+                      <h3 className="text-lg font-semibold text-green-800">Payroll #{payroll.id}</h3>
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${PAYROLL_STATUS_COLORS[payroll.status] || 'bg-gray-100 text-gray-800'}`}>
+                        {payroll.status}
+                      </span>
                     </div>
                     <div className="space-y-2 text-sm text-gray-600 mb-4">
                       <p><span className="font-medium">👤 Employee ID:</span> {payroll.employeeId}</p>
-                      <p><span className="font-medium">📅 Period:</span> {new Date(payroll.periodStart).toLocaleDateString()} – {new Date(payroll.periodEnd).toLocaleDateString()}</p>
+                      <p><span className="font-medium">📅 Period:</span> {new Date(payroll.periodStart).toLocaleDateString()} - {new Date(payroll.periodEnd).toLocaleDateString()}</p>
                       <p><span className="font-medium">💵 Base:</span> {formatCurrency(payroll.baseAmount)}</p>
                       <p><span className="font-medium">🎁 Bonus:</span> {formatCurrency(payroll.bonusAmount)}</p>
                       <p><span className="font-medium">➖ Deduction:</span> {formatCurrency(payroll.deductionAmount)}</p>
@@ -512,7 +441,7 @@ export default function PayrollPage() {
                     <div className="flex flex-col gap-2">
                       {payroll.status === 'PENDING' && (
                         <button
-                          onClick={() => handleApprovePayroll(payroll.id)}
+                          onClick={() => handleApprovePayroll(payroll.id as number)}
                           className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                         >
                           Approve
@@ -520,14 +449,14 @@ export default function PayrollPage() {
                       )}
                       {payroll.status === 'APPROVED' && (
                         <button
-                          onClick={() => handlePayPayroll(payroll.id)}
+                          onClick={() => handlePayPayroll(payroll.id as number)}
                           className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
                         >
                           Mark as Paid
                         </button>
                       )}
                       <button
-                        onClick={() => handleDeletePayroll(payroll.id)}
+                        onClick={() => handleDeletePayroll(payroll.id as number)}
                         className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
                       >
                         Delete

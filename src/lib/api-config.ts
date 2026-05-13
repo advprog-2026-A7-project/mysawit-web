@@ -94,4 +94,34 @@ export const API_ENDPOINTS = {
       gatewayUrl('payroll', `/api/payrolls/${id}/pay`),
     HEALTH: gatewayUrl('payroll', '/actuator/health'),
   },
+
+  EMPLOYEES: {
+    BASE: gatewayUrl('payroll', '/api/employees'),
+    BY_ID: (id: number | string) => gatewayUrl('payroll', `/api/employees/${id}`),
+    BY_CODE: (employeeCode: string) =>
+      gatewayUrl('payroll', `/api/employees/code/${employeeCode}`),
+    BY_PLANTATION: (plantationId: number | string) =>
+      gatewayUrl('payroll', `/api/employees/plantation/${plantationId}`),
+    BY_STATUS: (status: string) => gatewayUrl('payroll', `/api/employees/status/${status}`),
+  },
+
+  PAYROLLS: {
+    BASE: gatewayUrl('payroll', '/api/payrolls'),
+    BY_ID: (id: number | string) => gatewayUrl('payroll', `/api/payrolls/${id}`),
+    BY_EMPLOYEE: (employeeId: number | string) =>
+      gatewayUrl('payroll', `/api/payrolls/employee/${employeeId}`),
+    BY_STATUS: (status: string) => gatewayUrl('payroll', `/api/payrolls/status/${status}`),
+    APPROVE: (id: number | string) => gatewayUrl('payroll', `/api/payrolls/${id}/approve`),
+    ACCEPT: (id: number | string) => gatewayUrl('payroll', `/api/payrolls/${id}/accept`),
+    REJECT: (id: number | string) => gatewayUrl('payroll', `/api/payrolls/${id}/reject`),
+    PAY: (id: number | string) => gatewayUrl('payroll', `/api/payrolls/${id}/pay`),
+  },
+
+  WAGE_CONFIGS: {
+    BASE: gatewayUrl('payroll', '/api/wage-configs'),
+    BY_ID: (id: number | string) => gatewayUrl('payroll', `/api/wage-configs/${id}`),
+    BY_ROLE: (role: string) => gatewayUrl('payroll', `/api/wage-configs/role/${role}`),
+    BY_ROLE_ACTIVE: (role: string) =>
+      gatewayUrl('payroll', `/api/wage-configs/role/${role}/active`),
+  },
 };
