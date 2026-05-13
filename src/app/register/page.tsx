@@ -123,7 +123,7 @@ export default function RegisterPage() {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            Register with Email
+            Sign up with Email
           </button>
           <button
             type="button"
@@ -134,7 +134,7 @@ export default function RegisterPage() {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            Register with Google
+            Sign up with Google
           </button>
         </div>
 
