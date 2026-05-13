@@ -41,7 +41,7 @@ export default function PlantationsPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     e.preventDefault();
     try {
       const userInfo = authService.getUserInfo();

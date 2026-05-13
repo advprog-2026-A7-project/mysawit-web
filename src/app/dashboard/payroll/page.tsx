@@ -95,7 +95,7 @@ export default function PayrollPage() {
     }
   };
 
-  const handleCreateEmployee = async (e: React.FormEvent) => {
+  const handleCreateEmployee = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     e.preventDefault();
     try {
       await employeeService.create({
@@ -126,7 +126,7 @@ export default function PayrollPage() {
     }
   };
 
-  const handleCreatePayroll = async (e: React.FormEvent) => {
+  const handleCreatePayroll = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     e.preventDefault();
     try {
       await payrollService.create({

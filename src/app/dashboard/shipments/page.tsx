@@ -60,7 +60,7 @@ export default function ShipmentsPage() {
     loadShipments(status || undefined);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     e.preventDefault();
     try {
       await shipmentService.create({
