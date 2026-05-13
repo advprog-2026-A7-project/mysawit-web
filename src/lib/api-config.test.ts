@@ -13,6 +13,9 @@ describe('api-config', () => {
     delete process.env.NEXT_PUBLIC_SHIPMENT_SERVICE_URL;
     delete process.env.NEXT_PUBLIC_PAYROLL_SERVICE_URL;
 
+    // require() is intentional: api-config reads process.env at module-eval
+    // time, and jest.resetModules() needs a fresh require() to re-evaluate it.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { API_CONFIG, API_ENDPOINTS } = require('./api-config');
 
     expect(API_CONFIG.IDENTITY_SERVICE).toBe('http://localhost:8081');
@@ -38,6 +41,7 @@ describe('api-config', () => {
     process.env.NEXT_PUBLIC_SHIPMENT_SERVICE_URL = 'https://shipment.example.com';
     process.env.NEXT_PUBLIC_PAYROLL_SERVICE_URL = 'https://payroll.example.com';
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { API_CONFIG, API_ENDPOINTS } = require('./api-config');
 
     expect(API_CONFIG.IDENTITY_SERVICE).toBe('https://identity.example.com');
