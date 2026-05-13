@@ -2,7 +2,29 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="f0bd431f-481d-4ccb-bd65-859f74781dfe" name="Changes" comment="fix issue">
+      <change beforePath="$PROJECT_DIR$/.github/workflows/ci.yml" beforeDir="false" afterPath="$PROJECT_DIR$/.github/workflows/ci.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/harvests/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/harvests/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/identity/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/identity/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/payroll/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/payroll/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/plantations/page.test.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/plantations/page.test.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/plantations/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/plantations/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/shipments/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/layout.test.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/layout.test.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/login/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/login/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/register/page.test.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/register/page.test.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/register/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/register/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/api-client.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/api-client.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/api-config.test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/api-config.test.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/api-config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/api-config.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/harvest.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/harvest.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/identity.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/identity.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/payroll.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/payroll.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/plantation.service.test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/plantation.service.test.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/plantation.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/plantation.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/shipment.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/shipment.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/types/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/types/index.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -39,12 +61,16 @@
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "git-widget-placeholder": "ci-cd",
+    "git-widget-placeholder": "feat/Shandy",
     "js.debugger.nextJs.config.created.client": "true",
     "js.debugger.nextJs.config.created.server": "true",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "/Users/Shandy/Documents/Kuliah/Semester 4/ADPRO/TK/group-project/mysawit-web",
+    "node.js.detected.package.eslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
+    "npm.Next.js: server-side.executor": "Run",
+    "ts.external.directory.path": "/Users/Shandy/Library/Application Support/JetBrains/IntelliJIdea2025.3/plugins/javascript-plugin/jsLanguageServicesImpl/external",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
@@ -81,7 +107,12 @@
       <workItem from="1771342520496" duration="1818000" />
       <workItem from="1771345758811" duration="14000" />
       <workItem from="1771345783690" duration="8108000" />
-      <workItem from="1771438301655" duration="562000" />
+      <workItem from="1771438301655" duration="9277000" />
+      <workItem from="1772462499663" duration="1813000" />
+      <workItem from="1772712789256" duration="1218000" />
+      <workItem from="1773028873936" duration="597000" />
+      <workItem from="1773044630396" duration="598000" />
+      <workItem from="1777636311736" duration="3601000" />
     </task>
     <task id="LOCAL-00001" summary="fix issue">
       <option name="closed" value="true" />

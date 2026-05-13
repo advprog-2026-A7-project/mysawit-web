@@ -2,6 +2,15 @@ import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-config';
 import { Employee, EmployeeRequest, Payroll, PayrollRequest, WageConfig, WageConfigRequest } from '@/types';
 
+const toLocalDateTime = (value: string) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
+
+const normalizePayrollRequest = (data: PayrollRequest): PayrollRequest => ({
+  ...data,
+  periodStart: toLocalDateTime(data.periodStart),
+  periodEnd: toLocalDateTime(data.periodEnd),
+});
+
 // Employee operations
 export const employeeService = {
   async getAll(): Promise<Employee[]> {
@@ -56,11 +65,11 @@ export const payrollService = {
   },
 
   async create(data: PayrollRequest): Promise<Payroll> {
-    return apiClient.post(API_ENDPOINTS.PAYROLLS.BASE, data);
+    return apiClient.post(API_ENDPOINTS.PAYROLLS.BASE, normalizePayrollRequest(data));
   },
 
   async update(id: number, data: PayrollRequest): Promise<Payroll> {
-    return apiClient.put(API_ENDPOINTS.PAYROLLS.BY_ID(id), data);
+    return apiClient.put(API_ENDPOINTS.PAYROLLS.BY_ID(id), normalizePayrollRequest(data));
   },
 
   async approve(id: number): Promise<Payroll> {
@@ -113,4 +122,5 @@ export const wageConfigService = {
   async delete(id: number): Promise<void> {
     return apiClient.delete(API_ENDPOINTS.WAGE_CONFIGS.BY_ID(id));
   },
+
 };

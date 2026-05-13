@@ -88,7 +88,7 @@ export default function PayrollPage() {
     }
   };
 
-  const handleCreateEmployee = async (e: React.FormEvent) => {
+  const handleCreateEmployee = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     e.preventDefault();
     try {
       await employeeService.create({
@@ -109,17 +109,17 @@ export default function PayrollPage() {
     }
   };
 
-  const handleDeleteEmployee = async (id: number) => {
+  const handleDeleteEmployee = async (id: Employee['id']) => {
     if (!confirm('Are you sure you want to delete this employee?')) return;
     try {
-      await employeeService.delete(id);
+      await employeeService.delete(id as number);
       loadEmployees();
     } catch (err) {
       setEmpError(err instanceof Error ? err.message : 'Failed to delete employee');
     }
   };
 
-  const handleCreatePayroll = async (e: React.FormEvent) => {
+  const handleCreatePayroll = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     e.preventDefault();
     try {
       await payrollService.create({
@@ -171,6 +171,10 @@ export default function PayrollPage() {
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+
+  if (!authService.isAuthenticated()) {
+    return null;
+  }
 
   return (
     <>
@@ -343,7 +347,7 @@ export default function PayrollPage() {
 
             {showPayForm && (
               <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">Create Payroll Record</h2>
+                <h2 className="text-xl font-semibold text-gray-800 mb-4">Add New Payroll</h2>
                 <form onSubmit={handleCreatePayroll} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -404,7 +408,7 @@ export default function PayrollPage() {
               <div className="bg-white rounded-lg shadow-md p-12 text-center">
                 <div className="text-5xl mb-4">💰</div>
                 <h3 className="text-xl font-semibold text-gray-800 mb-2">No Payroll Records Yet</h3>
-                <p className="text-gray-600">Click &quot;Add Payroll&quot; to create the first record</p>
+                <p className="text-gray-600">Click &quot;Add Payroll&quot; to create the first payroll record</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -418,7 +422,7 @@ export default function PayrollPage() {
                     </div>
                     <div className="space-y-2 text-sm text-gray-600 mb-4">
                       <p><span className="font-medium">👤 Employee ID:</span> {payroll.employeeId}</p>
-                      <p><span className="font-medium">📅 Period:</span> {new Date(payroll.periodStart).toLocaleDateString()} – {new Date(payroll.periodEnd).toLocaleDateString()}</p>
+                      <p><span className="font-medium">📅 Period:</span> {new Date(payroll.periodStart).toLocaleDateString()} - {new Date(payroll.periodEnd).toLocaleDateString()}</p>
                       <p><span className="font-medium">💵 Base:</span> {formatCurrency(payroll.baseAmount)}</p>
                       <p><span className="font-medium">🎁 Bonus:</span> {formatCurrency(payroll.bonusAmount)}</p>
                       <p><span className="font-medium">➖ Deduction:</span> {formatCurrency(payroll.deductionAmount)}</p>
@@ -430,7 +434,7 @@ export default function PayrollPage() {
                     <div className="flex flex-col gap-2">
                       {payroll.status === 'PENDING' && (
                         <button
-                          onClick={() => handleApprovePayroll(payroll.id)}
+                          onClick={() => handleApprovePayroll(payroll.id as number)}
                           className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                         >
                           Approve
@@ -438,14 +442,14 @@ export default function PayrollPage() {
                       )}
                       {payroll.status === 'APPROVED' && (
                         <button
-                          onClick={() => handlePayPayroll(payroll.id)}
+                          onClick={() => handlePayPayroll(payroll.id as number)}
                           className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
                         >
                           Mark as Paid
                         </button>
                       )}
                       <button
-                        onClick={() => handleDeletePayroll(payroll.id)}
+                        onClick={() => handleDeletePayroll(payroll.id as number)}
                         className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
                       >
                         Delete
