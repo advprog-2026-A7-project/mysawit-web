@@ -7,6 +7,7 @@ jest.mock('@/lib/api-client', () => ({
     get: jest.fn(),
     post: jest.fn(),
     put: jest.fn(),
+    patch: jest.fn(),
     delete: jest.fn(),
   },
 }));
@@ -104,6 +105,18 @@ describe('shipment.service', () => {
 
     expect(apiClient.delete).toHaveBeenCalledWith(API_ENDPOINTS.SHIPMENTS.BY_ID(5));
     expect(result).toEqual(payload);
+  });
+
+  it('updateStatus patches the UPDATE_STATUS endpoint', async () => {
+    (apiClient.patch as jest.Mock).mockResolvedValue({ id: 5 });
+    await shipmentService.updateStatus(5, { status: 'TIBA' });
+    expect(apiClient.patch).toHaveBeenCalledWith(API_ENDPOINTS.SHIPMENTS.UPDATE_STATUS(5), { status: 'TIBA' });
+  });
+
+  it('approveByAdmin patches the ADMIN_APPROVAL endpoint with the status payload', async () => {
+    (apiClient.patch as jest.Mock).mockResolvedValue({ id: 5 });
+    await shipmentService.approveByAdmin(5, 'ADMIN_APPROVED');
+    expect(apiClient.patch).toHaveBeenCalledWith(API_ENDPOINTS.SHIPMENTS.ADMIN_APPROVAL(5), { status: 'ADMIN_APPROVED' });
   });
 
   it('checkHealth calls shipment health endpoint', async () => {

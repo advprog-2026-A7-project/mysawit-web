@@ -7,6 +7,7 @@ jest.mock('@/lib/api-client', () => ({
     get: jest.fn(),
     post: jest.fn(),
     put: jest.fn(),
+    patch: jest.fn(),
     delete: jest.fn(),
   },
 }));
@@ -60,6 +61,20 @@ describe('harvest.service', () => {
     expect(result).toEqual(payload);
   });
 
+  it('create preserves undefined harvestDate when omitted', async () => {
+    const body = { plantationId: 1, weight: 10 };
+    (apiClient.post as jest.Mock).mockResolvedValue({ id: 4, ...body });
+    await harvestService.create(body);
+    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.HARVESTS.BASE, { ...body, harvestDate: undefined });
+  });
+
+  it('create preserves empty harvestDate when explicitly blank', async () => {
+    const body = { plantationId: 1, harvestDate: '', weight: 10 };
+    (apiClient.post as jest.Mock).mockResolvedValue({ id: 4, ...body });
+    await harvestService.create(body);
+    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.HARVESTS.BASE, body);
+  });
+
   it('create leaves harvestDate untouched when it already includes time', async () => {
     const body = { plantationId: 1, harvestDate: '2026-01-01T08:00:00', weight: 10 };
     (apiClient.post as jest.Mock).mockResolvedValue({ id: 4, ...body });
@@ -89,6 +104,27 @@ describe('harvest.service', () => {
 
     expect(apiClient.delete).toHaveBeenCalledWith(API_ENDPOINTS.HARVESTS.BY_ID(4));
     expect(result).toEqual(payload);
+  });
+
+  it('getMine without filters hits MY endpoint', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue([]);
+    await harvestService.getMine();
+    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.HARVESTS.MY);
+  });
+
+  it('getMine appends query parameters when filters are provided', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue([]);
+    await harvestService.getMine({ startDate: '2026-01-01', endDate: '2026-01-31' });
+    expect(apiClient.get).toHaveBeenCalledWith(
+      `${API_ENDPOINTS.HARVESTS.MY}?startDate=2026-01-01&endDate=2026-01-31`
+    );
+  });
+
+  it('updateStatus patches status endpoint', async () => {
+    const body = { id: 4, status: 'APPROVED' as const };
+    (apiClient.patch as jest.Mock).mockResolvedValue({ id: 4 });
+    await harvestService.updateStatus(body);
+    expect(apiClient.patch).toHaveBeenCalledWith(API_ENDPOINTS.HARVESTS.UPDATE_STATUS, body);
   });
 
   it('checkHealth calls harvest health endpoint', async () => {
