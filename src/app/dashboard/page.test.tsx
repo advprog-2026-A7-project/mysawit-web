@@ -1,13 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import DashboardPage from './page';
-import { authService } from '@/services/auth.service';
-
-const pushMock = jest.fn();
-const routerMock = { push: pushMock };
-
-jest.mock('next/navigation', () => ({
-  useRouter: () => routerMock,
-}));
 
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -18,71 +10,42 @@ jest.mock('next/link', () => ({
   ),
 }));
 
-jest.mock('@/services/auth.service', () => ({
-  authService: {
-    isAuthenticated: jest.fn(),
-    getUserInfo: jest.fn(),
-    logout: jest.fn(),
-  },
+let mockAuth: { isAdmin: boolean } = { isAdmin: false };
+
+jest.mock('@/contexts/auth-context', () => ({
+  useAuth: () => mockAuth,
 }));
 
 describe('DashboardPage', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockAuth = { isAdmin: false };
   });
 
-  it('redirects to login when user is not authenticated', async () => {
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(false);
-
-    const { container } = render(<DashboardPage />);
-
-    await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith('/login');
-    });
-
-    expect(container.firstChild).toBeNull();
-  });
-
-  it('renders user info and dashboard modules when authenticated', async () => {
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(true);
-    (authService.getUserInfo as jest.Mock).mockReturnValue({ username: 'budi', role: 'USER' });
-
+  it('renders module cards linking to each domain', () => {
     render(<DashboardPage />);
 
-    expect(await screen.findByText(/welcome, budi/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /plantations/i })).toHaveAttribute('href', '/dashboard/plantations');
     expect(screen.getByRole('link', { name: /harvests/i })).toHaveAttribute('href', '/dashboard/harvests');
     expect(screen.getByRole('link', { name: /shipments/i })).toHaveAttribute('href', '/dashboard/shipments');
     expect(screen.getByRole('link', { name: /payroll/i })).toHaveAttribute('href', '/dashboard/payroll');
+    expect(screen.getByRole('link', { name: /identity/i })).toHaveAttribute('href', '/dashboard/identity');
   });
 
-  it('handles null user info without crashing', async () => {
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(true);
-    (authService.getUserInfo as jest.Mock).mockReturnValue(null);
-
+  it('hides the User Admin card for non-admin users', () => {
+    mockAuth = { isAdmin: false };
     render(<DashboardPage />);
-
-    expect(await screen.findByText(/welcome,/i)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /user admin/i })).not.toBeInTheDocument();
   });
 
-  it('uses fallback empty values when user info fields are empty', async () => {
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(true);
-    (authService.getUserInfo as jest.Mock).mockReturnValue({ username: '', role: '' });
-
+  it('shows the User Admin card for admin users', () => {
+    mockAuth = { isAdmin: true };
     render(<DashboardPage />);
-
-    expect(await screen.findByText('Welcome,')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /user admin/i })).toHaveAttribute('href', '/dashboard/admin/users');
   });
 
-  it('logs out and redirects to home', async () => {
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(true);
-    (authService.getUserInfo as jest.Mock).mockReturnValue({ username: 'budi', role: 'USER' });
-
+  it('renders the system status panel', () => {
     render(<DashboardPage />);
-
-    fireEvent.click(await screen.findByRole('button', { name: /logout/i }));
-
-    expect(authService.logout).toHaveBeenCalledTimes(1);
-    expect(pushMock).toHaveBeenCalledWith('/');
+    expect(screen.getByText(/system status/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/online/i).length).toBeGreaterThanOrEqual(5);
   });
 });

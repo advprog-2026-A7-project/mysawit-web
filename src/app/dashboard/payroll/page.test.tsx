@@ -1,15 +1,12 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import PayrollPage from './page';
 import { employeeService, payrollService } from '@/services/payroll.service';
-import { authService } from '@/services/auth.service';
 import type { Employee, Payroll } from '@/types';
 
-const pushMock = jest.fn();
-const routerMock = { push: pushMock };
 const confirmMock = jest.fn();
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => routerMock,
+  useRouter: () => ({ push: jest.fn() }),
 }));
 
 jest.mock('next/link', () => ({
@@ -31,12 +28,6 @@ jest.mock('@/services/payroll.service', () => ({
     approve: jest.fn(),
     pay: jest.fn(),
     delete: jest.fn(),
-  },
-}));
-
-jest.mock('@/services/auth.service', () => ({
-  authService: {
-    isAuthenticated: jest.fn(),
   },
 }));
 
@@ -110,7 +101,6 @@ describe('PayrollPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (window as unknown as { confirm: typeof confirm }).confirm = confirmMock;
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(true);
     (employeeService.getAll as jest.Mock).mockResolvedValue([]);
     (employeeService.create as jest.Mock).mockResolvedValue({ id: 1 });
     (employeeService.delete as jest.Mock).mockResolvedValue(undefined);
@@ -120,14 +110,6 @@ describe('PayrollPage', () => {
     (payrollService.pay as jest.Mock).mockResolvedValue({ id: 10, status: 'PAID' });
     (payrollService.delete as jest.Mock).mockResolvedValue(undefined);
     confirmMock.mockReturnValue(true);
-  });
-
-  it('redirects to login when user is not authenticated', async () => {
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(false);
-    render(<PayrollPage />);
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/login'));
-    expect(employeeService.getAll).not.toHaveBeenCalled();
-    expect(payrollService.getAll).not.toHaveBeenCalled();
   });
 
   // ── Employees tab ──

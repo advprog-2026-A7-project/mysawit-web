@@ -1,14 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import PlantationsPage from './page';
 import { plantationService } from '@/services/plantation.service';
-import { authService } from '@/services/auth.service';
 
-const pushMock = jest.fn();
-const routerMock = { push: pushMock };
 const confirmMock = jest.fn();
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => routerMock,
+  useRouter: () => ({ push: jest.fn() }),
 }));
 
 jest.mock('next/link', () => ({
@@ -32,20 +29,17 @@ jest.mock('@/services/plantation.service', () => ({
   },
 }));
 
-jest.mock('@/services/auth.service', () => ({
-  authService: {
-    isAuthenticated: jest.fn(),
-    getUserInfo: jest.fn(),
-  },
+let mockAuth: { user: { id: string } | null } = { user: { id: '10' } };
+
+jest.mock('@/contexts/auth-context', () => ({
+  useAuth: () => mockAuth,
 }));
 
 describe('PlantationsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockAuth = { user: { id: '10' } };
     (window as unknown as { confirm: typeof confirm }).confirm = confirmMock;
-
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(true);
-    (authService.getUserInfo as jest.Mock).mockReturnValue({ id: '10' });
     (plantationService.getAll as jest.Mock).mockResolvedValue([]);
     (plantationService.getByOwner as jest.Mock).mockResolvedValue([]);
     (plantationService.create as jest.Mock).mockResolvedValue({ id: 1 });
@@ -72,18 +66,6 @@ describe('PlantationsPage', () => {
       target: { value: 'Sample plantation' },
     });
   };
-
-  it('redirects to login when user is not authenticated', async () => {
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(false);
-
-    render(<PlantationsPage />);
-
-    await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith('/login');
-    });
-
-    expect(plantationService.getAll).not.toHaveBeenCalled();
-  });
 
   it('shows loading state while fetching plantations', async () => {
     let resolvePromise: ((value: unknown) => void) | undefined;
@@ -167,7 +149,6 @@ describe('PlantationsPage', () => {
     (plantationService.getAll as jest.Mock)
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
-    (authService.getUserInfo as jest.Mock).mockReturnValue({ id: '10' });
 
     render(<PlantationsPage />);
 
@@ -201,7 +182,7 @@ describe('PlantationsPage', () => {
   });
 
   it('creates plantation with undefined owner id when user info is missing', async () => {
-    (authService.getUserInfo as jest.Mock).mockReturnValue(null);
+    mockAuth = { user: null };
 
     render(<PlantationsPage />);
 
@@ -568,9 +549,4 @@ describe('PlantationsPage', () => {
     expect(await screen.findByText('Failed to transfer mandor')).toBeInTheDocument();
   });
 
-  it('renders nothing on initial render when not authenticated', () => {
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(false);
-    const { container } = render(<PlantationsPage />);
-    expect(container).toBeEmptyDOMElement();
-  });
 });

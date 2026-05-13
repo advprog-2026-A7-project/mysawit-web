@@ -1,13 +1,9 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import HarvestsPage from './page';
 import { harvestService } from '@/services/harvest.service';
-import { authService } from '@/services/auth.service';
-
-const pushMock = jest.fn();
-const routerMock = { push: pushMock };
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => routerMock,
+  useRouter: () => ({ push: jest.fn() }),
 }));
 
 jest.mock('next/link', () => ({
@@ -25,11 +21,6 @@ jest.mock('@/services/harvest.service', () => ({
   },
 }));
 
-jest.mock('@/services/auth.service', () => ({
-  authService: {
-    isAuthenticated: jest.fn(),
-  },
-}));
 
 const fillCreateForm = (
   overrides: Partial<{ plantationId: string; weight: string; news: string; photos: string }> = {}
@@ -52,17 +43,9 @@ const fillCreateForm = (
 describe('HarvestsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(true);
     (harvestService.getAll as jest.Mock).mockResolvedValue([]);
     (harvestService.create as jest.Mock).mockResolvedValue({ id: 'h-1' });
     (harvestService.updateStatus as jest.Mock).mockResolvedValue({ id: 'h-1' });
-  });
-
-  it('redirects to login when user is not authenticated', async () => {
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(false);
-    render(<HarvestsPage />);
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/login'));
-    expect(harvestService.getAll).not.toHaveBeenCalled();
   });
 
   it('shows loading state then empty state', async () => {
