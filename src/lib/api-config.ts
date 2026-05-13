@@ -13,7 +13,21 @@ export const API_ENDPOINTS = {
   AUTH: {
     LOGIN: `${API_CONFIG.IDENTITY_SERVICE}/api/auth/login`,
     REGISTER: `${API_CONFIG.IDENTITY_SERVICE}/api/auth/register`,
+    GOOGLE: `${API_CONFIG.IDENTITY_SERVICE}/api/auth/google`,
+    LINK_GOOGLE: `${API_CONFIG.IDENTITY_SERVICE}/api/auth/link-google`,
+    SET_PASSWORD: `${API_CONFIG.IDENTITY_SERVICE}/api/auth/set-password`,
+    REFRESH: `${API_CONFIG.IDENTITY_SERVICE}/api/auth/refresh`,
+    LOGOUT: `${API_CONFIG.IDENTITY_SERVICE}/api/auth/logout`,
     HEALTH: `${API_CONFIG.IDENTITY_SERVICE}/api/auth/health`,
+  },
+
+  // Admin endpoints (Identity Service)
+  ADMIN: {
+    USERS: `${API_CONFIG.IDENTITY_SERVICE}/api/admin/users`,
+    USER_BY_ID: (userId: string) => `${API_CONFIG.IDENTITY_SERVICE}/api/admin/users/${userId}`,
+    ASSIGN_MANDOR: (buruhId: string) => `${API_CONFIG.IDENTITY_SERVICE}/api/admin/users/${buruhId}/assign-mandor`,
+    UNASSIGN_MANDOR: (buruhId: string) => `${API_CONFIG.IDENTITY_SERVICE}/api/admin/users/${buruhId}/unassign-mandor`,
+    DELETE_USER: (userId: string) => `${API_CONFIG.IDENTITY_SERVICE}/api/admin/users/${userId}`,
   },
   
   // Plantation endpoints

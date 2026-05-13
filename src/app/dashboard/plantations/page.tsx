@@ -1,14 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { plantationService } from '@/services/plantation.service';
 import { authService } from '@/services/auth.service';
 import { Plantation } from '@/types';
 
 export default function PlantationsPage() {
-  const router = useRouter();
   const [plantations, setPlantations] = useState<Plantation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -21,12 +19,8 @@ export default function PlantationsPage() {
   });
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
     loadPlantations();
-  }, [router]);
+  }, []);
 
   const loadPlantations = async () => {
     try {
@@ -72,9 +66,9 @@ export default function PlantationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
+    <>
+      {/* Page Header */}
+      <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div>
             <Link href="/dashboard" className="text-green-600 hover:text-green-700 text-sm">
@@ -89,7 +83,7 @@ export default function PlantationsPage() {
             {showForm ? 'Cancel' : '+ Add Plantation'}
           </button>
         </div>
-      </header>
+      </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
@@ -197,6 +191,6 @@ export default function PlantationsPage() {
           </div>
         )}
       </main>
-    </div>
+    </>
   );
 }

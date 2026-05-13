@@ -1,14 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { harvestService } from '@/services/harvest.service';
-import { authService } from '@/services/auth.service';
 import { Harvest } from '@/types';
 
 export default function HarvestsPage() {
-  const router = useRouter();
   const [harvests, setHarvests] = useState<Harvest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -23,12 +20,8 @@ export default function HarvestsPage() {
   });
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
     loadHarvests();
-  }, [router]);
+  }, []);
 
   const loadHarvests = async () => {
     try {
@@ -79,8 +72,8 @@ export default function HarvestsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
+    <>
+      <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div>
             <Link href="/dashboard" className="text-green-600 hover:text-green-700 text-sm">
@@ -95,7 +88,7 @@ export default function HarvestsPage() {
             {showForm ? 'Cancel' : '+ Add Harvest'}
           </button>
         </div>
-      </header>
+      </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
@@ -221,6 +214,6 @@ export default function HarvestsPage() {
           </div>
         )}
       </main>
-    </div>
+    </>
   );
 }

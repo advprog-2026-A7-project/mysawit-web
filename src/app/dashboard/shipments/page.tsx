@@ -1,10 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { shipmentService } from '@/services/shipment.service';
-import { authService } from '@/services/auth.service';
 import { Shipment } from '@/types';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -15,7 +13,6 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function ShipmentsPage() {
-  const router = useRouter();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -33,12 +30,8 @@ export default function ShipmentsPage() {
   });
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
     loadShipments();
-  }, [router]);
+  }, []);
 
   const loadShipments = async (status?: string) => {
     try {
@@ -92,8 +85,8 @@ export default function ShipmentsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
+    <>
+      <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div>
             <Link href="/dashboard" className="text-green-600 hover:text-green-700 text-sm">
@@ -108,7 +101,7 @@ export default function ShipmentsPage() {
             {showForm ? 'Cancel' : '+ Add Shipment'}
           </button>
         </div>
-      </header>
+      </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
@@ -276,6 +269,6 @@ export default function ShipmentsPage() {
           </div>
         )}
       </main>
-    </div>
+    </>
   );
 }

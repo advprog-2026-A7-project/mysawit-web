@@ -1,9 +1,11 @@
 // User & Auth Types
+export type UserRole = 'BURUH' | 'MANDOR' | 'SUPIR' | 'ADMIN';
+
 export interface User {
   id: number;
   username: string;
   email: string;
-  role: string;
+  role: UserRole;
   createdAt: string;
   updatedAt: string;
 }
@@ -17,15 +19,59 @@ export interface RegisterRequest {
   username: string;
   email: string;
   password: string;
+  role: 'BURUH' | 'MANDOR' | 'SUPIR';
+  certificationNumber?: string;
 }
 
 export interface AuthResponse {
   token: string;
+  refreshToken: string;
   type: string;
   id: string;
   username: string;
   email: string;
-  role: string;
+  role: UserRole;
+  googleLinked: boolean;
+  hasPassword: boolean;
+}
+
+export interface GoogleAuthRequest {
+  idToken: string;
+  username?: string;
+  role?: 'BURUH' | 'MANDOR' | 'SUPIR';
+  certificationNumber?: string;
+}
+
+export interface SetPasswordRequest {
+  password: string;
+}
+
+export interface AssignMandorRequest {
+  mandorId: string;
+}
+
+export interface UserDetailResponse {
+  id: string;
+  username: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  googleLinked: boolean;
+  hasPassword: boolean;
+  createdAt: string;
+  mandorId: string | null;
+  certificationNumber: string | null;
+  kebunId: string | null;
+}
+
+export interface UserSearchParams {
+  name?: string;
+  email?: string;
+  role?: UserRole;
+}
+
+export interface MessageResponse {
+  message: string;
 }
 
 // Plantation Types

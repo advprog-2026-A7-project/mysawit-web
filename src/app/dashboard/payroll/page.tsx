@@ -1,10 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { employeeService, payrollService } from '@/services/payroll.service';
-import { authService } from '@/services/auth.service';
 import { Employee, Payroll } from '@/types';
 
 type Tab = 'employees' | 'payrolls';
@@ -25,7 +23,6 @@ const EMPLOYEE_STATUS_COLORS: Record<string, string> = {
 };
 
 export default function PayrollPage() {
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('employees');
 
   // Employee state
@@ -61,13 +58,9 @@ export default function PayrollPage() {
   });
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
     loadEmployees();
     loadPayrolls();
-  }, [router]);
+  }, []);
 
   const loadEmployees = async () => {
     try {
@@ -180,15 +173,15 @@ export default function PayrollPage() {
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
+    <>
+      <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Link href="/dashboard" className="text-green-600 hover:text-green-700 text-sm">
             ← Back to Dashboard
           </Link>
           <h1 className="text-2xl font-bold text-green-800">Payroll Management</h1>
         </div>
-      </header>
+      </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Tabs */}
@@ -465,6 +458,6 @@ export default function PayrollPage() {
           </div>
         )}
       </main>
-    </div>
+    </>
   );
 }
