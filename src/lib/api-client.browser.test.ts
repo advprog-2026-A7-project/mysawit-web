@@ -125,7 +125,7 @@ describe('api-client (browser)', () => {
     apiClient.saveAuth({
       token: 'jwt',
       type: 'Bearer',
-      id: 10,
+      id: '10',
       username: 'user',
       email: 'user@mail.com',
       role: 'USER',

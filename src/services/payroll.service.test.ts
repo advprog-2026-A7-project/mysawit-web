@@ -1,4 +1,4 @@
-import { payrollService } from './payroll.service';
+import { employeeService, payrollService } from './payroll.service';
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-config';
 
@@ -8,6 +8,7 @@ jest.mock('@/lib/api-client', () => ({
     post: jest.fn(),
     put: jest.fn(),
     delete: jest.fn(),
+    patch: jest.fn(),
   },
 }));
 
@@ -16,17 +17,17 @@ describe('payroll.service', () => {
     jest.clearAllMocks();
   });
 
-  it('getEmployees calls payroll employees endpoint', async () => {
+  it('employeeService.getAll calls employees endpoint', async () => {
     const payload = [{ id: 1 }];
     (apiClient.get as jest.Mock).mockResolvedValue(payload);
 
-    const result = await payrollService.getEmployees();
+    const result = await employeeService.getAll();
 
-    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLL.EMPLOYEES);
+    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.EMPLOYEES.BASE);
     expect(result).toEqual(payload);
   });
 
-  it('createEmployee posts to payroll employees endpoint', async () => {
+  it('employeeService.create posts to employees endpoint', async () => {
     const body = {
       name: 'Budi',
       employeeCode: 'EMP001',
@@ -37,23 +38,23 @@ describe('payroll.service', () => {
     const payload = { id: 1, ...body };
     (apiClient.post as jest.Mock).mockResolvedValue(payload);
 
-    const result = await payrollService.createEmployee(body);
+    const result = await employeeService.create(body);
 
-    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLL.EMPLOYEES, body);
+    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.EMPLOYEES.BASE, body);
     expect(result).toEqual(payload);
   });
 
-  it('getPayrolls calls payroll records endpoint', async () => {
+  it('payrollService.getAll calls payrolls endpoint', async () => {
     const payload = [{ id: 10 }];
     (apiClient.get as jest.Mock).mockResolvedValue(payload);
 
-    const result = await payrollService.getPayrolls();
+    const result = await payrollService.getAll();
 
-    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLL.PAYROLLS);
+    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLLS.BASE);
     expect(result).toEqual(payload);
   });
 
-  it('createPayroll posts to payroll records endpoint', async () => {
+  it('payrollService.create posts to payrolls endpoint', async () => {
     const body = {
       employeeId: 1,
       periodStart: '2026-01-01T00:00',
@@ -67,9 +68,9 @@ describe('payroll.service', () => {
     const payload = { id: 11, ...body };
     (apiClient.post as jest.Mock).mockResolvedValue(payload);
 
-    const result = await payrollService.createPayroll(body);
+    const result = await payrollService.create(body);
 
-    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLL.PAYROLLS, body);
+    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLLS.BASE, body);
     expect(result).toEqual(payload);
   });
 });
