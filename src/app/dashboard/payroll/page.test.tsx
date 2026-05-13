@@ -277,6 +277,15 @@ describe('PayrollPage', () => {
 
   // ── Payrolls tab ──
 
+  it('switches back to employees tab after viewing payrolls', async () => {
+    render(<PayrollPage />);
+    await screen.findByText(/no employees yet/i);
+    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
+    await screen.findByText(/no payroll records yet/i);
+    fireEvent.click(screen.getByRole('button', { name: /employees/i }));
+    expect(await screen.findByText(/no employees yet/i)).toBeInTheDocument();
+  });
+
   it('switches to payrolls tab and shows loading then empty state', async () => {
     let resolvePay: ((value: unknown) => void) | undefined;
     (payrollService.getAll as jest.Mock).mockReturnValue(new Promise((resolve) => { resolvePay = resolve; }));
