@@ -54,7 +54,7 @@ export default function HarvestsPage() {
   const currentHarvests = harvests.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(harvests.length / itemsPerPage);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     e.preventDefault();
     try {
       await harvestService.create({
