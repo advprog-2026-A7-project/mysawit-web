@@ -172,10 +172,6 @@ export default function PayrollPage() {
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 
-  if (!authService.isAuthenticated()) {
-    return null;
-  }
-
   return (
     <>
       <div className="bg-white shadow">

@@ -2,9 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { harvestService } from '@/services/harvest.service';
-import { authService } from '@/services/auth.service';
 import { Harvest, HarvestStatus } from '@/types';
 
 const statusOptions: HarvestStatus[] = ['PENDING', 'APPROVED', 'REJECTED'];
@@ -93,12 +91,8 @@ export default function HarvestsPage() {
   }, []);
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
     void loadHarvests();
-  }, [loadHarvests, router]);
+  }, [loadHarvests]);
 
   const handleFilter = async (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     event.preventDefault();
@@ -151,12 +145,12 @@ export default function HarvestsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
+    <>
+      <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap gap-3 justify-between items-center">
           <div>
             <Link href="/dashboard" className="text-green-600 hover:text-green-700 text-sm">
-              Back to Dashboard
+              ← Back to Dashboard
             </Link>
             <h1 className="text-2xl font-bold text-green-800">Harvest Management</h1>
           </div>

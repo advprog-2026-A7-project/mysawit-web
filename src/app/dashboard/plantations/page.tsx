@@ -1,10 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { plantationService } from '@/services/plantation.service';
-import { authService } from '@/services/auth.service';
+import { useAuth } from '@/contexts/auth-context';
 import { Coordinate, EntityId, Plantation, PlantationRequest } from '@/types';
 
 interface CoordinateForm {
@@ -88,6 +87,7 @@ const isValidCoordinateSet = (coordinates: Coordinate[]): boolean =>
   );
 
 export default function PlantationsPage() {
+  const { user } = useAuth();
   const [plantations, setPlantations] = useState<Plantation[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -132,12 +132,8 @@ export default function PlantationsPage() {
   }, []);
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
     void loadPlantations();
-  }, [loadPlantations, router]);
+  }, [loadPlantations]);
 
   const resetForm = () => {
     setFormData(emptyForm);
@@ -148,7 +144,7 @@ export default function PlantationsPage() {
   const openCreateForm = () => {
     setFormData({
       ...emptyForm,
-      ownerId: authService.getUserInfo()?.id || '',
+      ownerId: user?.id || '',
     });
     setIsEditing(false);
     setShowForm(true);
@@ -253,17 +249,13 @@ export default function PlantationsPage() {
     }
   };
 
-  if (!authService.isAuthenticated()) {
-    return null;
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
+    <>
+      <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap gap-3 justify-between items-center">
           <div>
             <Link href="/dashboard" className="text-green-600 hover:text-green-700 text-sm">
-              Back to Dashboard
+              ← Back to Dashboard
             </Link>
             <h1 className="text-2xl font-bold text-green-800">Plantations Management</h1>
           </div>

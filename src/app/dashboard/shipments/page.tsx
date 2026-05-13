@@ -2,9 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { shipmentService } from '@/services/shipment.service';
-import { authService } from '@/services/auth.service';
 import { Shipment, ShipmentStatus } from '@/types';
 
 const shipmentStatuses: ShipmentStatus[] = [
@@ -80,12 +78,8 @@ export default function ShipmentsPage() {
   }, [shipments]);
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
     void loadShipments();
-  }, [loadShipments, router]);
+  }, [loadShipments]);
 
   const handleFilter = async (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     event.preventDefault();
