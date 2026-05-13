@@ -34,6 +34,8 @@ const emptyFilters: HarvestFilters = {
   endDate: '',
 };
 
+const ITEMS_PER_PAGE = 10;
+
 export default function HarvestsPage() {
   const router = useRouter();
   const [harvests, setHarvests] = useState<Harvest[]>([]);
@@ -41,6 +43,7 @@ export default function HarvestsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState<HarvestFilters>(emptyFilters);
   const [formData, setFormData] = useState({
     plantationId: '',
@@ -53,6 +56,11 @@ export default function HarvestsPage() {
     status: 'APPROVED' as HarvestStatus,
     rejectionReason: '',
   });
+
+  const totalPages = Math.max(1, Math.ceil(harvests.length / ITEMS_PER_PAGE));
+  const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
+  const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
+  const currentHarvests = harvests.slice(indexOfFirstItem, indexOfLastItem);
 
   const totals = useMemo(() => {
     const totalWeight = harvests.reduce((sum, harvest) => sum + harvest.weight, 0);
@@ -77,6 +85,7 @@ export default function HarvestsPage() {
         endDate: nextFilters.endDate || undefined,
       });
       setHarvests(data);
+      setCurrentPage(1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch harvests');
     } finally {
@@ -153,7 +162,10 @@ export default function HarvestsPage() {
             <h1 className="text-2xl font-bold text-green-800">Harvest Management</h1>
           </div>
           <button
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              setShowForm(!showForm);
+              setCurrentPage(1);
+            }}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
             {showForm ? 'Cancel' : '+ Log Harvest'}
@@ -313,34 +325,76 @@ export default function HarvestsPage() {
             <p className="text-gray-600">Create a log or adjust the filter.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {harvests.map((harvest) => (
-              <div key={harvest.id} className="bg-white rounded-lg shadow-md p-6">
-                <div className="flex justify-between gap-3 items-start mb-3">
-                  <h3 className="text-lg font-semibold text-green-800">Harvest #{String(harvest.id).slice(0, 8)}</h3>
-                  <span className="px-2 py-1 rounded bg-green-50 text-green-700 text-xs font-semibold">
-                    {harvest.status || 'PENDING'}
-                  </span>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {currentHarvests.map((harvest) => (
+                <div key={harvest.id} className="bg-white rounded-lg shadow-md p-6">
+                  <div className="flex justify-between gap-3 items-start mb-3">
+                    <h3 className="text-lg font-semibold text-green-800">Harvest #{String(harvest.id).slice(0, 8)}</h3>
+                    <span className="px-2 py-1 rounded bg-green-50 text-green-700 text-xs font-semibold">
+                      {harvest.status || 'PENDING'}
+                    </span>
+                  </div>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <p><span className="font-medium">Plantation:</span> {harvest.plantationId}</p>
+                    <p><span className="font-medium">Harvester:</span> {harvest.harvesterName || harvest.harvesterId || '-'}</p>
+                    <p><span className="font-medium">Foreman:</span> {harvest.foremanId || '-'}</p>
+                    <p><span className="font-medium">Weight:</span> {harvest.weight} kg</p>
+                    <p><span className="font-medium">Date:</span> {formatDateTime(harvest.harvestDate)}</p>
+                    {harvest.news && <p><span className="font-medium">News:</span> {harvest.news}</p>}
+                    {harvest.rejectionReason && (
+                      <p><span className="font-medium">Rejection:</span> {harvest.rejectionReason}</p>
+                    )}
+                    {harvest.photos && harvest.photos.length > 0 && (
+                      <p><span className="font-medium">Photos:</span> {harvest.photos.length} attached</p>
+                    )}
+                  </div>
                 </div>
-                <div className="space-y-2 text-sm text-gray-600">
-                  <p><span className="font-medium">Plantation:</span> {harvest.plantationId}</p>
-                  <p><span className="font-medium">Harvester:</span> {harvest.harvesterName || harvest.harvesterId || '-'}</p>
-                  <p><span className="font-medium">Foreman:</span> {harvest.foremanId || '-'}</p>
-                  <p><span className="font-medium">Weight:</span> {harvest.weight} kg</p>
-                  <p><span className="font-medium">Date:</span> {formatDateTime(harvest.harvestDate)}</p>
-                  {harvest.news && <p><span className="font-medium">News:</span> {harvest.news}</p>}
-                  {harvest.rejectionReason && (
-                    <p><span className="font-medium">Rejection:</span> {harvest.rejectionReason}</p>
-                  )}
-                  {harvest.photos && harvest.photos.length > 0 && (
-                    <p><span className="font-medium">Photos:</span> {harvest.photos.length} attached</p>
-                  )}
+              ))}
+            </div>
+
+            {harvests.length > ITEMS_PER_PAGE && (
+              <div className="mt-10 flex flex-col items-center">
+                <span className="text-sm text-gray-700 mb-4">
+                  Showing <span className="font-semibold text-green-700">{indexOfFirstItem + 1}</span> to <span className="font-semibold text-green-700">{Math.min(indexOfLastItem, harvests.length)}</span> of <span className="font-semibold">{harvests.length}</span> entries
+                </span>
+                <div className="inline-flex rounded-md shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-l-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <button
+                      key={i + 1}
+                      type="button"
+                      onClick={() => setCurrentPage(i + 1)}
+                      className={`px-4 py-2 text-sm font-medium border-t border-b border-gray-300 ${
+                        currentPage === i + 1
+                          ? 'bg-green-600 text-white border-green-600 z-10'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
                 </div>
               </div>
-            ))}
-          </div>
-          )}
-        </main>
-      </div>
+            )}
+          </>
+        )}
+      </main>
+    </div>
   );
 }
