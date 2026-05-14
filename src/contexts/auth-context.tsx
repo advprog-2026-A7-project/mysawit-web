@@ -42,9 +42,13 @@ function readUser(): UserInfo | null {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const [user] = useState<UserInfo | null>(readUser);
+  // Start as null on both server and client to avoid hydration mismatch.
+  // localStorage is only available on the client, so we hydrate the user
+  // after mount.
+  const [user, setUser] = useState<UserInfo | null>(null);
 
   useEffect(() => {
+    setUser(readUser());
     if (!authService.isAuthenticated()) {
       router.push('/login');
     }

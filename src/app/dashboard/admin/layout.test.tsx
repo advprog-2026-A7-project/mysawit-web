@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import AdminLayout from './layout';
 
 const pushMock = jest.fn();
@@ -14,19 +14,28 @@ jest.mock('@/contexts/auth-context', () => ({
 }));
 
 describe('AdminLayout', () => {
+  const originalFetch = global.fetch;
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockAuth = { user: { role: 'ADMIN' } };
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue({ ok: true } as Response) as unknown as typeof fetch;
   });
 
-  it('renders children when the user is an ADMIN', () => {
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('renders children when the user is an ADMIN and the identity service is online', async () => {
     render(
       <AdminLayout>
         <p>admin content</p>
       </AdminLayout>
     );
 
-    expect(screen.getByText('admin content')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('admin content')).toBeInTheDocument());
     expect(pushMock).not.toHaveBeenCalled();
   });
 
