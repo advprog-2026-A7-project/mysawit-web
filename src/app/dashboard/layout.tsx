@@ -13,7 +13,10 @@ function DashboardHeader() {
           <Link href="/dashboard" className="text-2xl font-bold text-green-800 hover:text-green-900">
             MySawit Dashboard
           </Link>
-          <p className="text-sm text-gray-600">Welcome, {user?.username}</p>
+          <p className="text-sm text-gray-600">
+            Welcome, {user?.username}
+            {user?.role && <span className="ml-2 inline-block px-2 py-0.5 text-xs font-medium text-green-800 bg-green-100 rounded-full">{user.role}</span>}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <Link
