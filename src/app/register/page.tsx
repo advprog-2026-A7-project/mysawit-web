@@ -69,7 +69,7 @@ export default function RegisterPage() {
         email,
         password,
         role,
-        certificationNumber: certificationNumber || undefined,
+        ...(role === 'MANDOR' ? { certificationNumber: certificationNumber || undefined } : {}),
         mandorId: mandorId || undefined,
         kebunId: kebunId || undefined,
       });
@@ -210,7 +210,7 @@ export default function RegisterPage() {
               </select>
             </div>
 
-            {(role === 'MANDOR' || role === 'SUPIR') && (
+            {role === 'MANDOR' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Certification Number

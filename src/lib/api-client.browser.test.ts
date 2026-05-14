@@ -385,6 +385,117 @@ describe('api-client (browser)', () => {
     expect(localStorage.getItem('refreshToken')).toBeNull();
   });
 
+  describe('401 → refresh → retry', () => {
+    const ok = (body: unknown) => ({
+      ok: true,
+      status: 200,
+      headers: { get: jest.fn().mockReturnValue(null) },
+      json: jest.fn().mockResolvedValue(body),
+    } as unknown as Response);
+
+    const unauthorized = () => ({
+      ok: false,
+      status: 401,
+      headers: { get: jest.fn().mockReturnValue(null) },
+      json: jest.fn().mockResolvedValue({}),
+    } as unknown as Response);
+
+    it('refreshes the token and retries the original request on 401', async () => {
+      localStorage.setItem('authToken', 'old-jwt');
+      localStorage.setItem('refreshToken', 'r1');
+
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce(unauthorized())
+        .mockResolvedValueOnce(ok({
+          token: 'new-jwt',
+          refreshToken: 'r2',
+          type: 'Bearer',
+          id: '1',
+          username: 'u',
+          email: 'u@mail.com',
+          role: 'BURUH',
+          googleLinked: false,
+          hasPassword: false,
+        }))
+        .mockResolvedValueOnce(ok({ data: 'retried' }));
+
+      const result = await apiClient.get<{ data: string }>('/resource');
+
+      expect(result).toEqual({ data: 'retried' });
+      expect(localStorage.getItem('authToken')).toBe('new-jwt');
+    });
+
+    it('coalesces concurrent 401s into a single refresh call', async () => {
+      localStorage.setItem('refreshToken', 'r1');
+
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce(unauthorized())
+        .mockResolvedValueOnce(unauthorized())
+        .mockResolvedValueOnce(ok({
+          token: 'new', type: 'Bearer', id: '1', username: 'u', email: 'u@mail.com', role: 'BURUH', googleLinked: false, hasPassword: false,
+        }))
+        .mockResolvedValue(ok({ data: 'ok' }));
+
+      await Promise.all([apiClient.get('/a'), apiClient.get('/b')]);
+
+      const refreshCalls = (global.fetch as jest.Mock).mock.calls.filter(([url]) =>
+        String(url).includes('/api/auth/refresh')
+      );
+      expect(refreshCalls).toHaveLength(1);
+    });
+
+    it('clears auth and throws when refresh response is not ok', async () => {
+      localStorage.setItem('refreshToken', 'bad');
+
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce(unauthorized())
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          headers: { get: jest.fn().mockReturnValue(null) },
+          json: jest.fn().mockResolvedValue({ error: 'refresh denied' }),
+        } as unknown as Response);
+
+      await expect(apiClient.get('/r')).rejects.toThrow();
+      expect(localStorage.getItem('refreshToken')).toBeNull();
+    });
+
+    it('clears auth and throws when the refresh fetch itself rejects', async () => {
+      localStorage.setItem('refreshToken', 'broken');
+
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce(unauthorized())
+        .mockRejectedValueOnce(new Error('network down'));
+
+      await expect(apiClient.get('/r')).rejects.toThrow();
+      expect(localStorage.getItem('refreshToken')).toBeNull();
+    });
+
+    it('throws without retry when there is no refresh token stored', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce(unauthorized());
+
+      await expect(apiClient.get('/r')).rejects.toThrow();
+      const fetchCalls = (global.fetch as jest.Mock).mock.calls;
+      expect(fetchCalls.length).toBe(1);
+    });
+  });
+
+  it('falls back to id when BURUH role is set but user id is missing', async () => {
+    localStorage.setItem('userRole', 'BURUH');
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: jest.fn().mockReturnValue(null) },
+      json: jest.fn().mockResolvedValue({}),
+    } as unknown as Response);
+
+    await apiClient.get('/r');
+
+    const headers = (global.fetch as jest.Mock).mock.calls[0][1].headers;
+    expect(headers['X-Harvester-Id']).toBeUndefined();
+    expect(headers['X-Foreman-Id']).toBeUndefined();
+  });
+
   it('saves and clears auth data', () => {
     apiClient.saveAuth({
       token: 'jwt',
