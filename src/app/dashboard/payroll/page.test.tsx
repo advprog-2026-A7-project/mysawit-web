@@ -1,9 +1,12 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import PayrollPage from './page';
-import { employeeService, payrollService } from '@/services/payroll.service';
-import type { Employee, Payroll } from '@/types';
+import { payrollService } from '@/services/payroll.service';
+import { adminService } from '@/services/admin.service';
+import type { Payroll, UserDetailResponse } from '@/types';
 
 const confirmMock = jest.fn();
+
+const USER_ID = '11111111-1111-1111-1111-111111111111';
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn() }),
@@ -17,11 +20,6 @@ jest.mock('next/link', () => ({
 }));
 
 jest.mock('@/services/payroll.service', () => ({
-  employeeService: {
-    getAll: jest.fn(),
-    create: jest.fn(),
-    delete: jest.fn(),
-  },
   payrollService: {
     getAll: jest.fn(),
     create: jest.fn(),
@@ -31,21 +29,30 @@ jest.mock('@/services/payroll.service', () => ({
   },
 }));
 
-const makeEmployee = (overrides: Partial<Employee> = {}): Employee => ({
-  id: 1,
-  name: 'Budi',
-  employeeCode: 'EMP001',
-  position: 'Harvester',
-  baseSalary: 5000000,
-  status: 'ACTIVE',
+jest.mock('@/services/admin.service', () => ({
+  adminService: {
+    getUsers: jest.fn(),
+  },
+}));
+
+const makeUser = (overrides: Partial<UserDetailResponse> = {}): UserDetailResponse => ({
+  id: USER_ID,
+  username: 'sari',
+  email: 'sari@example.com',
+  name: 'Sari Lestari',
+  role: 'BURUH',
+  googleLinked: false,
+  hasPassword: true,
   createdAt: '2026-01-01',
-  updatedAt: '2026-01-01',
+  mandorId: null,
+  certificationNumber: null,
+  kebunId: null,
   ...overrides,
 });
 
 const makePayroll = (overrides: Partial<Payroll> = {}): Payroll => ({
   id: 10,
-  employeeId: 1,
+  userId: USER_ID,
   periodStart: '2026-01-01',
   periodEnd: '2026-01-31',
   baseAmount: 5000000,
@@ -59,37 +66,19 @@ const makePayroll = (overrides: Partial<Payroll> = {}): Payroll => ({
   ...overrides,
 });
 
-const fillEmployeeForm = (container: HTMLElement, overrides: Partial<{ plantationId: string; phoneNumber: string; address: string }> = {}) => {
-  fireEvent.click(screen.getByRole('button', { name: /add employee/i }));
-
-  const textInputs = Array.from(container.querySelectorAll('input[type="text"]')) as HTMLInputElement[];
-  fireEvent.change(textInputs[0], { target: { value: 'Budi' } });
-  fireEvent.change(textInputs[1], { target: { value: 'EMP001' } });
-  fireEvent.change(textInputs[2], { target: { value: 'Harvester' } });
-  if (overrides.phoneNumber !== undefined) fireEvent.change(textInputs[3], { target: { value: overrides.phoneNumber } });
-  if (overrides.address !== undefined) fireEvent.change(textInputs[4], { target: { value: overrides.address } });
-
-  const numberInputs = Array.from(container.querySelectorAll('input[type="number"]')) as HTMLInputElement[];
-  fireEvent.change(numberInputs[0], { target: { value: '5000000' } });
-  if (overrides.plantationId !== undefined) fireEvent.change(numberInputs[1], { target: { value: overrides.plantationId } });
-
-  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'ACTIVE' } });
-};
-
 const fillPayrollForm = (container: HTMLElement, overrides: Partial<{ notes: string }> = {}) => {
   fireEvent.click(screen.getByRole('button', { name: /add payroll/i }));
 
+  fireEvent.change(screen.getByRole('combobox', { name: /user/i }), { target: { value: USER_ID } });
+
   const numberInputs = Array.from(container.querySelectorAll('input[type="number"]')) as HTMLInputElement[];
-  fireEvent.change(numberInputs[0], { target: { value: '1' } });
-  fireEvent.change(numberInputs[1], { target: { value: '5000000' } });
-  fireEvent.change(numberInputs[2], { target: { value: '200000' } });
-  fireEvent.change(numberInputs[3], { target: { value: '100000' } });
+  fireEvent.change(numberInputs[0], { target: { value: '5000000' } });
+  fireEvent.change(numberInputs[1], { target: { value: '200000' } });
+  fireEvent.change(numberInputs[2], { target: { value: '100000' } });
 
   const dateInputs = Array.from(container.querySelectorAll('input[type="date"]')) as HTMLInputElement[];
   fireEvent.change(dateInputs[0], { target: { value: '2026-01-01' } });
   fireEvent.change(dateInputs[1], { target: { value: '2026-01-31' } });
-
-  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'BANK_TRANSFER' } });
 
   if (overrides.notes !== undefined) {
     const textInput = container.querySelector('input[type="text"]') as HTMLInputElement;
@@ -101,9 +90,7 @@ describe('PayrollPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (window as unknown as { confirm: typeof confirm }).confirm = confirmMock;
-    (employeeService.getAll as jest.Mock).mockResolvedValue([]);
-    (employeeService.create as jest.Mock).mockResolvedValue({ id: 1 });
-    (employeeService.delete as jest.Mock).mockResolvedValue(undefined);
+    (adminService.getUsers as jest.Mock).mockResolvedValue([makeUser()]);
     (payrollService.getAll as jest.Mock).mockResolvedValue([]);
     (payrollService.create as jest.Mock).mockResolvedValue({ id: 10 });
     (payrollService.approve as jest.Mock).mockResolvedValue({ id: 10, status: 'APPROVED' });
@@ -112,173 +99,16 @@ describe('PayrollPage', () => {
     confirmMock.mockReturnValue(true);
   });
 
-  // ── Employees tab ──
-
-  it('shows employees loading state then empty state', async () => {
-    let resolveEmps: ((value: unknown) => void) | undefined;
-    (employeeService.getAll as jest.Mock).mockReturnValue(new Promise((resolve) => { resolveEmps = resolve; }));
-    render(<PayrollPage />);
-    expect(screen.getByText(/loading employees/i)).toBeInTheDocument();
-    resolveEmps?.([]);
-    expect(await screen.findByText(/no employees yet/i)).toBeInTheDocument();
-  });
-
-  it('renders employees list with all status colors and optional fields', async () => {
-    (employeeService.getAll as jest.Mock).mockResolvedValue([
-      makeEmployee({ id: 1, name: 'Active Emp', status: 'ACTIVE', plantationId: 3, phoneNumber: '0812' }),
-      makeEmployee({ id: 2, name: 'Inactive Emp', status: 'INACTIVE' }),
-      makeEmployee({ id: 3, name: 'Terminated Emp', status: 'TERMINATED' }),
-      makeEmployee({ id: 4, name: 'Unknown Emp', status: 'WEIRD' as unknown as Employee['status'] }),
-    ]);
-    render(<PayrollPage />);
-    expect(await screen.findByText('Active Emp')).toBeInTheDocument();
-    expect(screen.getByText('Inactive Emp')).toBeInTheDocument();
-    expect(screen.getByText('Terminated Emp')).toBeInTheDocument();
-    expect(screen.getByText('Unknown Emp')).toBeInTheDocument();
-    expect(screen.getByText('0812')).toBeInTheDocument();
-  });
-
-  it('shows employee load error from Error', async () => {
-    (employeeService.getAll as jest.Mock).mockRejectedValue(new Error('Employee API down'));
-    render(<PayrollPage />);
-    expect(await screen.findByText('Employee API down')).toBeInTheDocument();
-  });
-
-  it('shows fallback employee load error when thrown value is not Error', async () => {
-    (employeeService.getAll as jest.Mock).mockRejectedValue('bad');
-    render(<PayrollPage />);
-    expect(await screen.findByText('Failed to load employees')).toBeInTheDocument();
-  });
-
-  it('toggles add employee form visibility', async () => {
-    render(<PayrollPage />);
-    await screen.findByText(/no employees yet/i);
-    fireEvent.click(screen.getByRole('button', { name: /add employee/i }));
-    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
-    expect(screen.getByRole('button', { name: /add employee/i })).toBeInTheDocument();
-  });
-
-  it('creates employee with optional fields populated', async () => {
-    (employeeService.getAll as jest.Mock).mockResolvedValueOnce([]).mockResolvedValueOnce([]);
-    const { container } = render(<PayrollPage />);
-    await screen.findByText(/no employees yet/i);
-    fillEmployeeForm(container, { plantationId: '3', phoneNumber: '0812', address: 'Pekanbaru' });
-    fireEvent.click(screen.getByRole('button', { name: /create employee/i }));
-
-    await waitFor(() => {
-      expect(employeeService.create).toHaveBeenCalledWith({
-        name: 'Budi',
-        employeeCode: 'EMP001',
-        position: 'Harvester',
-        plantationId: 3,
-        phoneNumber: '0812',
-        address: 'Pekanbaru',
-        baseSalary: 5000000,
-        status: 'ACTIVE',
-      });
-    });
-    await waitFor(() => {
-      expect((employeeService.getAll as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(2);
-    });
-  });
-
-  it('creates employee with undefined optional fields when blank', async () => {
-    const { container } = render(<PayrollPage />);
-    await screen.findByText(/no employees yet/i);
-    fillEmployeeForm(container);
-    fireEvent.click(screen.getByRole('button', { name: /create employee/i }));
-
-    await waitFor(() => {
-      expect(employeeService.create).toHaveBeenCalledWith({
-        name: 'Budi',
-        employeeCode: 'EMP001',
-        position: 'Harvester',
-        plantationId: undefined,
-        phoneNumber: undefined,
-        address: undefined,
-        baseSalary: 5000000,
-        status: 'ACTIVE',
-      });
-    });
-  });
-
-  it('shows create employee error from Error', async () => {
-    (employeeService.create as jest.Mock).mockRejectedValue(new Error('Employee create failed'));
-    const { container } = render(<PayrollPage />);
-    await screen.findByText(/no employees yet/i);
-    fillEmployeeForm(container);
-    fireEvent.click(screen.getByRole('button', { name: /create employee/i }));
-    expect(await screen.findByText('Employee create failed')).toBeInTheDocument();
-  });
-
-  it('shows fallback create employee error when thrown value is not Error', async () => {
-    (employeeService.create as jest.Mock).mockRejectedValue('bad');
-    const { container } = render(<PayrollPage />);
-    await screen.findByText(/no employees yet/i);
-    fillEmployeeForm(container);
-    fireEvent.click(screen.getByRole('button', { name: /create employee/i }));
-    expect(await screen.findByText('Failed to create employee')).toBeInTheDocument();
-  });
-
-  it('does not delete employee when confirm is cancelled', async () => {
-    confirmMock.mockReturnValue(false);
-    (employeeService.getAll as jest.Mock).mockResolvedValue([makeEmployee()]);
-    render(<PayrollPage />);
-    fireEvent.click(await screen.findByRole('button', { name: /delete/i }));
-    expect(employeeService.delete).not.toHaveBeenCalled();
-  });
-
-  it('deletes employee and reloads list when confirmed', async () => {
-    (employeeService.getAll as jest.Mock)
-      .mockResolvedValueOnce([makeEmployee()])
-      .mockResolvedValueOnce([]);
-    render(<PayrollPage />);
-    fireEvent.click(await screen.findByRole('button', { name: /delete/i }));
-    await waitFor(() => expect(employeeService.delete).toHaveBeenCalledWith(1));
-    await waitFor(() => {
-      expect((employeeService.getAll as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(2);
-    });
-  });
-
-  it('shows delete employee error from Error', async () => {
-    (employeeService.getAll as jest.Mock).mockResolvedValue([makeEmployee()]);
-    (employeeService.delete as jest.Mock).mockRejectedValue(new Error('Delete failed'));
-    render(<PayrollPage />);
-    fireEvent.click(await screen.findByRole('button', { name: /delete/i }));
-    expect(await screen.findByText('Delete failed')).toBeInTheDocument();
-  });
-
-  it('shows fallback delete employee error when thrown value is not Error', async () => {
-    (employeeService.getAll as jest.Mock).mockResolvedValue([makeEmployee()]);
-    (employeeService.delete as jest.Mock).mockRejectedValue('bad');
-    render(<PayrollPage />);
-    fireEvent.click(await screen.findByRole('button', { name: /delete/i }));
-    expect(await screen.findByText('Failed to delete employee')).toBeInTheDocument();
-  });
-
-  // ── Payrolls tab ──
-
-  it('switches back to employees tab after viewing payrolls', async () => {
-    render(<PayrollPage />);
-    await screen.findByText(/no employees yet/i);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
-    await screen.findByText(/no payroll records yet/i);
-    fireEvent.click(screen.getByRole('button', { name: /employees/i }));
-    expect(await screen.findByText(/no employees yet/i)).toBeInTheDocument();
-  });
-
-  it('switches to payrolls tab and shows loading then empty state', async () => {
+  it('shows payroll loading state then empty state', async () => {
     let resolvePay: ((value: unknown) => void) | undefined;
     (payrollService.getAll as jest.Mock).mockReturnValue(new Promise((resolve) => { resolvePay = resolve; }));
     render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     expect(screen.getByText(/loading payrolls/i)).toBeInTheDocument();
     resolvePay?.([]);
     expect(await screen.findByText(/no payroll records yet/i)).toBeInTheDocument();
   });
 
-  it('renders payrolls list with all status colors and approve/pay action buttons', async () => {
+  it('renders payrolls list with status colors and approve/pay action buttons', async () => {
     (payrollService.getAll as jest.Mock).mockResolvedValue([
       makePayroll({ id: 10, status: 'PENDING' }),
       makePayroll({ id: 11, status: 'APPROVED' }),
@@ -289,10 +119,16 @@ describe('PayrollPage', () => {
       makePayroll({ id: 16, status: 'WEIRD' as unknown as Payroll['status'] }),
     ]);
     render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     expect(await screen.findByText('Payroll #10')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /approve/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /mark as paid/i })).toBeInTheDocument();
+  });
+
+  it('renders the userId verbatim on each payroll card', async () => {
+    (payrollService.getAll as jest.Mock).mockResolvedValue([makePayroll()]);
+    render(<PayrollPage />);
+    await screen.findByText('Payroll #10');
+    expect(screen.getByText(USER_ID)).toBeInTheDocument();
   });
 
   it('renders payroll without optional paymentMethod gracefully', async () => {
@@ -300,7 +136,6 @@ describe('PayrollPage', () => {
       makePayroll({ paymentMethod: undefined }),
     ]);
     render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     expect(await screen.findByText('Payroll #10')).toBeInTheDocument();
     expect(screen.queryByText(/Method:/)).not.toBeInTheDocument();
   });
@@ -308,20 +143,17 @@ describe('PayrollPage', () => {
   it('shows payroll load error from Error', async () => {
     (payrollService.getAll as jest.Mock).mockRejectedValue(new Error('Payroll API down'));
     render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     expect(await screen.findByText('Payroll API down')).toBeInTheDocument();
   });
 
   it('shows fallback payroll load error when thrown value is not Error', async () => {
     (payrollService.getAll as jest.Mock).mockRejectedValue('bad');
     render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     expect(await screen.findByText('Failed to load payrolls')).toBeInTheDocument();
   });
 
   it('toggles add payroll form visibility', async () => {
     render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     await screen.findByText(/no payroll records yet/i);
     fireEvent.click(screen.getByRole('button', { name: /add payroll/i }));
     expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
@@ -329,17 +161,47 @@ describe('PayrollPage', () => {
     expect(screen.getByRole('button', { name: /add payroll/i })).toBeInTheDocument();
   });
 
+  it('renders user dropdown options sourced from adminService', async () => {
+    (adminService.getUsers as jest.Mock).mockResolvedValue([
+      makeUser({ id: USER_ID, name: 'Sari Lestari', role: 'BURUH' }),
+      makeUser({ id: '22222222-2222-2222-2222-222222222222', username: 'budi', name: '', role: 'MANDOR' }),
+    ]);
+    render(<PayrollPage />);
+    await screen.findByText(/no payroll records yet/i);
+    fireEvent.click(screen.getByRole('button', { name: /add payroll/i }));
+    await screen.findByRole('option', { name: /Sari Lestari \(BURUH\)/ });
+    expect(screen.getByRole('option', { name: /budi \(MANDOR\)/ })).toBeInTheDocument();
+  });
+
+  it('shows a warning when user list fails to load', async () => {
+    (adminService.getUsers as jest.Mock).mockRejectedValue(new Error('Identity API down'));
+    render(<PayrollPage />);
+    await screen.findByText(/no payroll records yet/i);
+    fireEvent.click(screen.getByRole('button', { name: /add payroll/i }));
+    expect(await screen.findByText(/Identity API down/)).toBeInTheDocument();
+  });
+
+  it('shows fallback warning when user list fails with non-Error', async () => {
+    (adminService.getUsers as jest.Mock).mockRejectedValue('bad');
+    render(<PayrollPage />);
+    await screen.findByText(/no payroll records yet/i);
+    fireEvent.click(screen.getByRole('button', { name: /add payroll/i }));
+    expect(await screen.findByText(/Failed to load users/)).toBeInTheDocument();
+  });
+
   it('creates payroll with optional notes populated', async () => {
     (payrollService.getAll as jest.Mock).mockResolvedValueOnce([]).mockResolvedValueOnce([]);
     const { container } = render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     await screen.findByText(/no payroll records yet/i);
+    // wait for users to load so the dropdown contains the option
+    await screen.findByRole('button', { name: /add payroll/i });
+    await waitFor(() => expect((adminService.getUsers as jest.Mock).mock.calls.length).toBeGreaterThan(0));
     fillPayrollForm(container, { notes: 'on-time bonus' });
     fireEvent.click(screen.getByRole('button', { name: /create payroll/i }));
 
     await waitFor(() => {
       expect(payrollService.create).toHaveBeenCalledWith({
-        employeeId: 1,
+        userId: USER_ID,
         periodStart: '2026-01-01',
         periodEnd: '2026-01-31',
         baseAmount: 5000000,
@@ -357,8 +219,8 @@ describe('PayrollPage', () => {
 
   it('creates payroll with undefined notes when blank', async () => {
     const { container } = render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     await screen.findByText(/no payroll records yet/i);
+    await waitFor(() => expect((adminService.getUsers as jest.Mock).mock.calls.length).toBeGreaterThan(0));
     fillPayrollForm(container);
     fireEvent.click(screen.getByRole('button', { name: /create payroll/i }));
 
@@ -372,8 +234,8 @@ describe('PayrollPage', () => {
   it('shows create payroll error from Error', async () => {
     (payrollService.create as jest.Mock).mockRejectedValue(new Error('Payroll create failed'));
     const { container } = render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     await screen.findByText(/no payroll records yet/i);
+    await waitFor(() => expect((adminService.getUsers as jest.Mock).mock.calls.length).toBeGreaterThan(0));
     fillPayrollForm(container);
     fireEvent.click(screen.getByRole('button', { name: /create payroll/i }));
     expect(await screen.findByText('Payroll create failed')).toBeInTheDocument();
@@ -382,8 +244,8 @@ describe('PayrollPage', () => {
   it('shows fallback create payroll error when thrown value is not Error', async () => {
     (payrollService.create as jest.Mock).mockRejectedValue('bad');
     const { container } = render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     await screen.findByText(/no payroll records yet/i);
+    await waitFor(() => expect((adminService.getUsers as jest.Mock).mock.calls.length).toBeGreaterThan(0));
     fillPayrollForm(container);
     fireEvent.click(screen.getByRole('button', { name: /create payroll/i }));
     expect(await screen.findByText('Failed to create payroll')).toBeInTheDocument();
@@ -394,7 +256,6 @@ describe('PayrollPage', () => {
       .mockResolvedValueOnce([makePayroll({ status: 'PENDING' })])
       .mockResolvedValueOnce([makePayroll({ status: 'APPROVED' })]);
     render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     fireEvent.click(await screen.findByRole('button', { name: /approve/i }));
     await waitFor(() => expect(payrollService.approve).toHaveBeenCalledWith(10));
     await waitFor(() => {
@@ -406,7 +267,6 @@ describe('PayrollPage', () => {
     (payrollService.getAll as jest.Mock).mockResolvedValue([makePayroll({ status: 'PENDING' })]);
     (payrollService.approve as jest.Mock).mockRejectedValue(new Error('Approve failed'));
     render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     fireEvent.click(await screen.findByRole('button', { name: /approve/i }));
     expect(await screen.findByText('Approve failed')).toBeInTheDocument();
   });
@@ -415,7 +275,6 @@ describe('PayrollPage', () => {
     (payrollService.getAll as jest.Mock).mockResolvedValue([makePayroll({ status: 'PENDING' })]);
     (payrollService.approve as jest.Mock).mockRejectedValue('bad');
     render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     fireEvent.click(await screen.findByRole('button', { name: /approve/i }));
     expect(await screen.findByText('Failed to approve payroll')).toBeInTheDocument();
   });
@@ -425,7 +284,6 @@ describe('PayrollPage', () => {
       .mockResolvedValueOnce([makePayroll({ status: 'APPROVED' })])
       .mockResolvedValueOnce([makePayroll({ status: 'PAID' })]);
     render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     fireEvent.click(await screen.findByRole('button', { name: /mark as paid/i }));
     await waitFor(() => expect(payrollService.pay).toHaveBeenCalledWith(10));
     await waitFor(() => {
@@ -437,7 +295,6 @@ describe('PayrollPage', () => {
     (payrollService.getAll as jest.Mock).mockResolvedValue([makePayroll({ status: 'APPROVED' })]);
     (payrollService.pay as jest.Mock).mockRejectedValue(new Error('Pay failed'));
     render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     fireEvent.click(await screen.findByRole('button', { name: /mark as paid/i }));
     expect(await screen.findByText('Pay failed')).toBeInTheDocument();
   });
@@ -446,7 +303,6 @@ describe('PayrollPage', () => {
     (payrollService.getAll as jest.Mock).mockResolvedValue([makePayroll({ status: 'APPROVED' })]);
     (payrollService.pay as jest.Mock).mockRejectedValue('bad');
     render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     fireEvent.click(await screen.findByRole('button', { name: /mark as paid/i }));
     expect(await screen.findByText('Failed to mark payroll as paid')).toBeInTheDocument();
   });
@@ -455,7 +311,6 @@ describe('PayrollPage', () => {
     confirmMock.mockReturnValue(false);
     (payrollService.getAll as jest.Mock).mockResolvedValue([makePayroll({ status: 'PAID' })]);
     render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     fireEvent.click(await screen.findByRole('button', { name: /delete/i }));
     expect(payrollService.delete).not.toHaveBeenCalled();
   });
@@ -465,7 +320,6 @@ describe('PayrollPage', () => {
       .mockResolvedValueOnce([makePayroll({ status: 'PAID' })])
       .mockResolvedValueOnce([]);
     render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     fireEvent.click(await screen.findByRole('button', { name: /delete/i }));
     await waitFor(() => expect(payrollService.delete).toHaveBeenCalledWith(10));
     await waitFor(() => {
@@ -477,7 +331,6 @@ describe('PayrollPage', () => {
     (payrollService.getAll as jest.Mock).mockResolvedValue([makePayroll({ status: 'PAID' })]);
     (payrollService.delete as jest.Mock).mockRejectedValue(new Error('Delete failed'));
     render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     fireEvent.click(await screen.findByRole('button', { name: /delete/i }));
     expect(await screen.findByText('Delete failed')).toBeInTheDocument();
   });
@@ -486,7 +339,6 @@ describe('PayrollPage', () => {
     (payrollService.getAll as jest.Mock).mockResolvedValue([makePayroll({ status: 'PAID' })]);
     (payrollService.delete as jest.Mock).mockRejectedValue('bad');
     render(<PayrollPage />);
-    fireEvent.click(screen.getByRole('button', { name: /payrolls/i }));
     fireEvent.click(await screen.findByRole('button', { name: /delete/i }));
     expect(await screen.findByText('Failed to delete payroll')).toBeInTheDocument();
   });

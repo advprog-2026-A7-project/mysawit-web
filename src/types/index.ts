@@ -225,37 +225,20 @@ export interface ShipmentStatusRequest {
 }
 
 // Payroll Types
-export interface Employee {
-  id: EntityId;
+
+// Mirror of an Auth user that the payroll service stores locally.
+// Populated only by the user.registered RabbitMQ listener; never exposed
+// via REST. Frontend doesn't need to read it from payroll-service — use
+// IDENTITY.USERS instead.
+export interface UserReplica {
+  id: string;
   name: string;
-  employeeCode: string;
-  position: string;
-  plantationId?: EntityId;
-  phoneNumber?: string;
-  address?: string;
-  hireDate?: string;
-  baseSalary: number;
-  status: 'ACTIVE' | 'INACTIVE' | 'TERMINATED';
-  createdAt: string;
-  updatedAt: string;
+  role: string;
 }
 
-export interface EmployeeRequest {
-  name: string;
-  employeeCode?: string;
-  position: string;
-  plantationId?: EntityId;
-  phoneNumber?: string;
-  address?: string;
-  hireDate?: string;
-  baseSalary: number;
-  status?: string;
-}
-
-// Payroll Types
 export interface Payroll {
   id: EntityId;
-  employeeId: EntityId;
+  userId: string;
   periodStart: string;
   periodEnd: string;
   baseAmount: number;
@@ -271,7 +254,7 @@ export interface Payroll {
 }
 
 export interface PayrollRequest {
-  employeeId: EntityId;
+  userId: string;
   periodStart: string;
   periodEnd: string;
   baseAmount: number;
