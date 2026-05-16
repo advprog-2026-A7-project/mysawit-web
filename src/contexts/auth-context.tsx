@@ -25,7 +25,7 @@ const AuthContext = createContext<AuthContextValue>({
   logout: () => {},
 });
 
-function readUser(): UserInfo | null {
+function buildUser(): UserInfo | null {
   if (typeof window === 'undefined') return null;
   if (!authService.isAuthenticated()) return null;
   const info = authService.getUserInfo();
@@ -38,6 +38,20 @@ function readUser(): UserInfo | null {
     googleLinked: info.googleLinked,
     hasPassword: info.hasPassword,
   };
+}
+
+
+let cachedSnapshot: UserInfo | null = null;
+let cachedSerialized = '__uninitialized__';
+
+function readUser(): UserInfo | null {
+  const next = buildUser();
+  const serialized = JSON.stringify(next);
+  if (serialized !== cachedSerialized) {
+    cachedSerialized = serialized;
+    cachedSnapshot = next;
+  }
+  return cachedSnapshot;
 }
 
 const subscribe = () => () => {};
