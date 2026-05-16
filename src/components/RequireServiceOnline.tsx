@@ -18,6 +18,12 @@ export function RequireServiceOnline({
   pollIntervalMs = 3000,
 }: RequireServiceOnlineProps) {
   const [status, setStatus] = useState<ServiceHealth>('loading');
+  const [trackedUrl, setTrackedUrl] = useState(healthUrl);
+
+  if (trackedUrl !== healthUrl) {
+    setTrackedUrl(healthUrl);
+    setStatus('loading');
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -39,7 +45,6 @@ export function RequireServiceOnline({
       timer = setTimeout(probe, pollIntervalMs);
     };
 
-    setStatus('loading');
     void probe();
 
     return () => {

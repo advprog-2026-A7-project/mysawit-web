@@ -39,8 +39,7 @@ export default function DashboardPage() {
   const visibleCards = MODULE_CARDS.filter((card) => canAccess(user?.role, card.module));
   const [health, setHealth] = useState<Record<string, ServiceHealth>>(initialHealth);
 
-  const refresh = useCallback(async () => {
-    setHealth(initialHealth());
+  const probeAll = useCallback(async () => {
     await Promise.all(
       SERVICES.map(async (svc) => {
         let status: ServiceHealth = 'offline';
@@ -55,9 +54,14 @@ export default function DashboardPage() {
     );
   }, []);
 
+  const refresh = useCallback(() => {
+    setHealth(initialHealth());
+    void probeAll();
+  }, [probeAll]);
+
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    void probeAll();
+  }, [probeAll]);
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
