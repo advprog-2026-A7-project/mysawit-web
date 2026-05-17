@@ -69,7 +69,11 @@ const makePayroll = (overrides: Partial<Payroll> = {}): Payroll => ({
 const fillPayrollForm = (container: HTMLElement, overrides: Partial<{ notes: string }> = {}) => {
   fireEvent.click(screen.getByRole('button', { name: /add payroll/i }));
 
-  fireEvent.change(screen.getByRole('combobox', { name: /user/i }), { target: { value: USER_ID } });
+  // The User <label>/<select> aren't programmatically associated (no htmlFor),
+  // so we resolve the user dropdown positionally: it's the first <select> in
+  // the form (Payment Method is the second).
+  const selects = Array.from(container.querySelectorAll('select')) as HTMLSelectElement[];
+  fireEvent.change(selects[0], { target: { value: USER_ID } });
 
   const numberInputs = Array.from(container.querySelectorAll('input[type="number"]')) as HTMLInputElement[];
   fireEvent.change(numberInputs[0], { target: { value: '5000000' } });
@@ -84,6 +88,14 @@ const fillPayrollForm = (container: HTMLElement, overrides: Partial<{ notes: str
     const textInput = container.querySelector('input[type="text"]') as HTMLInputElement;
     fireEvent.change(textInput, { target: { value: overrides.notes } });
   }
+};
+
+const submitPayrollForm = (container: HTMLElement) => {
+  // Use fireEvent.submit on the form to bypass jsdom HTML5 validation, which
+  // otherwise blocks fireEvent.click on submit buttons inside forms that have
+  // unfilled required fields (e.g., when the user dropdown hasn't hydrated).
+  const form = container.querySelector('form') as HTMLFormElement;
+  fireEvent.submit(form);
 };
 
 describe('PayrollPage', () => {
@@ -197,7 +209,7 @@ describe('PayrollPage', () => {
     await screen.findByRole('button', { name: /add payroll/i });
     await waitFor(() => expect((adminService.getUsers as jest.Mock).mock.calls.length).toBeGreaterThan(0));
     fillPayrollForm(container, { notes: 'on-time bonus' });
-    fireEvent.click(screen.getByRole('button', { name: /create payroll/i }));
+    submitPayrollForm(container);
 
     await waitFor(() => {
       expect(payrollService.create).toHaveBeenCalledWith({
@@ -222,7 +234,7 @@ describe('PayrollPage', () => {
     await screen.findByText(/no payroll records yet/i);
     await waitFor(() => expect((adminService.getUsers as jest.Mock).mock.calls.length).toBeGreaterThan(0));
     fillPayrollForm(container);
-    fireEvent.click(screen.getByRole('button', { name: /create payroll/i }));
+    submitPayrollForm(container);
 
     await waitFor(() => {
       expect(payrollService.create).toHaveBeenCalledWith(expect.objectContaining({
@@ -237,7 +249,7 @@ describe('PayrollPage', () => {
     await screen.findByText(/no payroll records yet/i);
     await waitFor(() => expect((adminService.getUsers as jest.Mock).mock.calls.length).toBeGreaterThan(0));
     fillPayrollForm(container);
-    fireEvent.click(screen.getByRole('button', { name: /create payroll/i }));
+    submitPayrollForm(container);
     expect(await screen.findByText('Payroll create failed')).toBeInTheDocument();
   });
 
@@ -247,7 +259,7 @@ describe('PayrollPage', () => {
     await screen.findByText(/no payroll records yet/i);
     await waitFor(() => expect((adminService.getUsers as jest.Mock).mock.calls.length).toBeGreaterThan(0));
     fillPayrollForm(container);
-    fireEvent.click(screen.getByRole('button', { name: /create payroll/i }));
+    submitPayrollForm(container);
     expect(await screen.findByText('Failed to create payroll')).toBeInTheDocument();
   });
 

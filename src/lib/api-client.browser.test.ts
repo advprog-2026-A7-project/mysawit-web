@@ -367,6 +367,20 @@ describe('api-client (browser)', () => {
     await expect(apiClient.get('/resource')).rejects.toThrow('Request failed');
   });
 
+  it('saveAuth defaults googleLinked and hasPassword to "false" when omitted from the response', () => {
+    apiClient.saveAuth({
+      token: 'jwt',
+      type: 'Bearer',
+      id: '99',
+      username: 'no-flags',
+      email: 'nf@mail.com',
+      role: 'BURUH',
+    } as unknown as Parameters<typeof apiClient.saveAuth>[0]);
+
+    expect(localStorage.getItem('googleLinked')).toBe('false');
+    expect(localStorage.getItem('hasPassword')).toBe('false');
+  });
+
   it('saveAuth persists refresh token when present', () => {
     apiClient.saveAuth({
       token: 'jwt',

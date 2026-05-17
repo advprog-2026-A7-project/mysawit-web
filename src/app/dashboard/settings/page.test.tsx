@@ -266,6 +266,27 @@ describe('SettingsPage', () => {
     }
   });
 
+  it('Set password (update mode): button reads "Saving..." while in flight when user already has a password', async () => {
+    setUser({ hasPassword: true });
+    let resolveSet: ((value: unknown) => void) | undefined;
+    (authService.setPassword as jest.Mock).mockReturnValue(
+      new Promise((r) => { resolveSet = r; })
+    );
+
+    render(<SettingsPage />);
+    // The button now starts as "Update Password"; submitting flips the text
+    // to "Saving..." — the third branch of the ternary on line 220.
+    expect(screen.getByRole('button', { name: /update password/i })).toBeInTheDocument();
+    await act(async () => {
+      submitPasswordForm('secret123', 'secret123');
+    });
+    expect(screen.getByRole('button', { name: /saving/i })).toBeDisabled();
+
+    await act(async () => {
+      resolveSet?.({ message: 'ok' });
+    });
+  });
+
   it('Set password: shows "Saving..." while in flight and the button is disabled', async () => {
     let resolveSet: ((value: unknown) => void) | undefined;
     (authService.setPassword as jest.Mock).mockReturnValue(

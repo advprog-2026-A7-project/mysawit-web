@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import DashboardPage from './page';
 
 jest.mock('next/link', () => ({
@@ -90,5 +90,71 @@ describe('DashboardPage', () => {
     expect(screen.getByText(/system status/i)).toBeInTheDocument();
     expect(screen.getByText(/identity service/i)).toBeInTheDocument();
     expect(screen.getByText(/payroll service/i)).toBeInTheDocument();
+  });
+
+  describe('System Status health probing', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('renders all services as Online when health probes succeed', async () => {
+      global.fetch = jest.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
+
+      await act(async () => {
+        render(<DashboardPage />);
+      });
+
+      await waitFor(() => {
+        expect(screen.getAllByText(/^Online$/).length).toBeGreaterThan(0);
+      });
+      expect(screen.queryByText(/checking…/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/^Offline$/)).not.toBeInTheDocument();
+    });
+
+    it('renders services as Offline when health probes return non-ok', async () => {
+      global.fetch = jest.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
+
+      await act(async () => {
+        render(<DashboardPage />);
+      });
+
+      await waitFor(() => {
+        expect(screen.getAllByText(/^Offline$/).length).toBeGreaterThan(0);
+      });
+    });
+
+    it('renders services as Offline when fetch rejects', async () => {
+      global.fetch = jest.fn().mockRejectedValue(new Error('network')) as unknown as typeof fetch;
+
+      await act(async () => {
+        render(<DashboardPage />);
+      });
+
+      await waitFor(() => {
+        expect(screen.getAllByText(/^Offline$/).length).toBeGreaterThan(0);
+      });
+    });
+
+    it('Refresh button resets statuses to "Checking…" and re-probes', async () => {
+      const fetchMock = jest.fn().mockResolvedValue({ ok: true });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      await act(async () => {
+        render(<DashboardPage />);
+      });
+
+      await waitFor(() => {
+        expect(screen.getAllByText(/^Online$/).length).toBeGreaterThan(0);
+      });
+
+      const firstCallCount = fetchMock.mock.calls.length;
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
+      });
+
+      await waitFor(() => {
+        expect(fetchMock.mock.calls.length).toBeGreaterThan(firstCallCount);
+      });
+    });
   });
 });
