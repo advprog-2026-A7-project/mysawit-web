@@ -243,6 +243,23 @@ describe('PayrollPage', () => {
     });
   });
 
+  it('creates payroll with CASH payment method when the user picks a different option', async () => {
+    const { container } = render(<PayrollPage />);
+    await screen.findByText(/no payroll records yet/i);
+    await waitFor(() => expect((adminService.getUsers as jest.Mock).mock.calls.length).toBeGreaterThan(0));
+    fillPayrollForm(container);
+    // The payment method <select> is the second select in the form (after User).
+    const selects = Array.from(container.querySelectorAll('select')) as HTMLSelectElement[];
+    fireEvent.change(selects[1], { target: { value: 'CASH' } });
+    submitPayrollForm(container);
+
+    await waitFor(() => {
+      expect(payrollService.create).toHaveBeenCalledWith(expect.objectContaining({
+        paymentMethod: 'CASH',
+      }));
+    });
+  });
+
   it('shows create payroll error from Error', async () => {
     (payrollService.create as jest.Mock).mockRejectedValue(new Error('Payroll create failed'));
     const { container } = render(<PayrollPage />);

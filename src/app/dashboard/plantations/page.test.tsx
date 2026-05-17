@@ -434,17 +434,19 @@ describe('PlantationsPage', () => {
   });
 
   it('delete: confirm accepted calls service and reloads', async () => {
-    (plantationService.getAll as jest.Mock)
-      .mockResolvedValueOnce([{ id: 1, name: 'A', location: 'X', area: 1 }])
-      .mockResolvedValueOnce([]);
+    (plantationService.getAll as jest.Mock).mockResolvedValue([
+      { id: 1, name: 'A', location: 'X', area: 1 },
+    ]);
     render(<PlantationsPage />);
-    await act(async () => {
-      fireEvent.click(await screen.findByRole('button', { name: /^delete$/i }));
-    });
+    const deleteBtn = await screen.findByRole('button', { name: /^delete$/i });
+
+    fireEvent.click(deleteBtn);
+
     await waitFor(() => {
       expect(plantationService.delete).toHaveBeenCalledWith(1);
     });
     await waitFor(() => {
+      // Initial load + post-delete reload.
       expect((plantationService.getAll as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(2);
     });
   });
