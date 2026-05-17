@@ -65,8 +65,11 @@ export const API_ENDPOINTS = {
       `${gatewayUrl('shipment', '/api/shipments')}?harvestId=${harvestId}`,
     BY_STATUS: (status: string) =>
       `${gatewayUrl('shipment', '/api/shipments')}?status=${status}`,
+    AVAILABLE_SUPIRS: gatewayUrl('shipment', '/api/shipments/available-supirs'),
     UPDATE_STATUS: (id: number | string) =>
       gatewayUrl('shipment', `/api/shipments/${id}/status`),
+    MANDOR_APPROVAL: (id: number | string) =>
+      gatewayUrl('shipment', `/api/shipments/${id}/mandor-approval`),
     ADMIN_APPROVAL: (id: number | string) =>
       gatewayUrl('shipment', `/api/shipments/${id}/admin-approval`),
     HEALTH: gatewayUrl('shipment', '/api/shipments/health'),

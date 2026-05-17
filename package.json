@@ -14,6 +14,7 @@
     "test:coverage": "jest --ci --coverage --reporters=default --reporters=jest-junit"
   },
   "dependencies": {
+    "lucide-react": "^1.16.0",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3"

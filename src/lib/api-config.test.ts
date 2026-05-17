@@ -13,6 +13,9 @@ describe('api-config', () => {
     expect(API_ENDPOINTS.SHIPMENTS.BY_ID(5)).toBe('/api/gateway/shipment/api/shipments/5');
     expect(API_ENDPOINTS.SHIPMENTS.BY_HARVEST(6)).toBe('/api/gateway/shipment/api/shipments?harvestId=6');
     expect(API_ENDPOINTS.SHIPMENTS.BY_STATUS('MEMUAT')).toBe('/api/gateway/shipment/api/shipments?status=MEMUAT');
+    expect(API_ENDPOINTS.SHIPMENTS.AVAILABLE_SUPIRS).toBe('/api/gateway/shipment/api/shipments/available-supirs');
+    expect(API_ENDPOINTS.SHIPMENTS.MANDOR_APPROVAL(5)).toBe('/api/gateway/shipment/api/shipments/5/mandor-approval');
+    expect(API_ENDPOINTS.SHIPMENTS.ADMIN_APPROVAL(5)).toBe('/api/gateway/shipment/api/shipments/5/admin-approval');
   });
 
   it('keeps endpoint URLs stable for gateway-backed services', () => {

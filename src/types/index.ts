@@ -134,7 +134,10 @@ export type ShipmentStatus =
   | 'MEMUAT'
   | 'MENGIRIM'
   | 'TIBA'
+  | 'MANDOR_APPROVED'
+  | 'MANDOR_REJECTED'
   | 'ADMIN_APPROVED'
+  | 'ADMIN_REJECTED'
   | 'PARTIALLY_REJECTED'
   | 'PENDING'
   | 'IN_TRANSIT'
@@ -149,10 +152,15 @@ export interface ShipmentItem {
 export interface Shipment {
   id: EntityId;
   mandorUserId?: EntityId;
+  mandorName?: string;
   supirUserId?: EntityId;
+  supirName?: string;
   harvestId?: EntityId;
   destination: string;
+  plantationId?: EntityId;
   totalKg?: number;
+  kgAccepted?: number;
+  rejectionReason?: string;
   weight?: number; // in kg, kept for the older dummy contract
   status: ShipmentStatus;
   items?: ShipmentItem[];
@@ -163,6 +171,8 @@ export interface Shipment {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  mandorReviewedAt?: string;
+  adminReviewedAt?: string;
 }
 
 export interface ShipmentRequest {
@@ -170,7 +180,7 @@ export interface ShipmentRequest {
   destination: string;
   items?: ShipmentItem[];
   harvestId?: EntityId;
-  weight: number;
+  weight?: number;
   status?: string;
   shipperName?: string;
   vehicleNumber?: string;
@@ -181,6 +191,31 @@ export interface ShipmentRequest {
 
 export interface ShipmentStatusRequest {
   status: ShipmentStatus;
+}
+
+export interface ShipmentFilters {
+  status?: ShipmentStatus | string;
+  date?: string;
+  mandorName?: string;
+  supirName?: string;
+  supirUserId?: EntityId;
+}
+
+export interface MandorApprovalRequest {
+  status: Extract<ShipmentStatus, 'MANDOR_APPROVED' | 'MANDOR_REJECTED'>;
+  rejectionReason?: string;
+}
+
+export interface AdminApprovalRequest {
+  status: Extract<ShipmentStatus, 'ADMIN_APPROVED' | 'ADMIN_REJECTED' | 'PARTIALLY_REJECTED'>;
+  rejectionReason?: string;
+  kgAccepted?: number;
+}
+
+export interface SupirAssignment {
+  userId: EntityId;
+  name?: string;
+  plantationId: EntityId;
 }
 
 // Payroll Types
