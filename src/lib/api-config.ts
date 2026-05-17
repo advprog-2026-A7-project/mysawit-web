@@ -42,7 +42,13 @@ export const API_ENDPOINTS = {
       gatewayUrl('plantation', `/api/plantations/owner/${ownerId}`),
     ASSIGN_MANDOR: (id: number | string) =>
       gatewayUrl('plantation', `/api/plantations/${id}/mandor`),
+    UNASSIGN_MANDOR: (id: number | string) =>
+      gatewayUrl('plantation', `/api/plantations/${id}/mandor`),
     TRANSFER_MANDOR: gatewayUrl('plantation', '/api/plantations/transfer-mandor'),
+    SUPIRS: (id: number | string) =>
+      gatewayUrl('plantation', `/api/plantations/${id}/supirs`),
+    UNASSIGN_SUPIR: (id: number | string, supirId: string) =>
+      gatewayUrl('plantation', `/api/plantations/${id}/supirs/${supirId}`),
     HEALTH: gatewayUrl('plantation', '/actuator/health'),
   },
   

@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-config';
-import { EntityId, Harvest, HarvestRequest, UpdateHarvestStatusRequest } from '@/types';
+import { EntityId, Harvest, UpdateHarvestStatusRequest } from '@/types';
 
 interface HarvestFilters {
   harvesterName?: string;
@@ -8,24 +8,21 @@ interface HarvestFilters {
   endDate?: string;
 }
 
+interface CreateHarvestData {
+  plantationId: EntityId;
+  weight: number;
+  news?: string;
+  files: FileList | File[];
+}
+
 const appendFilters = (url: string, filters?: HarvestFilters): string => {
   const params = new URLSearchParams();
-
   if (filters?.harvesterName) params.set('harvesterName', filters.harvesterName);
   if (filters?.startDate) params.set('startDate', filters.startDate);
   if (filters?.endDate) params.set('endDate', filters.endDate);
-
   const query = params.toString();
   return query ? `${url}?${query}` : url;
 };
-
-const toLocalDateTime = (value?: string) =>
-  value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
-
-const normalizeHarvestRequest = (data: HarvestRequest): HarvestRequest => ({
-  ...data,
-  harvestDate: toLocalDateTime(data.harvestDate),
-});
 
 export const harvestService = {
   async getAll(filters?: HarvestFilters): Promise<Harvest[]> {
@@ -44,23 +41,51 @@ export const harvestService = {
     return apiClient.get(API_ENDPOINTS.HARVESTS.BY_PLANTATION(plantationId));
   },
 
-  async create(data: HarvestRequest): Promise<Harvest> {
-    return apiClient.post(API_ENDPOINTS.HARVESTS.BASE, normalizeHarvestRequest(data));
-  },
+  /**
+   * Create harvest — backend expects multipart/form-data:
+   *   - request: JSON blob (LogHarvestRequest)
+   *   - files: one or more photo files
+   */
+  async create(data: CreateHarvestData): Promise<{ message: string; id: string }> {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
 
-  async update(id: number, data: HarvestRequest): Promise<Harvest> {
-    return apiClient.put(API_ENDPOINTS.HARVESTS.BY_ID(id), normalizeHarvestRequest(data));
+    const requestBlob = new Blob(
+      [JSON.stringify({
+        plantationId: data.plantationId,
+        weightKg: data.weight,
+        news: data.news ?? '',
+      })],
+      { type: 'application/json' }
+    );
+
+    const formData = new FormData();
+    formData.append('request', requestBlob);
+
+    const files = Array.from(data.files);
+    if (files.length === 0) throw new Error('Minimal 1 foto hasil panen harus dilampirkan');
+    files.forEach(f => formData.append('files', f));
+
+    const response = await fetch(API_ENDPOINTS.HARVESTS.BASE, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      try { const j = JSON.parse(text); throw new Error(j.message || j.error || text); } catch { throw new Error(text || response.statusText); }
+    }
+
+    return response.json() as Promise<{ message: string; id: string }>;
   },
 
   async updateStatus(data: UpdateHarvestStatusRequest): Promise<Harvest> {
     return apiClient.patch(API_ENDPOINTS.HARVESTS.UPDATE_STATUS, data);
   },
 
-  async delete(id: EntityId): Promise<{ message: string }> {
-    return apiClient.delete(API_ENDPOINTS.HARVESTS.BY_ID(id));
-  },
-
-  async checkHealth(): Promise<{ status: string; service: string }> {
+  async checkHealth(): Promise<{ status: string }> {
     return apiClient.get(API_ENDPOINTS.HARVESTS.HEALTH);
   },
 };

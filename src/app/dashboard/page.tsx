@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { apiClient } from '@/lib/api-client';
 import { authService } from '@/services/auth.service';
 import { harvestService } from '@/services/harvest.service';
 import { shipmentService } from '@/services/shipment.service';
@@ -41,7 +42,7 @@ export default function DashboardPage() {
       { key: 'plantation', fn: () => plantationService.checkHealth() },
       { key: 'harvest',    fn: () => harvestService.checkHealth() },
       { key: 'shipment',   fn: () => shipmentService.checkHealth() },
-      { key: 'payroll',    fn: () => payrollService.checkHealth() },
+      { key: 'payroll',    fn: () => apiClient.get('/api/gateway/payroll/actuator/health') },
     ];
 
     await Promise.allSettled(
@@ -68,7 +69,7 @@ export default function DashboardPage() {
         plantationService.getAll(),
         harvestService.getAll(),
         shipmentService.getAll(),
-        payrollService.getPayrolls(),
+        payrollService.getAll(),
       ]);
       setStats({
         users:       users.status === 'fulfilled' ? users.value.length : 0,

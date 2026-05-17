@@ -62,6 +62,7 @@ export interface Plantation {
   area: number; // in hectares
   ownerId?: EntityId;
   mandorId?: string;
+  supirIds?: string[];
   description?: string;
   plantDate?: string;
   coordinates?: Coordinate[];

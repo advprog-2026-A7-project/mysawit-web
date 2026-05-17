@@ -49,8 +49,8 @@ export default function HarvestsPage() {
     plantationId: '',
     weight: '',
     news: '',
-    photos: '',
   });
+  const [photoFiles, setPhotoFiles] = useState<FileList | null>(null);
   const [statusForm, setStatusForm] = useState({
     id: '',
     status: 'APPROVED' as HarvestStatus,
@@ -108,21 +108,21 @@ export default function HarvestsPage() {
 
   const handleSubmit = async (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     event.preventDefault();
+    if (!photoFiles || photoFiles.length === 0) {
+      setError('Minimal 1 foto hasil panen harus dilampirkan');
+      return;
+    }
     try {
       setSaving(true);
       await harvestService.create({
         plantationId: formData.plantationId,
         weight: Number.parseFloat(formData.weight),
         news: formData.news,
-        photos: parsePhotos(formData.photos),
+        files: photoFiles,
       });
       setShowForm(false);
-      setFormData({
-        plantationId: '',
-        weight: '',
-        news: '',
-        photos: '',
-      });
+      setFormData({ plantationId: '', weight: '', news: '' });
+      setPhotoFiles(null);
       await loadHarvests(filters);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create harvest');
@@ -261,13 +261,22 @@ export default function HarvestsPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                 required
               />
-              <textarea
-                rows={3}
-                value={formData.photos}
-                onChange={(event) => setFormData({ ...formData, photos: event.target.value })}
-                placeholder="Photo URLs, one per line"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-              />
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">
+                  Foto Bukti Panen <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={(event) => setPhotoFiles(event.target.files)}
+                  className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-600/20 file:text-green-400 hover:file:bg-green-600/30 cursor-pointer"
+                  required
+                />
+                {photoFiles && photoFiles.length > 0 && (
+                  <p className="text-xs text-green-400 mt-1">{photoFiles.length} foto dipilih</p>
+                )}
+              </div>
               <button
                 type="submit"
                 disabled={saving}
