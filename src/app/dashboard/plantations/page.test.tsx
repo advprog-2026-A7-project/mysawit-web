@@ -457,9 +457,8 @@ describe('PlantationsPage', () => {
     ]);
     (plantationService.delete as jest.Mock).mockRejectedValue(new Error('Delete failed'));
     render(<PlantationsPage />);
-    await act(async () => {
-      fireEvent.click(await screen.findByRole('button', { name: /^delete$/i }));
-    });
+    const deleteBtn = await screen.findByRole('button', { name: /^delete$/i });
+    fireEvent.click(deleteBtn);
     expect(await screen.findByText('Delete failed')).toBeInTheDocument();
   });
 
@@ -469,9 +468,8 @@ describe('PlantationsPage', () => {
     ]);
     (plantationService.delete as jest.Mock).mockRejectedValue('boom');
     render(<PlantationsPage />);
-    await act(async () => {
-      fireEvent.click(await screen.findByRole('button', { name: /^delete$/i }));
-    });
+    const deleteBtn = await screen.findByRole('button', { name: /^delete$/i });
+    fireEvent.click(deleteBtn);
     expect(await screen.findByText(/failed to delete plantation/i)).toBeInTheDocument();
   });
 
@@ -495,8 +493,11 @@ describe('PlantationsPage', () => {
     await waitFor(() => {
       expect(plantationService.assignMandor).toHaveBeenCalledWith('1', { mandorId: 'm1' });
     });
-    // Form selects reset.
-    expect((within(assignForm).getByLabelText('Plantation') as HTMLSelectElement).value).toBe('');
+    // Form selects reset (state update happens after the async service call
+    // resolves, so we need to wait for it).
+    await waitFor(() => {
+      expect((within(assignForm).getByLabelText('Plantation') as HTMLSelectElement).value).toBe('');
+    });
     expect((within(assignForm).getByLabelText('Mandor') as HTMLSelectElement).value).toBe('');
   });
 
@@ -568,7 +569,9 @@ describe('PlantationsPage', () => {
         toPlantationId: '2',
       });
     });
-    expect((within(transferForm).getByLabelText('Mandor') as HTMLSelectElement).value).toBe('');
+    await waitFor(() => {
+      expect((within(transferForm).getByLabelText('Mandor') as HTMLSelectElement).value).toBe('');
+    });
   });
 
   it('shows transfer mandor errors from Error and fallback', async () => {
