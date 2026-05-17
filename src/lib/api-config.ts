@@ -33,7 +33,7 @@ export const API_ENDPOINTS = {
     INTERNAL_USER_BY_ID: (id: string) =>
       gatewayUrl('identity', `/api/internal/users/${id}`),
   },
-  
+
   // Plantation endpoints
   PLANTATIONS: {
     BASE: gatewayUrl('plantation', '/api/plantations'),
@@ -74,18 +74,10 @@ export const API_ENDPOINTS = {
 
   // Payroll endpoints
   PAYROLL: {
-    EMPLOYEES: gatewayUrl('payroll', '/api/employees'),
-    EMPLOYEE_BY_ID: (id: number | string) => gatewayUrl('payroll', `/api/employees/${id}`),
-    EMPLOYEE_BY_CODE: (employeeCode: string) =>
-      gatewayUrl('payroll', `/api/employees/code/${employeeCode}`),
-    EMPLOYEES_BY_PLANTATION: (plantationId: number | string) =>
-      gatewayUrl('payroll', `/api/employees/plantation/${plantationId}`),
-    EMPLOYEES_BY_STATUS: (status: string) =>
-      gatewayUrl('payroll', `/api/employees/status/${status}`),
     PAYROLLS: gatewayUrl('payroll', '/api/payrolls'),
     PAYROLL_BY_ID: (id: number | string) => gatewayUrl('payroll', `/api/payrolls/${id}`),
-    PAYROLLS_BY_EMPLOYEE: (employeeId: number | string) =>
-      gatewayUrl('payroll', `/api/payrolls/employee/${employeeId}`),
+    PAYROLLS_BY_USER: (userId: string) =>
+      gatewayUrl('payroll', `/api/payrolls/user/${userId}`),
     PAYROLLS_BY_STATUS: (status: string) =>
       gatewayUrl('payroll', `/api/payrolls/status/${status}`),
     APPROVE_PAYROLL: (id: number | string) =>
@@ -95,21 +87,10 @@ export const API_ENDPOINTS = {
     HEALTH: gatewayUrl('payroll', '/actuator/health'),
   },
 
-  EMPLOYEES: {
-    BASE: gatewayUrl('payroll', '/api/employees'),
-    BY_ID: (id: number | string) => gatewayUrl('payroll', `/api/employees/${id}`),
-    BY_CODE: (employeeCode: string) =>
-      gatewayUrl('payroll', `/api/employees/code/${employeeCode}`),
-    BY_PLANTATION: (plantationId: number | string) =>
-      gatewayUrl('payroll', `/api/employees/plantation/${plantationId}`),
-    BY_STATUS: (status: string) => gatewayUrl('payroll', `/api/employees/status/${status}`),
-  },
-
   PAYROLLS: {
     BASE: gatewayUrl('payroll', '/api/payrolls'),
     BY_ID: (id: number | string) => gatewayUrl('payroll', `/api/payrolls/${id}`),
-    BY_EMPLOYEE: (employeeId: number | string) =>
-      gatewayUrl('payroll', `/api/payrolls/employee/${employeeId}`),
+    BY_USER: (userId: string) => gatewayUrl('payroll', `/api/payrolls/user/${userId}`),
     BY_STATUS: (status: string) => gatewayUrl('payroll', `/api/payrolls/status/${status}`),
     APPROVE: (id: number | string) => gatewayUrl('payroll', `/api/payrolls/${id}/approve`),
     ACCEPT: (id: number | string) => gatewayUrl('payroll', `/api/payrolls/${id}/accept`),

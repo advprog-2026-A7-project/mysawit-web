@@ -1,11 +1,18 @@
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-config';
-import { EntityId, Harvest, HarvestRequest, UpdateHarvestStatusRequest } from '@/types';
+import {
+  EntityId,
+  Harvest,
+  HarvestRequest,
+  HarvestStatus,
+  UpdateHarvestStatusRequest,
+} from '@/types';
 
 interface HarvestFilters {
   harvesterName?: string;
   startDate?: string;
   endDate?: string;
+  status?: HarvestStatus;
 }
 
 const appendFilters = (url: string, filters?: HarvestFilters): string => {
@@ -14,6 +21,7 @@ const appendFilters = (url: string, filters?: HarvestFilters): string => {
   if (filters?.harvesterName) params.set('harvesterName', filters.harvesterName);
   if (filters?.startDate) params.set('startDate', filters.startDate);
   if (filters?.endDate) params.set('endDate', filters.endDate);
+  if (filters?.status) params.set('status', filters.status);
 
   const query = params.toString();
   return query ? `${url}?${query}` : url;
@@ -27,13 +35,32 @@ const normalizeHarvestRequest = (data: HarvestRequest): HarvestRequest => ({
   harvestDate: toLocalDateTime(data.harvestDate),
 });
 
+// Some upstream responses (paginated wrappers, error envelopes, empty bodies)
+// can arrive as non-array JSON. Normalize so callers can always assume an array.
+const toArray = <T>(value: unknown): T[] => {
+  if (Array.isArray(value)) return value as T[];
+  if (value && typeof value === 'object') {
+    const maybe = value as { content?: unknown; data?: unknown; items?: unknown };
+    if (Array.isArray(maybe.content)) return maybe.content as T[];
+    if (Array.isArray(maybe.data)) return maybe.data as T[];
+    if (Array.isArray(maybe.items)) return maybe.items as T[];
+  }
+  return [];
+};
+
 export const harvestService = {
   async getAll(filters?: HarvestFilters): Promise<Harvest[]> {
-    return apiClient.get(appendFilters(API_ENDPOINTS.HARVESTS.BASE, filters));
+    const result = await apiClient.get<unknown>(
+      appendFilters(API_ENDPOINTS.HARVESTS.BASE, filters),
+    );
+    return toArray<Harvest>(result);
   },
 
   async getMine(filters?: Omit<HarvestFilters, 'harvesterName'>): Promise<Harvest[]> {
-    return apiClient.get(appendFilters(API_ENDPOINTS.HARVESTS.MY, filters));
+    const result = await apiClient.get<unknown>(
+      appendFilters(API_ENDPOINTS.HARVESTS.MY, filters),
+    );
+    return toArray<Harvest>(result);
   },
 
   async getById(id: EntityId): Promise<Harvest> {
@@ -41,7 +68,8 @@ export const harvestService = {
   },
 
   async getByPlantation(plantationId: EntityId): Promise<Harvest[]> {
-    return apiClient.get(API_ENDPOINTS.HARVESTS.BY_PLANTATION(plantationId));
+    const result = await apiClient.get<unknown>(API_ENDPOINTS.HARVESTS.BY_PLANTATION(plantationId));
+    return toArray<Harvest>(result);
   },
 
   async create(data: HarvestRequest): Promise<Harvest> {

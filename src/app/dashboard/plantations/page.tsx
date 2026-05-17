@@ -1,11 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { plantationService } from '@/services/plantation.service';
-import { authService } from '@/services/auth.service';
-import { Coordinate, EntityId, Plantation, PlantationRequest } from '@/types';
+import { identityService } from '@/services/identity.service';
+import { Coordinate, EntityId, Plantation, PlantationRequest, User } from '@/types';
 
 interface CoordinateForm {
   latitude: string;
@@ -15,13 +14,13 @@ interface CoordinateForm {
 interface PlantationFormState {
   id: string;
   name: string;
-  location: string;
   area: string;
-  ownerId: string;
   description: string;
   plantDate: string;
   coordinates: CoordinateForm[];
 }
+
+const LOCATION_PLACEHOLDER = '-';
 
 const defaultCoordinates: CoordinateForm[] = [
   { latitude: '0', longitude: '0' },
@@ -33,9 +32,7 @@ const defaultCoordinates: CoordinateForm[] = [
 const emptyForm: PlantationFormState = {
   id: '',
   name: '',
-  location: '',
   area: '',
-  ownerId: '',
   description: '',
   plantDate: '',
   coordinates: defaultCoordinates,
@@ -48,12 +45,12 @@ const formatDate = (value?: string): string => {
   return date.toLocaleString('id-ID');
 };
 
-const toDateTimeInput = (value?: string): string => {
+const toDateInput = (value?: string): string => {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
   const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return localDate.toISOString().slice(0, 16);
+  return localDate.toISOString().slice(0, 10);
 };
 
 const toCoordinateForm = (coordinates?: Coordinate[]): CoordinateForm[] => {
@@ -73,11 +70,11 @@ const parseCoordinates = (coordinates: CoordinateForm[]): Coordinate[] =>
 
 const buildPlantationRequest = (formData: PlantationFormState): PlantationRequest => ({
   name: formData.name,
-  location: formData.location,
+  location: LOCATION_PLACEHOLDER,
   area: Number.parseFloat(formData.area),
-  ownerId: formData.ownerId || undefined,
+  ownerId: undefined,
   description: formData.description || undefined,
-  plantDate: formData.plantDate || undefined,
+  plantDate: formData.plantDate ? `${formData.plantDate}T00:00:00` : undefined,
   coordinates: parseCoordinates(formData.coordinates),
 });
 
@@ -88,8 +85,8 @@ const isValidCoordinateSet = (coordinates: Coordinate[]): boolean =>
   );
 
 export default function PlantationsPage() {
-  const router = useRouter();
   const [plantations, setPlantations] = useState<Plantation[]>([]);
+  const [mandors, setMandors] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -133,12 +130,19 @@ export default function PlantationsPage() {
   }, []);
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
     void loadPlantations();
-  }, [loadPlantations, router]);
+  }, [loadPlantations]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const list = await identityService.listUsers({ role: 'MANDOR' });
+        setMandors(list);
+      } catch {
+        setMandors([]);
+      }
+    })();
+  }, []);
 
   const resetForm = () => {
     setFormData(emptyForm);
@@ -147,10 +151,7 @@ export default function PlantationsPage() {
   };
 
   const openCreateForm = () => {
-    setFormData({
-      ...emptyForm,
-      ownerId: authService.getUserInfo()?.id || '',
-    });
+    setFormData(emptyForm);
     setIsEditing(false);
     setShowForm(true);
   };
@@ -159,11 +160,9 @@ export default function PlantationsPage() {
     setFormData({
       id: String(plantation.id),
       name: plantation.name,
-      location: plantation.location,
       area: String(plantation.area),
-      ownerId: plantation.ownerId ? String(plantation.ownerId) : '',
       description: plantation.description || '',
-      plantDate: toDateTimeInput(plantation.plantDate),
+      plantDate: toDateInput(plantation.plantDate),
       coordinates: toCoordinateForm(plantation.coordinates),
     });
     setIsEditing(true);
@@ -254,17 +253,13 @@ export default function PlantationsPage() {
     }
   };
 
-  if (!authService.isAuthenticated()) {
-    return null;
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
+    <>
+      <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap gap-3 justify-between items-center">
           <div>
             <Link href="/dashboard" className="text-green-600 hover:text-green-700 text-sm">
-              Back to Dashboard
+              ← Back to Dashboard
             </Link>
             <h1 className="text-2xl font-bold text-green-800">Plantations Management</h1>
           </div>
@@ -275,7 +270,7 @@ export default function PlantationsPage() {
             {showForm ? 'Cancel' : '+ Add Plantation'}
           </button>
         </div>
-      </header>
+      </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {error && (
@@ -336,7 +331,7 @@ export default function PlantationsPage() {
               {isEditing ? 'Update Plantation' : 'Add New Plantation'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="plantation-name">
                     Plantation Name
@@ -346,19 +341,6 @@ export default function PlantationsPage() {
                     type="text"
                     value={formData.name}
                     onChange={(event) => setFormData({ ...formData, name: event.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="plantation-location">
-                    Location
-                  </label>
-                  <input
-                    id="plantation-location"
-                    type="text"
-                    value={formData.location}
-                    onChange={(event) => setFormData({ ...formData, location: event.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     required
                   />
@@ -379,32 +361,17 @@ export default function PlantationsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="plantation-owner">
-                    Owner ID
-                  </label>
-                  <input
-                    id="plantation-owner"
-                    type="text"
-                    value={formData.ownerId}
-                    onChange={(event) => setFormData({ ...formData, ownerId: event.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    disabled={isEditing}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="plantation-date">
-                    Plant Date
-                  </label>
-                  <input
-                    id="plantation-date"
-                    type="datetime-local"
-                    value={formData.plantDate}
-                    onChange={(event) => setFormData({ ...formData, plantDate: event.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="plantation-date">
+                  Plant Date
+                </label>
+                <input
+                  id="plantation-date"
+                  type="date"
+                  value={formData.plantDate}
+                  onChange={(event) => setFormData({ ...formData, plantDate: event.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
               </div>
 
               <div>
@@ -470,22 +437,38 @@ export default function PlantationsPage() {
           <form onSubmit={handleAssignMandor} className="bg-white rounded-lg shadow-md p-6 space-y-4">
             <h2 className="text-lg font-semibold text-gray-800">Assign Mandor</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input
-                type="number"
+              <select
+                aria-label="Plantation"
                 value={assignment.plantationId}
                 onChange={(event) => setAssignment({ ...assignment, plantationId: event.target.value })}
-                placeholder="Plantation ID"
-                className="px-4 py-2 border border-gray-300 rounded-lg"
+                className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
                 required
-              />
-              <input
-                type="text"
+              >
+                <option value="" disabled>
+                  Select Plantation
+                </option>
+                {plantations.map((plantation) => (
+                  <option key={plantation.id} value={String(plantation.id)}>
+                    {plantation.name} ({plantation.code || `ID ${plantation.id}`})
+                  </option>
+                ))}
+              </select>
+              <select
+                aria-label="Mandor"
                 value={assignment.mandorId}
                 onChange={(event) => setAssignment({ ...assignment, mandorId: event.target.value })}
-                placeholder="Mandor ID"
-                className="px-4 py-2 border border-gray-300 rounded-lg"
+                className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
                 required
-              />
+              >
+                <option value="" disabled>
+                  Select Mandor
+                </option>
+                {mandors.map((mandor) => (
+                  <option key={mandor.id} value={mandor.id}>
+                    {mandor.name || mandor.username} ({mandor.email})
+                  </option>
+                ))}
+              </select>
             </div>
             <button
               type="submit"
@@ -498,30 +481,54 @@ export default function PlantationsPage() {
           <form onSubmit={handleTransferMandor} className="bg-white rounded-lg shadow-md p-6 space-y-4">
             <h2 className="text-lg font-semibold text-gray-800">Transfer Mandor</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <input
-                type="text"
+              <select
+                aria-label="Mandor"
                 value={transfer.mandorId}
                 onChange={(event) => setTransfer({ ...transfer, mandorId: event.target.value })}
-                placeholder="Mandor ID"
-                className="px-4 py-2 border border-gray-300 rounded-lg"
+                className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
                 required
-              />
-              <input
-                type="number"
+              >
+                <option value="" disabled>
+                  Select Mandor
+                </option>
+                {mandors.map((mandor) => (
+                  <option key={mandor.id} value={mandor.id}>
+                    {mandor.name || mandor.username} ({mandor.email})
+                  </option>
+                ))}
+              </select>
+              <select
+                aria-label="From Plantation"
                 value={transfer.fromPlantationId}
                 onChange={(event) => setTransfer({ ...transfer, fromPlantationId: event.target.value })}
-                placeholder="From Plantation ID"
-                className="px-4 py-2 border border-gray-300 rounded-lg"
+                className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
                 required
-              />
-              <input
-                type="number"
+              >
+                <option value="" disabled>
+                  From Plantation
+                </option>
+                {plantations.map((plantation) => (
+                  <option key={plantation.id} value={String(plantation.id)}>
+                    {plantation.name} ({plantation.code || `ID ${plantation.id}`})
+                  </option>
+                ))}
+              </select>
+              <select
+                aria-label="To Plantation"
                 value={transfer.toPlantationId}
                 onChange={(event) => setTransfer({ ...transfer, toPlantationId: event.target.value })}
-                placeholder="To Plantation ID"
-                className="px-4 py-2 border border-gray-300 rounded-lg"
+                className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
                 required
-              />
+              >
+                <option value="" disabled>
+                  To Plantation
+                </option>
+                {plantations.map((plantation) => (
+                  <option key={plantation.id} value={String(plantation.id)}>
+                    {plantation.name} ({plantation.code || `ID ${plantation.id}`})
+                  </option>
+                ))}
+              </select>
             </div>
             <button
               type="submit"
@@ -590,6 +597,6 @@ export default function PlantationsPage() {
           </div>
         )}
       </main>
-    </div>
+    </>
   );
 }

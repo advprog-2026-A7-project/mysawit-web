@@ -37,7 +37,48 @@ export interface AuthResponse {
   id: EntityId;
   username: string;
   email: string;
-  role: string;
+  role: UserRole;
+  googleLinked: boolean;
+  hasPassword: boolean;
+}
+
+export interface GoogleAuthRequest {
+  idToken: string;
+  username?: string;
+  role?: 'BURUH' | 'MANDOR' | 'SUPIR';
+  certificationNumber?: string;
+}
+
+export interface SetPasswordRequest {
+  password: string;
+}
+
+export interface AssignMandorRequest {
+  mandorId: string;
+}
+
+export interface UserDetailResponse {
+  id: string;
+  username: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  googleLinked: boolean;
+  hasPassword: boolean;
+  createdAt: string;
+  mandorId: string | null;
+  certificationNumber: string | null;
+  kebunId: string | null;
+}
+
+export interface UserSearchParams {
+  name?: string;
+  email?: string;
+  role?: UserRole;
+}
+
+export interface MessageResponse {
+  message: string;
 }
 
 export interface AssignMandorRequest {
@@ -184,37 +225,20 @@ export interface ShipmentStatusRequest {
 }
 
 // Payroll Types
-export interface Employee {
-  id: EntityId;
+
+// Mirror of an Auth user that the payroll service stores locally.
+// Populated only by the user.registered RabbitMQ listener; never exposed
+// via REST. Frontend doesn't need to read it from payroll-service — use
+// IDENTITY.USERS instead.
+export interface UserReplica {
+  id: string;
   name: string;
-  employeeCode: string;
-  position: string;
-  plantationId?: EntityId;
-  phoneNumber?: string;
-  address?: string;
-  hireDate?: string;
-  baseSalary: number;
-  status: 'ACTIVE' | 'INACTIVE' | 'TERMINATED';
-  createdAt: string;
-  updatedAt: string;
+  role: string;
 }
 
-export interface EmployeeRequest {
-  name: string;
-  employeeCode?: string;
-  position: string;
-  plantationId?: EntityId;
-  phoneNumber?: string;
-  address?: string;
-  hireDate?: string;
-  baseSalary: number;
-  status?: string;
-}
-
-// Payroll Types
 export interface Payroll {
   id: EntityId;
-  employeeId: EntityId;
+  userId: string;
   periodStart: string;
   periodEnd: string;
   baseAmount: number;
@@ -230,7 +254,7 @@ export interface Payroll {
 }
 
 export interface PayrollRequest {
-  employeeId: EntityId;
+  userId: string;
   periodStart: string;
   periodEnd: string;
   baseAmount: number;

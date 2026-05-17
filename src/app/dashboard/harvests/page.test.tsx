@@ -1,13 +1,9 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import HarvestsPage from './page';
 import { harvestService } from '@/services/harvest.service';
-import { authService } from '@/services/auth.service';
-
-const pushMock = jest.fn();
-const routerMock = { push: pushMock };
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => routerMock,
+  useRouter: () => ({ push: jest.fn() }),
 }));
 
 jest.mock('next/link', () => ({
@@ -20,368 +16,466 @@ jest.mock('next/link', () => ({
 jest.mock('@/services/harvest.service', () => ({
   harvestService: {
     getAll: jest.fn(),
+    getMine: jest.fn(),
     create: jest.fn(),
     updateStatus: jest.fn(),
   },
 }));
 
-jest.mock('@/services/auth.service', () => ({
-  authService: {
-    isAuthenticated: jest.fn(),
-  },
+type MockUser = { id: string; role: string } | null;
+let mockAuth: { user: MockUser } = { user: { id: 'u1', role: 'MANDOR' } };
+
+jest.mock('@/contexts/auth-context', () => ({
+  useAuth: () => mockAuth,
 }));
 
-const fillCreateForm = (
-  overrides: Partial<{ plantationId: string; weight: string; news: string; photos: string }> = {}
-) => {
-  fireEvent.click(screen.getByRole('button', { name: /\+ log harvest/i }));
-  fireEvent.change(screen.getByPlaceholderText('Plantation UUID'), {
-    target: { value: overrides.plantationId ?? 'plantation-uuid-1' },
-  });
-  fireEvent.change(screen.getByPlaceholderText('Weight kg'), {
-    target: { value: overrides.weight ?? '120.5' },
-  });
-  fireEvent.change(screen.getByPlaceholderText('Harvest news'), {
-    target: { value: overrides.news ?? 'morning batch' },
-  });
-  fireEvent.change(screen.getByPlaceholderText('Photo URLs, one per line'), {
-    target: { value: overrides.photos ?? '' },
-  });
-};
+const asMandor = () => { mockAuth = { user: { id: 'mandor-1', role: 'MANDOR' } }; };
+const asBuruh = () => { mockAuth = { user: { id: 'buruh-1', role: 'BURUH' } }; };
+const asNoRole = () => { mockAuth = { user: null }; };
 
 describe('HarvestsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(true);
+    asMandor();
     (harvestService.getAll as jest.Mock).mockResolvedValue([]);
-    (harvestService.create as jest.Mock).mockResolvedValue({ id: 'h-1' });
-    (harvestService.updateStatus as jest.Mock).mockResolvedValue({ id: 'h-1' });
+    (harvestService.getMine as jest.Mock).mockResolvedValue([]);
+    (harvestService.create as jest.Mock).mockResolvedValue({ id: 'h-new' });
+    (harvestService.updateStatus as jest.Mock).mockResolvedValue({ id: 'h-x' });
   });
 
-  it('redirects to login when user is not authenticated', async () => {
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(false);
+  // -------- shared: no role gate --------
+
+  it('does not fetch when role is null and stays in the loading state', async () => {
+    asNoRole();
     render(<HarvestsPage />);
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/login'));
     expect(harvestService.getAll).not.toHaveBeenCalled();
-  });
-
-  it('shows loading state then empty state', async () => {
-    let resolvePromise: ((value: unknown) => void) | undefined;
-    (harvestService.getAll as jest.Mock).mockReturnValue(new Promise((resolve) => { resolvePromise = resolve; }));
-    render(<HarvestsPage />);
+    expect(harvestService.getMine).not.toHaveBeenCalled();
     expect(screen.getByText(/loading harvest records/i)).toBeInTheDocument();
-    resolvePromise?.([]);
-    expect(await screen.findByText(/no harvest data/i)).toBeInTheDocument();
   });
 
-  it('renders harvests list with optional fields populated', async () => {
-    (harvestService.getAll as jest.Mock).mockResolvedValue([
-      {
-        id: 'abcd1234-uuid-rest',
-        plantationId: 'plant-1',
-        harvestDate: '2026-01-01T08:00:00Z',
-        weight: 100,
-        status: 'APPROVED',
-        harvesterName: 'Budi',
-        foremanId: 'foreman-1',
-        news: 'fresh batch',
-        photos: ['http://example.com/a.jpg', 'http://example.com/b.jpg'],
-      },
-    ]);
+  // -------- MANDOR --------
 
-    render(<HarvestsPage />);
+  describe('as MANDOR', () => {
+    it('renders supervisor heading, hides "+ Log Harvest", shows status form, and loads via getAll', async () => {
+      render(<HarvestsPage />);
+      await waitFor(() => {
+        expect(harvestService.getAll).toHaveBeenCalledWith({
+          harvesterName: undefined,
+          startDate: undefined,
+          endDate: undefined,
+        });
+      });
+      expect(screen.getByText(/team harvest validation/i)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /\+ log harvest/i })).not.toBeInTheDocument();
+      expect(screen.getByText(/update harvest status/i)).toBeInTheDocument();
+      expect(screen.getByText(/filter team harvest logs/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/search harvester name/i)).toBeInTheDocument();
+      expect(await screen.findByText(/no harvest data/i)).toBeInTheDocument();
+      expect(screen.getByText(/adjust the filter to see your team’s records/i)).toBeInTheDocument();
+    });
 
-    const heading = await screen.findByText(/Harvest #abcd1234/);
-    const card = heading.closest('div.bg-white') as HTMLElement;
-    expect(within(card).getByText('APPROVED')).toBeInTheDocument();
-    expect(screen.getByText('Budi')).toBeInTheDocument();
-    expect(screen.getByText('foreman-1')).toBeInTheDocument();
-    expect(screen.getByText('fresh batch')).toBeInTheDocument();
-    expect(screen.getByText('2 attached')).toBeInTheDocument();
-  });
+    it('applies filters and calls getAll with trimmed values', async () => {
+      render(<HarvestsPage />);
+      await screen.findByText(/no harvest data/i);
 
-  it('falls back to harvester id, default status, and dash placeholders when optional fields are missing', async () => {
-    (harvestService.getAll as jest.Mock).mockResolvedValue([
-      {
-        id: 'zzzzzzzz-uuid',
-        plantationId: 'plant-9',
-        weight: 50,
-        harvesterId: 'harvester-only',
-      },
-    ]);
+      fireEvent.change(screen.getByPlaceholderText(/search harvester name/i), {
+        target: { value: 'Andi' },
+      });
+      const dateInputs = screen
+        .getAllByDisplayValue('')
+        .filter((el) => (el as HTMLInputElement).type === 'datetime-local') as HTMLInputElement[];
+      fireEvent.change(dateInputs[0], { target: { value: '2026-01-01T00:00' } });
+      fireEvent.change(dateInputs[1], { target: { value: '2026-01-31T23:59' } });
+      fireEvent.click(screen.getByRole('button', { name: /apply filter/i }));
 
-    render(<HarvestsPage />);
-
-    const harvesterEl = await screen.findByText('harvester-only');
-    const card = harvesterEl.closest('div.bg-white') as HTMLElement;
-    expect(within(card).getByText('PENDING')).toBeInTheDocument();
-    expect(within(card).getAllByText('-').length).toBeGreaterThan(0);
-  });
-
-  it('renders rejection reason when present', async () => {
-    (harvestService.getAll as jest.Mock).mockResolvedValue([
-      {
-        id: 'reject-uuid',
-        plantationId: 'plant-1',
-        weight: 20,
-        status: 'REJECTED',
-        rejectionReason: 'too wet',
-      },
-    ]);
-    render(<HarvestsPage />);
-    expect(await screen.findByText('too wet')).toBeInTheDocument();
-  });
-
-  it('renders date as-is when value is not parseable', async () => {
-    (harvestService.getAll as jest.Mock).mockResolvedValue([
-      {
-        id: 'bad-date-uuid',
-        plantationId: 'p',
-        weight: 10,
-        harvestDate: 'not-a-date',
-      },
-    ]);
-    render(<HarvestsPage />);
-    expect(await screen.findByText('not-a-date')).toBeInTheDocument();
-  });
-
-  it('computes stats memo across statuses', async () => {
-    (harvestService.getAll as jest.Mock).mockResolvedValue([
-      { id: '1', plantationId: 'a', weight: 100, status: 'PENDING' },
-      { id: '2', plantationId: 'a', weight: 80, status: 'APPROVED' },
-      { id: '3', plantationId: 'a', weight: 60, status: 'REJECTED' },
-    ]);
-    render(<HarvestsPage />);
-
-    await screen.findByText(/Harvest #1/);
-
-    const totalLogs = screen.getByText('Total Logs').parentElement!;
-    expect(within(totalLogs).getByText('3')).toBeInTheDocument();
-
-    const approved = screen.getByText('Approved').parentElement!;
-    expect(within(approved).getByText('1')).toBeInTheDocument();
-
-    const pendingRejected = screen.getByText('Pending / Rejected').parentElement!;
-    expect(within(pendingRejected).getByText(/1\s*\/\s*1/)).toBeInTheDocument();
-  });
-
-  it('paginates harvests when more than ten records are returned', async () => {
-    const makeId = (n: number) => `${String(n).padStart(8, '0')}-uuid`;
-    (harvestService.getAll as jest.Mock).mockResolvedValue(
-      Array.from({ length: 11 }, (_, index) => ({
-        id: makeId(index + 1),
-        plantationId: 'plant-1',
-        weight: 100,
-        status: 'PENDING',
-      }))
-    );
-
-    render(<HarvestsPage />);
-
-    expect(await screen.findByText(`Harvest #${makeId(1).slice(0, 8)}`)).toBeInTheDocument();
-    const showing = screen.getByText(/Showing/);
-    expect(showing).toHaveTextContent('Showing 1 to 10 of 11 entries');
-    expect(screen.queryByText(`Harvest #${makeId(11).slice(0, 8)}`)).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    expect(screen.getByText(`Harvest #${makeId(11).slice(0, 8)}`)).toBeInTheDocument();
-    expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 11 to 11 of 11 entries');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
-    expect(screen.getByText(`Harvest #${makeId(1).slice(0, 8)}`)).toBeInTheDocument();
-    expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 1 to 10 of 11 entries');
-
-    fireEvent.click(screen.getByRole('button', { name: '2' }));
-    expect(screen.getByText(`Harvest #${makeId(11).slice(0, 8)}`)).toBeInTheDocument();
-  });
-
-  it('resets to page 1 when toggling the add-harvest form', async () => {
-    const makeId = (n: number) => `${String(n).padStart(8, '0')}-uuid`;
-    (harvestService.getAll as jest.Mock).mockResolvedValue(
-      Array.from({ length: 11 }, (_, index) => ({
-        id: makeId(index + 1),
-        plantationId: 'plant-1',
-        weight: 100,
-      }))
-    );
-    render(<HarvestsPage />);
-    await screen.findByText(`Harvest #${makeId(1).slice(0, 8)}`);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 11 to 11 of 11 entries');
-
-    fireEvent.click(screen.getByRole('button', { name: /\+ log harvest/i }));
-    expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 1 to 10 of 11 entries');
-  });
-
-  it('shows load error from Error', async () => {
-    (harvestService.getAll as jest.Mock).mockRejectedValue(new Error('Failed to load from API'));
-    render(<HarvestsPage />);
-    expect(await screen.findByText('Failed to load from API')).toBeInTheDocument();
-  });
-
-  it('shows fallback load error when thrown value is not Error', async () => {
-    (harvestService.getAll as jest.Mock).mockRejectedValue('bad');
-    render(<HarvestsPage />);
-    expect(await screen.findByText('Failed to fetch harvests')).toBeInTheDocument();
-  });
-
-  it('applies filters and calls getAll with trimmed parameters', async () => {
-    render(<HarvestsPage />);
-    await screen.findByText(/no harvest data/i);
-
-    fireEvent.change(screen.getByPlaceholderText('Harvester name'), { target: { value: 'Andi' } });
-    const [startDate, endDate] = screen.getAllByDisplayValue('').filter(
-      (el) => (el as HTMLInputElement).type === 'datetime-local'
-    ) as HTMLInputElement[];
-    fireEvent.change(startDate, { target: { value: '2026-01-01T00:00' } });
-    fireEvent.change(endDate, { target: { value: '2026-01-31T23:59' } });
-    fireEvent.click(screen.getByRole('button', { name: /apply filter/i }));
-
-    await waitFor(() => {
-      expect(harvestService.getAll).toHaveBeenLastCalledWith({
-        harvesterName: 'Andi',
-        startDate: '2026-01-01T00:00',
-        endDate: '2026-01-31T23:59',
+      await waitFor(() => {
+        expect(harvestService.getAll).toHaveBeenLastCalledWith({
+          harvesterName: 'Andi',
+          startDate: '2026-01-01T00:00',
+          endDate: '2026-01-31T23:59',
+        });
       });
     });
-  });
 
-  it('applies filters with undefined values when fields are blank', async () => {
-    render(<HarvestsPage />);
-    await screen.findByText(/no harvest data/i);
-    fireEvent.click(screen.getByRole('button', { name: /apply filter/i }));
-    await waitFor(() => {
-      expect(harvestService.getAll).toHaveBeenLastCalledWith({
-        harvesterName: undefined,
-        startDate: undefined,
-        endDate: undefined,
+    it('renders harvest card with Harvester row, news, photos, rejection reason, and formatted date', async () => {
+      (harvestService.getAll as jest.Mock).mockResolvedValue([
+        {
+          id: 'abcd1234-uuid-x',
+          plantationId: 'plant-1',
+          weight: 100,
+          status: 'REJECTED',
+          harvesterName: 'Budi',
+          foremanId: 'foreman-1',
+          news: 'fresh batch',
+          rejectionReason: 'too wet',
+          photos: ['a.jpg', 'b.jpg'],
+          harvestDate: '2026-01-01T08:00:00Z',
+        },
+      ]);
+
+      render(<HarvestsPage />);
+      const heading = await screen.findByText(/harvest #abcd1234/i);
+      const card = heading.closest('div.bg-white') as HTMLElement;
+      expect(within(card).getByText('REJECTED')).toBeInTheDocument();
+      expect(within(card).getByText('Budi')).toBeInTheDocument();
+      expect(within(card).getByText('foreman-1')).toBeInTheDocument();
+      expect(within(card).getByText('fresh batch')).toBeInTheDocument();
+      expect(within(card).getByText('too wet')).toBeInTheDocument();
+      expect(within(card).getByText('2 attached')).toBeInTheDocument();
+    });
+
+    it('falls back to harvester id, default PENDING status, and "-" placeholders when fields are missing', async () => {
+      (harvestService.getAll as jest.Mock).mockResolvedValue([
+        { id: 'zzzzzzzz-uuid', plantationId: 'p9', weight: 50, harvesterId: 'harvester-only' },
+      ]);
+      render(<HarvestsPage />);
+      const harvesterEl = await screen.findByText('harvester-only');
+      const card = harvesterEl.closest('div.bg-white') as HTMLElement;
+      expect(within(card).getByText('PENDING')).toBeInTheDocument();
+      expect(within(card).getAllByText('-').length).toBeGreaterThan(0);
+    });
+
+    it('falls back to "-" for harvester when both name and id are missing', async () => {
+      (harvestService.getAll as jest.Mock).mockResolvedValue([
+        { id: 'no-harvester-uuid', plantationId: 'p1', weight: 10 },
+      ]);
+      render(<HarvestsPage />);
+      const heading = await screen.findByText(/harvest #no-harve/i);
+      const card = heading.closest('div.bg-white') as HTMLElement;
+      // Harvester label row should render with "-" since both name and id are absent.
+      const harvesterLabel = within(card).getByText('Harvester:');
+      expect(harvesterLabel.parentElement?.textContent).toMatch(/Harvester:\s*-/);
+    });
+
+    it('renders date verbatim when value is not parseable', async () => {
+      (harvestService.getAll as jest.Mock).mockResolvedValue([
+        { id: 'bad-date-uuid', plantationId: 'p', weight: 10, harvestDate: 'not-a-date' },
+      ]);
+      render(<HarvestsPage />);
+      expect(await screen.findByText('not-a-date')).toBeInTheDocument();
+    });
+
+    it('shows "-" when harvestDate is missing', async () => {
+      (harvestService.getAll as jest.Mock).mockResolvedValue([
+        { id: 'no-date-uuid', plantationId: 'p', weight: 10 },
+      ]);
+      render(<HarvestsPage />);
+      const heading = await screen.findByText(/harvest #no-date-/i);
+      const card = heading.closest('div.bg-white') as HTMLElement;
+      const dateLabel = within(card).getByText('Date:');
+      expect(dateLabel.parentElement?.textContent).toMatch(/Date:\s*-/);
+    });
+
+    it('computes stats memo across statuses', async () => {
+      (harvestService.getAll as jest.Mock).mockResolvedValue([
+        { id: '1', plantationId: 'a', weight: 100, status: 'PENDING' },
+        { id: '2', plantationId: 'a', weight: 80, status: 'APPROVED' },
+        { id: '3', plantationId: 'a', weight: 60, status: 'REJECTED' },
+      ]);
+      render(<HarvestsPage />);
+      await screen.findByText(/harvest #1/i);
+
+      const totalLogs = screen.getByText('Total Logs').parentElement!;
+      expect(within(totalLogs).getByText('3')).toBeInTheDocument();
+      const approved = screen.getByText('Approved').parentElement!;
+      expect(within(approved).getByText('1')).toBeInTheDocument();
+      const pendingRejected = screen.getByText('Pending / Rejected').parentElement!;
+      expect(within(pendingRejected).getByText(/1\s*\/\s*1/)).toBeInTheDocument();
+    });
+
+    it('paginates across pages with Previous/Next and a page-number button', async () => {
+      const makeId = (n: number) => `${String(n).padStart(8, '0')}-uuid`;
+      (harvestService.getAll as jest.Mock).mockResolvedValue(
+        Array.from({ length: 11 }, (_, i) => ({
+          id: makeId(i + 1),
+          plantationId: 'p',
+          weight: 10,
+          status: 'PENDING',
+        }))
+      );
+
+      render(<HarvestsPage />);
+      await screen.findByText(`Harvest #${makeId(1).slice(0, 8)}`);
+
+      expect(screen.getByText(/showing/i)).toHaveTextContent('Showing 1 to 10 of 11 entries');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+      expect(screen.getByText(`Harvest #${makeId(11).slice(0, 8)}`)).toBeInTheDocument();
+      expect(screen.getByText(/showing/i)).toHaveTextContent('Showing 11 to 11 of 11 entries');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+      expect(screen.getByText(`Harvest #${makeId(1).slice(0, 8)}`)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: '2' }));
+      expect(screen.getByText(`Harvest #${makeId(11).slice(0, 8)}`)).toBeInTheDocument();
+    });
+
+    it('updates status as APPROVED ignoring rejection reason input', async () => {
+      render(<HarvestsPage />);
+      await screen.findByText(/no harvest data/i);
+
+      fireEvent.change(screen.getByPlaceholderText(/harvest log uuid/i), { target: { value: 'h-1' } });
+      // Rejection reason input is disabled when status is APPROVED — still verify the call omits it.
+      fireEvent.click(screen.getByRole('button', { name: /update status/i }));
+
+      await waitFor(() => {
+        expect(harvestService.updateStatus).toHaveBeenCalledWith({
+          id: 'h-1',
+          status: 'APPROVED',
+          rejectionReason: undefined,
+        });
       });
     });
-  });
 
-  it('toggles add-harvest form visibility', async () => {
-    render(<HarvestsPage />);
-    await screen.findByText(/no harvest data/i);
-    fireEvent.click(screen.getByRole('button', { name: /\+ log harvest/i }));
-    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
-    expect(screen.getByRole('button', { name: /\+ log harvest/i })).toBeInTheDocument();
-  });
+    it('updates status as REJECTED with rejection reason', async () => {
+      render(<HarvestsPage />);
+      await screen.findByText(/no harvest data/i);
 
-  it('creates harvest, parses photos, resets the form, and reloads', async () => {
-    (harvestService.getAll as jest.Mock).mockResolvedValueOnce([]).mockResolvedValueOnce([]);
-    render(<HarvestsPage />);
-    await screen.findByText(/no harvest data/i);
+      fireEvent.change(screen.getByPlaceholderText(/harvest log uuid/i), { target: { value: 'h-2' } });
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'REJECTED' } });
+      fireEvent.change(screen.getByPlaceholderText(/rejection reason/i), { target: { value: 'low quality' } });
+      fireEvent.click(screen.getByRole('button', { name: /update status/i }));
 
-    fillCreateForm({
-      plantationId: 'plant-uuid',
-      weight: '42.5',
-      news: 'good day',
-      photos: 'http://a.jpg\n  http://b.jpg  \n\n',
-    });
-    fireEvent.click(screen.getByRole('button', { name: /save harvest/i }));
-
-    await waitFor(() => {
-      expect(harvestService.create).toHaveBeenCalledWith({
-        plantationId: 'plant-uuid',
-        weight: 42.5,
-        news: 'good day',
-        photos: ['http://a.jpg', 'http://b.jpg'],
+      await waitFor(() => {
+        expect(harvestService.updateStatus).toHaveBeenCalledWith({
+          id: 'h-2',
+          status: 'REJECTED',
+          rejectionReason: 'low quality',
+        });
       });
     });
-    await waitFor(() => {
-      expect((harvestService.getAll as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(2);
-    });
-    // form closed, button label switches back
-    expect(screen.getByRole('button', { name: /\+ log harvest/i })).toBeInTheDocument();
-  });
 
-  it('shows create error from Error', async () => {
-    (harvestService.create as jest.Mock).mockRejectedValue(new Error('Create failed'));
-    render(<HarvestsPage />);
-    await screen.findByText(/no harvest data/i);
-    fillCreateForm();
-    fireEvent.click(screen.getByRole('button', { name: /save harvest/i }));
-    expect(await screen.findByText('Create failed')).toBeInTheDocument();
-  });
+    it('updates status as REJECTED with undefined reason when blank', async () => {
+      render(<HarvestsPage />);
+      await screen.findByText(/no harvest data/i);
 
-  it('shows fallback create error when thrown value is not Error', async () => {
-    (harvestService.create as jest.Mock).mockRejectedValue('bad');
-    render(<HarvestsPage />);
-    await screen.findByText(/no harvest data/i);
-    fillCreateForm();
-    fireEvent.click(screen.getByRole('button', { name: /save harvest/i }));
-    expect(await screen.findByText('Failed to create harvest')).toBeInTheDocument();
-  });
+      fireEvent.change(screen.getByPlaceholderText(/harvest log uuid/i), { target: { value: 'h-3' } });
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'REJECTED' } });
+      fireEvent.click(screen.getByRole('button', { name: /update status/i }));
 
-  it('updates status as REJECTED with reason', async () => {
-    render(<HarvestsPage />);
-    await screen.findByText(/no harvest data/i);
-
-    fireEvent.change(screen.getByPlaceholderText('Harvest log UUID'), { target: { value: 'h-9' } });
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'REJECTED' } });
-    fireEvent.change(screen.getByPlaceholderText('Rejection reason'), { target: { value: 'low quality' } });
-    fireEvent.click(screen.getByRole('button', { name: /update status/i }));
-
-    await waitFor(() => {
-      expect(harvestService.updateStatus).toHaveBeenCalledWith({
-        id: 'h-9',
-        status: 'REJECTED',
-        rejectionReason: 'low quality',
+      await waitFor(() => {
+        expect(harvestService.updateStatus).toHaveBeenCalledWith({
+          id: 'h-3',
+          status: 'REJECTED',
+          rejectionReason: undefined,
+        });
       });
     });
-  });
 
-  it('updates status as REJECTED with undefined reason when blank', async () => {
-    render(<HarvestsPage />);
-    await screen.findByText(/no harvest data/i);
+    it('shows status update error from Error', async () => {
+      (harvestService.updateStatus as jest.Mock).mockRejectedValue(new Error('Status failed'));
+      render(<HarvestsPage />);
+      await screen.findByText(/no harvest data/i);
+      fireEvent.change(screen.getByPlaceholderText(/harvest log uuid/i), { target: { value: 'h-err' } });
+      fireEvent.click(screen.getByRole('button', { name: /update status/i }));
+      expect(await screen.findByText('Status failed')).toBeInTheDocument();
+    });
 
-    fireEvent.change(screen.getByPlaceholderText('Harvest log UUID'), { target: { value: 'h-10' } });
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'REJECTED' } });
-    fireEvent.click(screen.getByRole('button', { name: /update status/i }));
+    it('shows fallback status update error when thrown value is not Error', async () => {
+      (harvestService.updateStatus as jest.Mock).mockRejectedValue('boom');
+      render(<HarvestsPage />);
+      await screen.findByText(/no harvest data/i);
+      fireEvent.change(screen.getByPlaceholderText(/harvest log uuid/i), { target: { value: 'h-err' } });
+      fireEvent.click(screen.getByRole('button', { name: /update status/i }));
+      expect(await screen.findByText(/failed to update harvest status/i)).toBeInTheDocument();
+    });
 
-    await waitFor(() => {
-      expect(harvestService.updateStatus).toHaveBeenCalledWith({
-        id: 'h-10',
-        status: 'REJECTED',
-        rejectionReason: undefined,
-      });
+    it('shows load error from Error', async () => {
+      (harvestService.getAll as jest.Mock).mockRejectedValue(new Error('Load failed'));
+      render(<HarvestsPage />);
+      expect(await screen.findByText('Load failed')).toBeInTheDocument();
+    });
+
+    it('shows fallback load error when thrown value is not Error', async () => {
+      (harvestService.getAll as jest.Mock).mockRejectedValue('boom');
+      render(<HarvestsPage />);
+      expect(await screen.findByText(/failed to fetch harvests/i)).toBeInTheDocument();
+    });
+
+    it('falls back to [] when getAll returns a non-array', async () => {
+      (harvestService.getAll as jest.Mock).mockResolvedValue('not-an-array');
+      render(<HarvestsPage />);
+      expect(await screen.findByText(/no harvest data/i)).toBeInTheDocument();
     });
   });
 
-  it('updates status as APPROVED with undefined rejection reason regardless of input', async () => {
-    render(<HarvestsPage />);
-    await screen.findByText(/no harvest data/i);
+  // -------- BURUH --------
 
-    fireEvent.change(screen.getByPlaceholderText('Harvest log UUID'), { target: { value: 'h-11' } });
-    fireEvent.change(screen.getByPlaceholderText('Rejection reason'), { target: { value: 'should be ignored' } });
-    fireEvent.click(screen.getByRole('button', { name: /update status/i }));
+  describe('as BURUH', () => {
+    beforeEach(() => {
+      asBuruh();
+    });
 
-    await waitFor(() => {
-      expect(harvestService.updateStatus).toHaveBeenCalledWith({
-        id: 'h-11',
-        status: 'APPROVED',
-        rejectionReason: undefined,
+    it('renders worker heading, shows "+ Log Harvest", hides status form, omits harvester filter, and loads via getMine', async () => {
+      render(<HarvestsPage />);
+      await waitFor(() => {
+        expect(harvestService.getMine).toHaveBeenCalledWith({
+          startDate: undefined,
+          endDate: undefined,
+          status: undefined,
+        });
+      });
+      expect(harvestService.getAll).not.toHaveBeenCalled();
+      expect(screen.getByRole('heading', { level: 1, name: /my harvest logs/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /\+ log harvest/i })).toBeInTheDocument();
+      expect(screen.queryByText(/update harvest status/i)).not.toBeInTheDocument();
+      expect(screen.queryByPlaceholderText(/search harvester name/i)).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 2, name: /filter my harvest logs/i })).toBeInTheDocument();
+      expect(await screen.findByText(/no harvest data/i)).toBeInTheDocument();
+      expect(screen.getByText(/log a new harvest or adjust the filter/i)).toBeInTheDocument();
+    });
+
+    it('applies status + date filters and calls getMine', async () => {
+      render(<HarvestsPage />);
+      await screen.findByText(/no harvest data/i);
+
+      const dateInputs = screen
+        .getAllByDisplayValue('')
+        .filter((el) => (el as HTMLInputElement).type === 'datetime-local') as HTMLInputElement[];
+      fireEvent.change(dateInputs[0], { target: { value: '2026-02-01T00:00' } });
+      fireEvent.change(dateInputs[1], { target: { value: '2026-02-28T23:59' } });
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'APPROVED' } });
+
+      fireEvent.click(screen.getByRole('button', { name: /apply filter/i }));
+
+      await waitFor(() => {
+        expect(harvestService.getMine).toHaveBeenLastCalledWith({
+          startDate: '2026-02-01T00:00',
+          endDate: '2026-02-28T23:59',
+          status: 'APPROVED',
+        });
       });
     });
-  });
 
-  it('shows status update error from Error', async () => {
-    (harvestService.updateStatus as jest.Mock).mockRejectedValue(new Error('Status failed'));
-    render(<HarvestsPage />);
-    await screen.findByText(/no harvest data/i);
-    fireEvent.change(screen.getByPlaceholderText('Harvest log UUID'), { target: { value: 'h-err' } });
-    fireEvent.click(screen.getByRole('button', { name: /update status/i }));
-    expect(await screen.findByText('Status failed')).toBeInTheDocument();
-  });
+    it('toggles Log Harvest form and resets to page 1', async () => {
+      const makeId = (n: number) => `${String(n).padStart(8, '0')}-uuid`;
+      (harvestService.getMine as jest.Mock).mockResolvedValue(
+        Array.from({ length: 11 }, (_, i) => ({
+          id: makeId(i + 1),
+          plantationId: 'p',
+          weight: 10,
+        }))
+      );
 
-  it('shows fallback status update error when thrown value is not Error', async () => {
-    (harvestService.updateStatus as jest.Mock).mockRejectedValue('boom');
-    render(<HarvestsPage />);
-    await screen.findByText(/no harvest data/i);
-    fireEvent.change(screen.getByPlaceholderText('Harvest log UUID'), { target: { value: 'h-err' } });
-    fireEvent.click(screen.getByRole('button', { name: /update status/i }));
-    expect(await screen.findByText('Failed to update harvest status')).toBeInTheDocument();
+      render(<HarvestsPage />);
+      await screen.findByText(`Harvest #${makeId(1).slice(0, 8)}`);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+      expect(screen.getByText(/showing/i)).toHaveTextContent('Showing 11 to 11 of 11 entries');
+
+      fireEvent.click(screen.getByRole('button', { name: /\+ log harvest/i }));
+      // Form open + page reset to 1.
+      expect(screen.getByRole('heading', { level: 2, name: /^log harvest$/i })).toBeInTheDocument();
+      expect(screen.getByText(/showing/i)).toHaveTextContent('Showing 1 to 10 of 11 entries');
+
+      // Cancel closes form.
+      fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+      expect(screen.queryByRole('heading', { level: 2, name: /^log harvest$/i })).not.toBeInTheDocument();
+    });
+
+    it('creates harvest with parsed photos, closes the form, resets fields, and reloads', async () => {
+      render(<HarvestsPage />);
+      await screen.findByText(/no harvest data/i);
+
+      fireEvent.click(screen.getByRole('button', { name: /\+ log harvest/i }));
+      fireEvent.change(screen.getByPlaceholderText(/plantation uuid/i), { target: { value: 'plant-1' } });
+      fireEvent.change(screen.getByPlaceholderText(/weight kg/i), { target: { value: '42.5' } });
+      fireEvent.change(screen.getByPlaceholderText(/harvest news/i), { target: { value: 'good day' } });
+      fireEvent.change(screen.getByPlaceholderText(/photo urls, one per line/i), {
+        target: { value: 'http://a.jpg\n  http://b.jpg  \n\n' },
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /save harvest/i }));
+      });
+
+      await waitFor(() => {
+        expect(harvestService.create).toHaveBeenCalledWith({
+          plantationId: 'plant-1',
+          weight: 42.5,
+          news: 'good day',
+          photos: ['http://a.jpg', 'http://b.jpg'],
+        });
+      });
+      // getMine called once on mount and again after create.
+      await waitFor(() => {
+        expect((harvestService.getMine as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(2);
+      });
+      expect(screen.getByRole('button', { name: /\+ log harvest/i })).toBeInTheDocument();
+    });
+
+    it('shows "Saving Harvest..." while create is in flight and the button is disabled', async () => {
+      let resolveCreate: ((value: unknown) => void) | undefined;
+      (harvestService.create as jest.Mock).mockReturnValue(
+        new Promise((r) => { resolveCreate = r; })
+      );
+
+      render(<HarvestsPage />);
+      await screen.findByText(/no harvest data/i);
+
+      fireEvent.click(screen.getByRole('button', { name: /\+ log harvest/i }));
+      fireEvent.change(screen.getByPlaceholderText(/plantation uuid/i), { target: { value: 'p' } });
+      fireEvent.change(screen.getByPlaceholderText(/weight kg/i), { target: { value: '1' } });
+      fireEvent.change(screen.getByPlaceholderText(/harvest news/i), { target: { value: 'n' } });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /save harvest/i }));
+      });
+
+      const savingBtn = screen.getByRole('button', { name: /saving harvest/i });
+      expect(savingBtn).toBeDisabled();
+
+      await act(async () => {
+        resolveCreate?.({ id: 'h-x' });
+      });
+    });
+
+    it('shows create error from Error', async () => {
+      (harvestService.create as jest.Mock).mockRejectedValue(new Error('Create failed'));
+      render(<HarvestsPage />);
+      await screen.findByText(/no harvest data/i);
+
+      fireEvent.click(screen.getByRole('button', { name: /\+ log harvest/i }));
+      fireEvent.change(screen.getByPlaceholderText(/plantation uuid/i), { target: { value: 'p' } });
+      fireEvent.change(screen.getByPlaceholderText(/weight kg/i), { target: { value: '1' } });
+      fireEvent.change(screen.getByPlaceholderText(/harvest news/i), { target: { value: 'n' } });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /save harvest/i }));
+      });
+      expect(await screen.findByText('Create failed')).toBeInTheDocument();
+    });
+
+    it('shows fallback create error when thrown value is not Error', async () => {
+      (harvestService.create as jest.Mock).mockRejectedValue('boom');
+      render(<HarvestsPage />);
+      await screen.findByText(/no harvest data/i);
+
+      fireEvent.click(screen.getByRole('button', { name: /\+ log harvest/i }));
+      fireEvent.change(screen.getByPlaceholderText(/plantation uuid/i), { target: { value: 'p' } });
+      fireEvent.change(screen.getByPlaceholderText(/weight kg/i), { target: { value: '1' } });
+      fireEvent.change(screen.getByPlaceholderText(/harvest news/i), { target: { value: 'n' } });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /save harvest/i }));
+      });
+      expect(await screen.findByText(/failed to create harvest/i)).toBeInTheDocument();
+    });
+
+    it('hides the Harvester row on harvest cards (BURUH only sees their own)', async () => {
+      (harvestService.getMine as jest.Mock).mockResolvedValue([
+        {
+          id: 'mine-uuid-1',
+          plantationId: 'p1',
+          weight: 10,
+          harvesterName: 'should-not-show',
+          status: 'PENDING',
+        },
+      ]);
+      render(<HarvestsPage />);
+      await screen.findByText(/harvest #mine-uui/i);
+      expect(screen.queryByText('Harvester:')).not.toBeInTheDocument();
+      expect(screen.queryByText('should-not-show')).not.toBeInTheDocument();
+    });
   });
 });

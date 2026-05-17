@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import LoginPage from './page';
 import { authService } from '@/services/auth.service';
 
@@ -20,7 +20,40 @@ jest.mock('next/link', () => ({
 jest.mock('@/services/auth.service', () => ({
   authService: {
     login: jest.fn(),
+    googleLogin: jest.fn(),
   },
+}));
+
+jest.mock('@react-oauth/google', () => ({
+  __esModule: true,
+  GoogleLogin: (props: {
+    onSuccess: (r: { credential?: string }) => void;
+    onError?: () => void;
+  }) => (
+    <div data-testid="google-login">
+      <button
+        type="button"
+        data-testid="google-ok"
+        onClick={() => props.onSuccess({ credential: 'fake-google-token' })}
+      >
+        google-ok
+      </button>
+      <button
+        type="button"
+        data-testid="google-no-cred"
+        onClick={() => props.onSuccess({})}
+      >
+        google-no-cred
+      </button>
+      <button
+        type="button"
+        data-testid="google-err"
+        onClick={() => props.onError?.()}
+      >
+        google-err
+      </button>
+    </div>
+  ),
 }));
 
 describe('LoginPage', () => {
@@ -109,5 +142,76 @@ describe('LoginPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /login/i }));
 
     expect(await screen.findByText('Login failed')).toBeInTheDocument();
+  });
+
+  it('Google login: redirects on success', async () => {
+    (authService.googleLogin as jest.Mock).mockResolvedValue(undefined);
+    render(<LoginPage />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('google-ok'));
+    });
+
+    await waitFor(() => {
+      expect(authService.googleLogin).toHaveBeenCalledWith({ idToken: 'fake-google-token' });
+    });
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith('/dashboard');
+    });
+  });
+
+  it('Google login: shows error when credential is missing', () => {
+    render(<LoginPage />);
+    fireEvent.click(screen.getByTestId('google-no-cred'));
+    expect(screen.getByText(/google login failed: no credential received/i)).toBeInTheDocument();
+    expect(authService.googleLogin).not.toHaveBeenCalled();
+  });
+
+  it('Google login: GoogleLogin onError sets the canned error message', () => {
+    render(<LoginPage />);
+    fireEvent.click(screen.getByTestId('google-err'));
+    expect(screen.getByText(/^google login failed$/i)).toBeInTheDocument();
+  });
+
+  it('Google login: rewrites "already registered" errors with linking guidance', async () => {
+    (authService.googleLogin as jest.Mock).mockRejectedValue(
+      new Error('Email already registered with a password'),
+    );
+    render(<LoginPage />);
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('google-ok'));
+    });
+    expect(
+      await screen.findByText(/already registered with a password.*link your google account/i),
+    ).toBeInTheDocument();
+  });
+
+  it('Google login: rewrites "conflict" errors with linking guidance', async () => {
+    (authService.googleLogin as jest.Mock).mockRejectedValue(new Error('CONFLICT: duplicate'));
+    render(<LoginPage />);
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('google-ok'));
+    });
+    expect(
+      await screen.findByText(/already registered with a password.*link your google account/i),
+    ).toBeInTheDocument();
+  });
+
+  it('Google login: shows raw Error message for non-conflict failures', async () => {
+    (authService.googleLogin as jest.Mock).mockRejectedValue(new Error('Token rejected'));
+    render(<LoginPage />);
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('google-ok'));
+    });
+    expect(await screen.findByText('Token rejected')).toBeInTheDocument();
+  });
+
+  it('Google login: shows fallback error when thrown value is not Error', async () => {
+    (authService.googleLogin as jest.Mock).mockRejectedValue('boom');
+    render(<LoginPage />);
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('google-ok'));
+    });
+    expect(await screen.findByText(/^google login failed$/i)).toBeInTheDocument();
   });
 });

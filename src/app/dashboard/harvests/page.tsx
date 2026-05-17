@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/auth-context';
 import { harvestService } from '@/services/harvest.service';
-import { authService } from '@/services/auth.service';
 import { Harvest, HarvestStatus } from '@/types';
 
 const statusOptions: HarvestStatus[] = ['PENDING', 'APPROVED', 'REJECTED'];
@@ -26,18 +25,27 @@ interface HarvestFilters {
   harvesterName: string;
   startDate: string;
   endDate: string;
+  status: HarvestStatus | '';
 }
 
 const emptyFilters: HarvestFilters = {
   harvesterName: '',
   startDate: '',
   endDate: '',
+  status: '',
 };
 
 const ITEMS_PER_PAGE = 10;
 
 export default function HarvestsPage() {
-  const router = useRouter();
+  const { user } = useAuth();
+  // The harvest backend recognizes BURUH (harvester) and MANDOR (foreman).
+  // Page-level RBAC mirrors the backend so the FE never makes a request the
+  // user is not authorized for.
+  const role = user?.role ?? null;
+  const isMandor = role === 'MANDOR';
+  const isBuruh = role === 'BURUH';
+
   const [harvests, setHarvests] = useState<Harvest[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -76,30 +84,43 @@ export default function HarvestsPage() {
     };
   }, [harvests]);
 
-  const loadHarvests = useCallback(async (nextFilters: HarvestFilters = emptyFilters) => {
-    try {
-      setLoading(true);
-      const data = await harvestService.getAll({
-        harvesterName: nextFilters.harvesterName || undefined,
-        startDate: nextFilters.startDate || undefined,
-        endDate: nextFilters.endDate || undefined,
-      });
-      setHarvests(data);
-      setCurrentPage(1);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch harvests');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const loadHarvests = useCallback(
+    async (nextFilters: HarvestFilters = emptyFilters) => {
+      // Don't fetch until we know the role — avoids hitting the foreman-only
+      // endpoint while the auth context is still hydrating.
+      if (!role) return;
+
+      try {
+        setLoading(true);
+
+        const data = isMandor
+          ? await harvestService.getAll({
+              harvesterName: nextFilters.harvesterName || undefined,
+              startDate: nextFilters.startDate || undefined,
+              endDate: nextFilters.endDate || undefined,
+            })
+          : await harvestService.getMine({
+              startDate: nextFilters.startDate || undefined,
+              endDate: nextFilters.endDate || undefined,
+              status: nextFilters.status || undefined,
+            });
+
+        // Defensive: never let a non-array response crash array operations below.
+        setHarvests(Array.isArray(data) ? data : []);
+        setCurrentPage(1);
+        setError('');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch harvests');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [role, isMandor],
+  );
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
     void loadHarvests();
-  }, [loadHarvests, router]);
+  }, [loadHarvests]);
 
   const handleFilter = async (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     event.preventDefault();
@@ -152,26 +173,31 @@ export default function HarvestsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
+    <>
+      <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap gap-3 justify-between items-center">
           <div>
             <Link href="/dashboard" className="text-green-600 hover:text-green-700 text-sm">
-              Back to Dashboard
+              ← Back to Dashboard
             </Link>
-            <h1 className="text-2xl font-bold text-green-800">Harvest Management</h1>
+            <h1 className="text-2xl font-bold text-green-800">
+              {isMandor ? 'Team Harvest Validation' : 'My Harvest Logs'}
+            </h1>
           </div>
-          <button
-            onClick={() => {
-              setShowForm(!showForm);
-              setCurrentPage(1);
-            }}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            {showForm ? 'Cancel' : '+ Log Harvest'}
-          </button>
+          {/* + Log Harvest is a BURUH-only action: only harvesters submit new logs. */}
+          {isBuruh && (
+            <button
+              onClick={() => {
+                setShowForm(!showForm);
+                setCurrentPage(1);
+              }}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              {showForm ? 'Cancel' : '+ Log Harvest'}
+            </button>
+          )}
         </div>
-      </header>
+      </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {error && (
@@ -199,28 +225,54 @@ export default function HarvestsPage() {
           </div>
         </div>
 
+        {/* Filters diverge by role:
+            - MANDOR filters by harvester name + harvest date range (supervisor view).
+            - BURUH filters their own logs by date range + status. They can never
+              search by harvester name because all results are already theirs. */}
         <form onSubmit={handleFilter} className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Filter Harvest Logs</h2>
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">
+            {isMandor ? 'Filter Team Harvest Logs' : 'Filter My Harvest Logs'}
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <input
-              type="text"
-              value={filters.harvesterName}
-              onChange={(event) => setFilters({ ...filters, harvesterName: event.target.value })}
-              placeholder="Harvester name"
-              className="px-4 py-2 border border-gray-300 rounded-lg"
-            />
+            {isMandor && (
+              <input
+                type="text"
+                value={filters.harvesterName}
+                onChange={(event) => setFilters({ ...filters, harvesterName: event.target.value })}
+                placeholder="Search harvester name"
+                className="px-4 py-2 border border-gray-300 rounded-lg"
+              />
+            )}
             <input
               type="datetime-local"
               value={filters.startDate}
               onChange={(event) => setFilters({ ...filters, startDate: event.target.value })}
+              placeholder="Start date"
               className="px-4 py-2 border border-gray-300 rounded-lg"
             />
             <input
               type="datetime-local"
               value={filters.endDate}
               onChange={(event) => setFilters({ ...filters, endDate: event.target.value })}
+              placeholder="End date"
               className="px-4 py-2 border border-gray-300 rounded-lg"
             />
+            {isBuruh && (
+              <select
+                value={filters.status}
+                onChange={(event) =>
+                  setFilters({ ...filters, status: event.target.value as HarvestStatus | '' })
+                }
+                className="px-4 py-2 border border-gray-300 rounded-lg"
+              >
+                <option value="">All Statuses</option>
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            )}
             <button
               type="submit"
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
@@ -230,7 +282,9 @@ export default function HarvestsPage() {
           </div>
         </form>
 
-        {showForm && (
+        {/* Log Harvest form is BURUH-only. The backend rejects POST /harvests
+            for non-harvesters, so we don't even render the form for MANDOR. */}
+        {isBuruh && showForm && (
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">Log Harvest</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -279,50 +333,60 @@ export default function HarvestsPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Update Harvest Status</h2>
-          <form onSubmit={handleStatusSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <input
-              type="text"
-              value={statusForm.id}
-              onChange={(event) => setStatusForm({ ...statusForm, id: event.target.value })}
-              placeholder="Harvest log UUID"
-              className="px-4 py-2 border border-gray-300 rounded-lg"
-              required
-            />
-            <select
-              value={statusForm.status}
-              onChange={(event) => setStatusForm({ ...statusForm, status: event.target.value as HarvestStatus })}
-              className="px-4 py-2 border border-gray-300 rounded-lg"
-            >
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-            <input
-              type="text"
-              value={statusForm.rejectionReason}
-              onChange={(event) => setStatusForm({ ...statusForm, rejectionReason: event.target.value })}
-              placeholder="Rejection reason"
-              className="px-4 py-2 border border-gray-300 rounded-lg"
-            />
-            <button
-              type="submit"
-              className="px-4 py-2 border border-green-600 text-green-700 rounded-lg hover:bg-green-50 transition-colors font-semibold"
-            >
-              Update Status
-            </button>
-          </form>
-        </div>
+        {/* Update Harvest Status is MANDOR-only. Approvals/rejections are the
+            supervisor's responsibility; the backend's PATCH /harvests/update
+            rejects non-foreman callers, so we hide the block entirely for BURUH. */}
+        {isMandor && (
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Update Harvest Status</h2>
+            <form onSubmit={handleStatusSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <input
+                type="text"
+                value={statusForm.id}
+                onChange={(event) => setStatusForm({ ...statusForm, id: event.target.value })}
+                placeholder="Harvest log UUID"
+                className="px-4 py-2 border border-gray-300 rounded-lg"
+                required
+              />
+              <select
+                value={statusForm.status}
+                onChange={(event) => setStatusForm({ ...statusForm, status: event.target.value as HarvestStatus })}
+                className="px-4 py-2 border border-gray-300 rounded-lg"
+              >
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={statusForm.rejectionReason}
+                onChange={(event) => setStatusForm({ ...statusForm, rejectionReason: event.target.value })}
+                placeholder="Rejection reason"
+                className="px-4 py-2 border border-gray-300 rounded-lg"
+                disabled={statusForm.status !== 'REJECTED'}
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 border border-green-600 text-green-700 rounded-lg hover:bg-green-50 transition-colors font-semibold"
+              >
+                Update Status
+              </button>
+            </form>
+          </div>
+        )}
 
         {loading ? (
           <div className="text-center py-12 text-gray-600">Loading harvest records...</div>
         ) : harvests.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-12 text-center">
             <h3 className="text-xl font-semibold text-gray-800 mb-2">No Harvest Data</h3>
-            <p className="text-gray-600">Create a log or adjust the filter.</p>
+            <p className="text-gray-600">
+              {isBuruh
+                ? 'Log a new harvest or adjust the filter to see your records.'
+                : 'Adjust the filter to see your team’s records.'}
+            </p>
           </div>
         ) : (
           <>
@@ -337,13 +401,20 @@ export default function HarvestsPage() {
                   </div>
                   <div className="space-y-2 text-sm text-gray-600">
                     <p><span className="font-medium">Plantation:</span> {harvest.plantationId}</p>
-                    <p><span className="font-medium">Harvester:</span> {harvest.harvesterName || harvest.harvesterId || '-'}</p>
+                    {/* Only MANDOR cares which harvester filed the log — BURUH
+                        always sees their own. */}
+                    {isMandor && (
+                      <p><span className="font-medium">Harvester:</span> {harvest.harvesterName || harvest.harvesterId || '-'}</p>
+                    )}
                     <p><span className="font-medium">Foreman:</span> {harvest.foremanId || '-'}</p>
                     <p><span className="font-medium">Weight:</span> {harvest.weight} kg</p>
                     <p><span className="font-medium">Date:</span> {formatDateTime(harvest.harvestDate)}</p>
                     {harvest.news && <p><span className="font-medium">News:</span> {harvest.news}</p>}
+                    {/* Rejection reason is read-only for everyone here. BURUH
+                        consumes the supervisor's feedback; MANDOR sees it as a
+                        record of past validation. */}
                     {harvest.rejectionReason && (
-                      <p><span className="font-medium">Rejection:</span> {harvest.rejectionReason}</p>
+                      <p className="text-red-700"><span className="font-medium">Rejection reason:</span> {harvest.rejectionReason}</p>
                     )}
                     {harvest.photos && harvest.photos.length > 0 && (
                       <p><span className="font-medium">Photos:</span> {harvest.photos.length} attached</p>
@@ -395,6 +466,6 @@ export default function HarvestsPage() {
           </>
         )}
       </main>
-    </div>
+    </>
   );
 }

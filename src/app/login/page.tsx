@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { authService } from '@/services/auth.service';
 
 export default function LoginPage() {
@@ -22,6 +23,30 @@ export default function LoginPage() {
       router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    if (!credentialResponse.credential) {
+      setError('Google login failed: no credential received');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+
+    try {
+      await authService.googleLogin({ idToken: credentialResponse.credential });
+      router.push('/dashboard');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Google login failed';
+      if (message.toLowerCase().includes('already registered') || message.toLowerCase().includes('conflict')) {
+        setError('This email is already registered with a password. Please log in with your email and password, then link your Google account from Settings.');
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -80,6 +105,22 @@ export default function LoginPage() {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
+
+        <div className="flex items-center my-6">
+          <hr className="flex-1 border-gray-300" />
+          <span className="px-4 text-sm text-gray-500">or</span>
+          <hr className="flex-1 border-gray-300" />
+        </div>
+
+        <div className="flex justify-center">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError('Google login failed')}
+            text="signin_with"
+            shape="rectangular"
+            width="100%"
+          />
+        </div>
 
         <div className="mt-6 text-center text-sm text-gray-600">
           Don&apos;t have an account?{' '}

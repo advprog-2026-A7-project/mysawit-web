@@ -20,7 +20,6 @@ describe('api-config', () => {
     expect(API_ENDPOINTS.PLANTATIONS.BASE).toBe('/api/gateway/plantation/api/plantations');
     expect(API_ENDPOINTS.HARVESTS.BASE).toBe('/api/gateway/harvest/harvests');
     expect(API_ENDPOINTS.SHIPMENTS.BASE).toBe('/api/gateway/shipment/api/shipments');
-    expect(API_ENDPOINTS.EMPLOYEES.BASE).toBe('/api/gateway/payroll/api/employees');
     expect(API_ENDPOINTS.PAYROLLS.BASE).toBe('/api/gateway/payroll/api/payrolls');
     expect(API_ENDPOINTS.WAGE_CONFIGS.BASE).toBe('/api/gateway/payroll/api/wage-configs');
   });
@@ -38,25 +37,16 @@ describe('api-config', () => {
   });
 
   it('builds payroll service endpoints', () => {
-    expect(API_ENDPOINTS.PAYROLL.EMPLOYEE_BY_ID(1)).toBe('/api/gateway/payroll/api/employees/1');
-    expect(API_ENDPOINTS.PAYROLL.EMPLOYEE_BY_CODE('EMP-1')).toBe('/api/gateway/payroll/api/employees/code/EMP-1');
-    expect(API_ENDPOINTS.PAYROLL.EMPLOYEES_BY_PLANTATION(2)).toBe('/api/gateway/payroll/api/employees/plantation/2');
-    expect(API_ENDPOINTS.PAYROLL.EMPLOYEES_BY_STATUS('ACTIVE')).toBe('/api/gateway/payroll/api/employees/status/ACTIVE');
     expect(API_ENDPOINTS.PAYROLL.PAYROLL_BY_ID(3)).toBe('/api/gateway/payroll/api/payrolls/3');
-    expect(API_ENDPOINTS.PAYROLL.PAYROLLS_BY_EMPLOYEE(4)).toBe('/api/gateway/payroll/api/payrolls/employee/4');
+    expect(API_ENDPOINTS.PAYROLL.PAYROLLS_BY_USER('user-uuid-1')).toBe('/api/gateway/payroll/api/payrolls/user/user-uuid-1');
     expect(API_ENDPOINTS.PAYROLL.PAYROLLS_BY_STATUS('PENDING')).toBe('/api/gateway/payroll/api/payrolls/status/PENDING');
     expect(API_ENDPOINTS.PAYROLL.APPROVE_PAYROLL(5)).toBe('/api/gateway/payroll/api/payrolls/5/approve');
     expect(API_ENDPOINTS.PAYROLL.PAY_PAYROLL(5)).toBe('/api/gateway/payroll/api/payrolls/5/pay');
   });
 
-  it('builds nested EMPLOYEES, PAYROLLS, and WAGE_CONFIGS endpoints', () => {
-    expect(API_ENDPOINTS.EMPLOYEES.BY_ID(1)).toBe('/api/gateway/payroll/api/employees/1');
-    expect(API_ENDPOINTS.EMPLOYEES.BY_CODE('EMP-2')).toBe('/api/gateway/payroll/api/employees/code/EMP-2');
-    expect(API_ENDPOINTS.EMPLOYEES.BY_PLANTATION(2)).toBe('/api/gateway/payroll/api/employees/plantation/2');
-    expect(API_ENDPOINTS.EMPLOYEES.BY_STATUS('ACTIVE')).toBe('/api/gateway/payroll/api/employees/status/ACTIVE');
-
+  it('builds nested PAYROLLS and WAGE_CONFIGS endpoints', () => {
     expect(API_ENDPOINTS.PAYROLLS.BY_ID(3)).toBe('/api/gateway/payroll/api/payrolls/3');
-    expect(API_ENDPOINTS.PAYROLLS.BY_EMPLOYEE(4)).toBe('/api/gateway/payroll/api/payrolls/employee/4');
+    expect(API_ENDPOINTS.PAYROLLS.BY_USER('user-uuid-2')).toBe('/api/gateway/payroll/api/payrolls/user/user-uuid-2');
     expect(API_ENDPOINTS.PAYROLLS.BY_STATUS('PENDING')).toBe('/api/gateway/payroll/api/payrolls/status/PENDING');
     expect(API_ENDPOINTS.PAYROLLS.APPROVE(5)).toBe('/api/gateway/payroll/api/payrolls/5/approve');
     expect(API_ENDPOINTS.PAYROLLS.ACCEPT(5)).toBe('/api/gateway/payroll/api/payrolls/5/accept');

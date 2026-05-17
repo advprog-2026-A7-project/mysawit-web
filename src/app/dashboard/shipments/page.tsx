@@ -2,9 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { shipmentService } from '@/services/shipment.service';
-import { authService } from '@/services/auth.service';
 import { Shipment, ShipmentStatus } from '@/types';
 
 const shipmentStatuses: ShipmentStatus[] = [
@@ -35,7 +33,6 @@ const parseItems = (value: string) =>
     .filter((item) => item.harvestId && Number.isFinite(item.weightKg));
 
 export default function ShipmentsPage() {
-  const router = useRouter();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -81,12 +78,8 @@ export default function ShipmentsPage() {
   }, [shipments]);
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
     void loadShipments();
-  }, [loadShipments, router]);
+  }, [loadShipments]);
 
   const handleFilter = async (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     event.preventDefault();
@@ -150,8 +143,8 @@ export default function ShipmentsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
+    <>
+      <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div>
             <Link href="/dashboard" className="text-green-600 hover:text-green-700 text-sm">
@@ -166,7 +159,7 @@ export default function ShipmentsPage() {
             {showForm ? 'Cancel' : '+ Create Shipment'}
           </button>
         </div>
-      </header>
+      </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {error && (
@@ -368,6 +361,6 @@ export default function ShipmentsPage() {
           </div>
         )}
       </main>
-    </div>
+    </>
   );
 }
