@@ -1,13 +1,9 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import ShipmentsPage from './page';
 import { shipmentService } from '@/services/shipment.service';
-import { authService } from '@/services/auth.service';
-
-const pushMock = jest.fn();
-const routerMock = { push: pushMock };
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => routerMock,
+  useRouter: () => ({ push: jest.fn() }),
 }));
 
 jest.mock('next/link', () => ({
@@ -24,12 +20,6 @@ jest.mock('@/services/shipment.service', () => ({
     create: jest.fn(),
     updateStatus: jest.fn(),
     approveByAdmin: jest.fn(),
-  },
-}));
-
-jest.mock('@/services/auth.service', () => ({
-  authService: {
-    isAuthenticated: jest.fn(),
   },
 }));
 
@@ -54,19 +44,11 @@ const fillCreateForm = (
 describe('ShipmentsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(true);
     (shipmentService.getAll as jest.Mock).mockResolvedValue([]);
     (shipmentService.getByStatus as jest.Mock).mockResolvedValue([]);
     (shipmentService.create as jest.Mock).mockResolvedValue({ id: 's-1' });
     (shipmentService.updateStatus as jest.Mock).mockResolvedValue({ id: 's-1' });
     (shipmentService.approveByAdmin as jest.Mock).mockResolvedValue({ id: 's-1' });
-  });
-
-  it('redirects to login when user is not authenticated', async () => {
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(false);
-    render(<ShipmentsPage />);
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/login'));
-    expect(shipmentService.getAll).not.toHaveBeenCalled();
   });
 
   it('shows loading state then empty state', async () => {

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { authService } from '@/services/auth.service';
 
 export default function LoginPage() {
@@ -22,6 +23,30 @@ export default function LoginPage() {
       router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal masuk');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    if (!credentialResponse.credential) {
+      setError('Google login failed: no credential received');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+
+    try {
+      await authService.googleLogin({ idToken: credentialResponse.credential });
+      router.push('/dashboard');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Google login failed';
+      if (message.toLowerCase().includes('already registered') || message.toLowerCase().includes('conflict')) {
+        setError('This email is already registered with a password. Please log in with your email and password, then link your Google account from Settings.');
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }

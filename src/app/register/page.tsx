@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { FormEvent, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { authService } from '@/services/auth.service';
-import { UserRole } from '@/types';
 
 const roles: UserRole[] = ['BURUH', 'MANDOR', 'SUPIR', 'ADMIN'];
 const roleLabels: Record<UserRole, string> = {
@@ -17,16 +17,32 @@ const fieldClassName = 'ms-input';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [isGoogleMode, setIsGoogleMode] = useState(false);
+
+  // Shared fields
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('BURUH');
+  const [role, setRole] = useState<RegistrableRole>('BURUH');
   const [certificationNumber, setCertificationNumber] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
+  const isGoogleFormValid =
+    username.trim().length >= 3 &&
+    (role !== 'MANDOR' || certificationNumber.trim().length > 0);
+
+  const resetForm = () => {
+    setUsername('');
+    setRole('BURUH');
+    setCertificationNumber('');
+    setMandorId('');
+    setKebunId('');
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setError('');
+  };
+
+  const handleEmailSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
 
@@ -55,6 +71,30 @@ export default function RegisterPage() {
       router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal membuat akun');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    if (!credentialResponse.credential) {
+      setError('Google sign-up failed: no credential received');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+
+    try {
+      await authService.googleLogin({
+        idToken: credentialResponse.credential,
+        username,
+        role,
+        ...(role === 'MANDOR' ? { certificationNumber } : {}),
+      });
+      router.push('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google registration failed');
     } finally {
       setLoading(false);
     }

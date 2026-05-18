@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import DashboardPage from './page';
 import { authService } from '@/services/auth.service';
 import { harvestService } from '@/services/harvest.service';
@@ -46,6 +46,8 @@ describe('DashboardPage', () => {
   it('handles null user info without crashing', async () => {
     (authService.getUserInfo as jest.Mock).mockReturnValue(null);
 
+  it('shows BURUH cards (Harvests, Payroll) only', () => {
+    mockAuth = { user: { role: 'BURUH' }, isAdmin: false };
     render(<DashboardPage />);
 
     expect(await screen.findByText('Pengguna')).toBeInTheDocument();
@@ -54,6 +56,8 @@ describe('DashboardPage', () => {
   it('uses fallback display name when user info fields are empty', async () => {
     (authService.getUserInfo as jest.Mock).mockReturnValue({ username: '', role: '' });
 
+  it('still renders the system status panel for any signed-in user', () => {
+    mockAuth = { user: { role: 'BURUH' }, isAdmin: false };
     render(<DashboardPage />);
 
     expect(await screen.findByText('Pengguna')).toBeInTheDocument();
@@ -65,7 +69,26 @@ describe('DashboardPage', () => {
     (harvestService.getAll as jest.Mock).mockRejectedValue(new Error('fail'));
     (shipmentService.getAll as jest.Mock).mockRejectedValue(new Error('fail'));
 
-    render(<DashboardPage />);
+    it('renders all services as Online when health probes succeed', async () => {
+      global.fetch = jest.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
+
+      await act(async () => {
+        render(<DashboardPage />);
+      });
+
+      await waitFor(() => {
+        expect(screen.getAllByText(/^Online$/).length).toBeGreaterThan(0);
+      });
+      expect(screen.queryByText(/checking…/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/^Offline$/)).not.toBeInTheDocument();
+    });
+
+    it('renders services as Offline when health probes return non-ok', async () => {
+      global.fetch = jest.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
+
+      await act(async () => {
+        render(<DashboardPage />);
+      });
 
     await waitFor(() => expect(identityService.listUsers).toHaveBeenCalled());
     expect(screen.getAllByText('0').length).toBeGreaterThan(0);

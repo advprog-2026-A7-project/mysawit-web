@@ -54,6 +54,8 @@ const samplePlantation = {
 };
 
 describe('PlantationsPage', () => {
+  let confirmSpy: jest.SpyInstance;
+
   beforeEach(() => {
     jest.clearAllMocks();
     (window as unknown as { confirm: typeof confirm }).confirm = confirmMock;
@@ -92,6 +94,11 @@ describe('PlantationsPage', () => {
     let resolvePromise: ((value: unknown) => void) | undefined;
     (plantationService.getAll as jest.Mock).mockReturnValue(new Promise((resolve) => { resolvePromise = resolve; }));
 
+  it('shows the loading state while fetching', () => {
+    let resolve: ((value: unknown) => void) | undefined;
+    (plantationService.getAll as jest.Mock).mockReturnValue(
+      new Promise((r) => { resolve = r; })
+    );
     render(<PlantationsPage />);
 
     expect(screen.getByText(/Memuat/i)).toBeInTheDocument();
@@ -223,6 +230,12 @@ describe('PlantationsPage', () => {
         plantDate: undefined,
       }));
     });
+    // Form closes after success.
+    expect(screen.queryByRole('heading', { level: 2, name: /add new plantation/i })).not.toBeInTheDocument();
+    // Reloaded.
+    await waitFor(() => {
+      expect((plantationService.getAll as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(2);
+    });
   });
 
   it('rejects submission when coordinates are invalid', async () => {
@@ -252,6 +265,10 @@ describe('PlantationsPage', () => {
   it('edits an existing plantation and submits updated coordinates', async () => {
     (plantationService.getAll as jest.Mock).mockResolvedValue([samplePlantation]);
     render(<PlantationsPage />);
+    await screen.findByText(/no plantations yet/i);
+    fireEvent.click(screen.getByRole('button', { name: /\+ add plantation/i }));
+    fireEvent.change(screen.getByLabelText(/plantation name/i), { target: { value: 'X' } });
+    fireEvent.change(screen.getByLabelText(/area \(hectares\)/i), { target: { value: '1' } });
 
     fireEvent.click(await screen.findByRole('button', { name: /Edit/i }));
     fireEvent.change(screen.getAllByPlaceholderText('Lat')[0], { target: { value: '9.9' } });
@@ -308,6 +325,10 @@ describe('PlantationsPage', () => {
       { id: 5, name: 'No Date Plantation', location: 'Bengkulu', area: 6 },
     ]);
     render(<PlantationsPage />);
+    await screen.findByText(/no plantations yet/i);
+    fireEvent.click(screen.getByRole('button', { name: /\+ add plantation/i }));
+    fireEvent.change(screen.getByLabelText(/plantation name/i), { target: { value: 'X' } });
+    fireEvent.change(screen.getByLabelText(/area \(hectares\)/i), { target: { value: '1' } });
 
     fireEvent.click(await screen.findByRole('button', { name: /Edit/i }));
 

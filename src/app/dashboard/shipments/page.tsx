@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { shipmentService } from '@/services/shipment.service';
-import { authService } from '@/services/auth.service';
 import { Shipment, ShipmentStatus } from '@/types';
 
 const shipmentStatuses: ShipmentStatus[] = [
@@ -44,7 +43,6 @@ const parseItems = (value: string) =>
     .filter((item) => item.harvestId && Number.isFinite(item.weightKg));
 
 export default function ShipmentsPage() {
-  const router = useRouter();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -91,12 +89,8 @@ export default function ShipmentsPage() {
   const visibleShipments = useMemo(() => shipments.slice(0, 24), [shipments]);
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
     void loadShipments();
-  }, [loadShipments, router]);
+  }, [loadShipments]);
 
   const handleFilter = async (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     event.preventDefault();
@@ -377,6 +371,6 @@ export default function ShipmentsPage() {
           </div>
         )}
       </main>
-    </div>
+    </>
   );
 }

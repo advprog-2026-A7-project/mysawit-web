@@ -1,4 +1,4 @@
-import { employeeService, payrollService, wageConfigService } from './payroll.service';
+import { payrollService, wageConfigService } from './payroll.service';
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-config';
 
@@ -12,80 +12,7 @@ jest.mock('@/lib/api-client', () => ({
   },
 }));
 
-describe('employeeService', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('getAll calls employees base endpoint', async () => {
-    (apiClient.get as jest.Mock).mockResolvedValue([{ id: 1 }]);
-    const result = await employeeService.getAll();
-    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.EMPLOYEES.BASE);
-    expect(result).toEqual([{ id: 1 }]);
-  });
-
-  it('getById calls employees by-id endpoint', async () => {
-    (apiClient.get as jest.Mock).mockResolvedValue({ id: 2 });
-    const result = await employeeService.getById(2);
-    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.EMPLOYEES.BY_ID(2));
-    expect(result).toEqual({ id: 2 });
-  });
-
-  it('getByCode calls employees by-code endpoint', async () => {
-    (apiClient.get as jest.Mock).mockResolvedValue({ id: 3 });
-    const result = await employeeService.getByCode('EMP003');
-    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.EMPLOYEES.BY_CODE('EMP003'));
-    expect(result).toEqual({ id: 3 });
-  });
-
-  it('getByPlantation calls employees by-plantation endpoint', async () => {
-    (apiClient.get as jest.Mock).mockResolvedValue([{ id: 4 }]);
-    const result = await employeeService.getByPlantation(7);
-    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.EMPLOYEES.BY_PLANTATION(7));
-    expect(result).toEqual([{ id: 4 }]);
-  });
-
-  it('getByStatus calls employees by-status endpoint', async () => {
-    (apiClient.get as jest.Mock).mockResolvedValue([{ id: 5 }]);
-    const result = await employeeService.getByStatus('ACTIVE');
-    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.EMPLOYEES.BY_STATUS('ACTIVE'));
-    expect(result).toEqual([{ id: 5 }]);
-  });
-
-  it('create posts to employees base endpoint', async () => {
-    const body = {
-      name: 'Budi',
-      employeeCode: 'EMP001',
-      position: 'Harvester',
-      baseSalary: 5000000,
-      status: 'ACTIVE',
-    };
-    (apiClient.post as jest.Mock).mockResolvedValue({ id: 1, ...body });
-    const result = await employeeService.create(body);
-    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.EMPLOYEES.BASE, body);
-    expect(result).toEqual({ id: 1, ...body });
-  });
-
-  it('update puts to employees by-id endpoint', async () => {
-    const body = {
-      name: 'Budi Updated',
-      employeeCode: 'EMP001',
-      position: 'Senior Harvester',
-      baseSalary: 6000000,
-      status: 'ACTIVE',
-    };
-    (apiClient.put as jest.Mock).mockResolvedValue({ id: 1, ...body });
-    const result = await employeeService.update(1, body);
-    expect(apiClient.put).toHaveBeenCalledWith(API_ENDPOINTS.EMPLOYEES.BY_ID(1), body);
-    expect(result).toEqual({ id: 1, ...body });
-  });
-
-  it('delete calls employees by-id endpoint', async () => {
-    (apiClient.delete as jest.Mock).mockResolvedValue(undefined);
-    await employeeService.delete(1);
-    expect(apiClient.delete).toHaveBeenCalledWith(API_ENDPOINTS.EMPLOYEES.BY_ID(1));
-  });
-});
+const USER_ID = '11111111-1111-1111-1111-111111111111';
 
 describe('payrollService', () => {
   beforeEach(() => {
@@ -106,10 +33,10 @@ describe('payrollService', () => {
     expect(result).toEqual({ id: 11 });
   });
 
-  it('getByEmployee calls payrolls by-employee endpoint', async () => {
+  it('getByUser calls payrolls by-user endpoint', async () => {
     (apiClient.get as jest.Mock).mockResolvedValue([{ id: 12 }]);
-    const result = await payrollService.getByEmployee(4);
-    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLLS.BY_EMPLOYEE(4));
+    const result = await payrollService.getByUser(USER_ID);
+    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLLS.BY_USER(USER_ID));
     expect(result).toEqual([{ id: 12 }]);
   });
 
@@ -122,7 +49,7 @@ describe('payrollService', () => {
 
   it('create normalizes date-only period fields and posts to payrolls base', async () => {
     const body = {
-      employeeId: 1,
+      userId: USER_ID,
       periodStart: '2026-01-01',
       periodEnd: '2026-01-31',
       baseAmount: 5000000,
@@ -138,7 +65,7 @@ describe('payrollService', () => {
 
   it('create keeps period fields untouched when they already include time', async () => {
     const body = {
-      employeeId: 1,
+      userId: USER_ID,
       periodStart: '2026-01-01T08:00:00',
       periodEnd: '2026-01-31T17:00:00',
       baseAmount: 5000000,
@@ -150,7 +77,7 @@ describe('payrollService', () => {
 
   it('update normalizes and puts to payrolls by-id endpoint', async () => {
     const body = {
-      employeeId: 1,
+      userId: USER_ID,
       periodStart: '2026-02-01',
       periodEnd: '2026-02-28',
       baseAmount: 5500000,

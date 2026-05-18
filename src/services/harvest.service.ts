@@ -6,6 +6,7 @@ interface HarvestFilters {
   harvesterName?: string;
   startDate?: string;
   endDate?: string;
+  status?: HarvestStatus;
 }
 
 interface CreateHarvestData {
@@ -26,11 +27,17 @@ const appendFilters = (url: string, filters?: HarvestFilters): string => {
 
 export const harvestService = {
   async getAll(filters?: HarvestFilters): Promise<Harvest[]> {
-    return apiClient.get(appendFilters(API_ENDPOINTS.HARVESTS.BASE, filters));
+    const result = await apiClient.get<unknown>(
+      appendFilters(API_ENDPOINTS.HARVESTS.BASE, filters),
+    );
+    return toArray<Harvest>(result);
   },
 
   async getMine(filters?: Omit<HarvestFilters, 'harvesterName'>): Promise<Harvest[]> {
-    return apiClient.get(appendFilters(API_ENDPOINTS.HARVESTS.MY, filters));
+    const result = await apiClient.get<unknown>(
+      appendFilters(API_ENDPOINTS.HARVESTS.MY, filters),
+    );
+    return toArray<Harvest>(result);
   },
 
   async getById(id: EntityId): Promise<Harvest> {
@@ -38,7 +45,8 @@ export const harvestService = {
   },
 
   async getByPlantation(plantationId: EntityId): Promise<Harvest[]> {
-    return apiClient.get(API_ENDPOINTS.HARVESTS.BY_PLANTATION(plantationId));
+    const result = await apiClient.get<unknown>(API_ENDPOINTS.HARVESTS.BY_PLANTATION(plantationId));
+    return toArray<Harvest>(result);
   },
 
   /**

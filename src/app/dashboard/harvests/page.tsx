@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { harvestService } from '@/services/harvest.service';
-import { authService } from '@/services/auth.service';
 import { Harvest, HarvestStatus } from '@/types';
 
 const statusOptions: HarvestStatus[] = ['PENDING', 'APPROVED', 'REJECTED'];
@@ -24,18 +23,27 @@ interface HarvestFilters {
   harvesterName: string;
   startDate: string;
   endDate: string;
+  status: HarvestStatus | '';
 }
 
 const emptyFilters: HarvestFilters = {
   harvesterName: '',
   startDate: '',
   endDate: '',
+  status: '',
 };
 
 const ITEMS_PER_PAGE = 10;
 
 export default function HarvestsPage() {
-  const router = useRouter();
+  const { user } = useAuth();
+  // The harvest backend recognizes BURUH (harvester) and MANDOR (foreman).
+  // Page-level RBAC mirrors the backend so the FE never makes a request the
+  // user is not authorized for.
+  const role = user?.role ?? null;
+  const isMandor = role === 'MANDOR';
+  const isBuruh = role === 'BURUH';
+
   const [harvests, setHarvests] = useState<Harvest[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -92,12 +100,8 @@ export default function HarvestsPage() {
   }, []);
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
     void loadHarvests();
-  }, [loadHarvests, router]);
+  }, [loadHarvests]);
 
   const handleFilter = async (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     event.preventDefault();
@@ -216,6 +220,22 @@ export default function HarvestsPage() {
               onChange={(event) => setFilters({ ...filters, endDate: event.target.value })}
               className="ms-input"
             />
+            {isBuruh && (
+              <select
+                value={filters.status}
+                onChange={(event) =>
+                  setFilters({ ...filters, status: event.target.value as HarvestStatus | '' })
+                }
+                className="px-4 py-2 border border-gray-300 rounded-lg"
+              >
+                <option value="">All Statuses</option>
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            )}
             <button
               type="submit"
               className="btn-primary justify-center"
@@ -399,6 +419,6 @@ export default function HarvestsPage() {
           </>
         )}
       </main>
-    </div>
+    </>
   );
 }

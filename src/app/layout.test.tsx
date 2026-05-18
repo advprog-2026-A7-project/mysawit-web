@@ -1,5 +1,6 @@
 import React from 'react';
 import RootLayout, { metadata } from './layout';
+import Providers from './providers';
 
 describe('RootLayout', () => {
   it('exports metadata', () => {
@@ -7,7 +8,7 @@ describe('RootLayout', () => {
     expect(metadata.description).toContain('Platform terintegrasi');
   });
 
-  it('wraps children in html and body elements', () => {
+  it('wraps children in html, body, and the OAuth Providers', () => {
     const element = RootLayout({ children: <div>Child</div> }) as React.ReactElement<{
       children: React.ReactElement;
       lang: string;
@@ -22,6 +23,7 @@ describe('RootLayout', () => {
     expect(element.props.lang).toBe('id');
     expect(body.type).toBe('body');
     expect(body.props.className).toBe('antialiased');
+    expect(providers.type).toBe(Providers);
     expect(child.type).toBe('div');
     expect(child.props.children).toBe('Child');
   });

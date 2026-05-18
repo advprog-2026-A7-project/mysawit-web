@@ -1,4 +1,7 @@
 import { AuthResponse } from '@/types';
+import { API_ENDPOINTS } from '@/lib/api-config';
+
+let refreshPromise: Promise<boolean> | null = null;
 
 class ApiClient {
   private getAuthToken(): string | null {
@@ -6,9 +9,15 @@ class ApiClient {
     return localStorage.getItem('authToken');
   }
 
-  private getStoredUserInfo() {
+  private getRefreshToken(): string | null {
     if (typeof window === 'undefined') return null;
+    return localStorage.getItem('refreshToken');
+  }
 
+  private getStoredUserInfo() {
+    if (typeof window === 'undefined') {
+      return { id: null, username: null, role: null };
+    }
     return {
       id: localStorage.getItem('userId'),
       username: localStorage.getItem('username'),
@@ -27,16 +36,16 @@ class ApiClient {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    if (user?.id) {
+    if (user.id) {
       headers['X-User-Id'] = user.id;
       headers['X-Requester-Id'] = user.id;
     }
 
-    if (user?.username) {
+    if (user.username) {
       headers['X-User-Name'] = user.username;
     }
 
-    if (user?.role) {
+    if (user.role) {
       headers['X-User-Role'] = user.role;
 
       if (user.id && user.role === 'BURUH') {
@@ -50,6 +59,40 @@ class ApiClient {
     }
 
     return headers;
+  }
+
+  private async refreshAuthToken(): Promise<boolean> {
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) return false;
+
+    try {
+      const response = await fetch(API_ENDPOINTS.AUTH.REFRESH, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) {
+        this.clearAuth();
+        return false;
+      }
+
+      const data: AuthResponse = await response.json();
+      this.saveAuth(data);
+      return true;
+    } catch {
+      this.clearAuth();
+      return false;
+    }
+  }
+
+  private async handleTokenRefresh(): Promise<boolean> {
+    if (!refreshPromise) {
+      refreshPromise = this.refreshAuthToken().finally(() => {
+        refreshPromise = null;
+      });
+    }
+    return refreshPromise;
   }
 
   private async parseResponse<T>(response: Response): Promise<T> {
@@ -88,7 +131,6 @@ class ApiClient {
     }
 
     const text = await response.text();
-
     if (!text) {
       return response.statusText || 'Request failed';
     }
@@ -105,10 +147,16 @@ class ApiClient {
   }
 
   private async request<T>(url: string, init: RequestInit): Promise<T> {
-    const response = await fetch(url, {
-      headers: this.getAuthHeader(),
-      ...init,
-    });
+    const fetchOnce = () => fetch(url, { headers: this.getAuthHeader(), ...init });
+
+    let response = await fetchOnce();
+
+    if (response.status === 401) {
+      const refreshed = await this.handleTokenRefresh();
+      if (refreshed) {
+        response = await fetchOnce();
+      }
+    }
 
     if (!response.ok) {
       throw new Error(await this.parseError(response));
@@ -118,9 +166,7 @@ class ApiClient {
   }
 
   async get<T>(url: string): Promise<T> {
-    return this.request<T>(url, {
-      method: 'GET',
-    });
+    return this.request<T>(url, { method: 'GET' });
   }
 
   async post<T>(url: string, data: unknown): Promise<T> {
@@ -145,9 +191,7 @@ class ApiClient {
   }
 
   async delete<T>(url: string): Promise<T> {
-    return this.request<T>(url, {
-      method: 'DELETE',
-    });
+    return this.request<T>(url, { method: 'DELETE' });
   }
 
   saveAuth(authResponse: AuthResponse): void {
@@ -158,7 +202,10 @@ class ApiClient {
     }
     localStorage.setItem('userId', String(authResponse.id));
     localStorage.setItem('username', authResponse.username);
+    localStorage.setItem('userEmail', authResponse.email);
     localStorage.setItem('userRole', authResponse.role);
+    localStorage.setItem('googleLinked', String(authResponse.googleLinked ?? false));
+    localStorage.setItem('hasPassword', String(authResponse.hasPassword ?? false));
   }
 
   clearAuth(): void {
@@ -167,7 +214,10 @@ class ApiClient {
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('userId');
     localStorage.removeItem('username');
+    localStorage.removeItem('userEmail');
     localStorage.removeItem('userRole');
+    localStorage.removeItem('googleLinked');
+    localStorage.removeItem('hasPassword');
   }
 
   isAuthenticated(): boolean {
@@ -175,7 +225,15 @@ class ApiClient {
   }
 
   getUserInfo() {
-    return this.getStoredUserInfo();
+    if (typeof window === 'undefined') return null;
+    return {
+      id: localStorage.getItem('userId'),
+      username: localStorage.getItem('username'),
+      email: localStorage.getItem('userEmail'),
+      role: localStorage.getItem('userRole'),
+      googleLinked: localStorage.getItem('googleLinked') === 'true',
+      hasPassword: localStorage.getItem('hasPassword') === 'true',
+    };
   }
 }
 

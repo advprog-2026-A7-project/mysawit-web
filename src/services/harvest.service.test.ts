@@ -179,4 +179,59 @@ describe('harvest.service', () => {
     expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.HARVESTS.HEALTH);
     expect(result).toEqual(payload);
   });
+
+  describe('toArray normalization', () => {
+    it('getAll unwraps a paginated { content: [] } response', async () => {
+      (apiClient.get as jest.Mock).mockResolvedValue({ content: [{ id: 1 }, { id: 2 }] });
+      const result = await harvestService.getAll();
+      expect(result).toEqual([{ id: 1 }, { id: 2 }]);
+    });
+
+    it('getAll unwraps a { data: [] } response', async () => {
+      (apiClient.get as jest.Mock).mockResolvedValue({ data: [{ id: 3 }] });
+      const result = await harvestService.getAll();
+      expect(result).toEqual([{ id: 3 }]);
+    });
+
+    it('getAll unwraps an { items: [] } response', async () => {
+      (apiClient.get as jest.Mock).mockResolvedValue({ items: [{ id: 4 }] });
+      const result = await harvestService.getAll();
+      expect(result).toEqual([{ id: 4 }]);
+    });
+
+    it('getAll returns [] when response is an unrelated object', async () => {
+      (apiClient.get as jest.Mock).mockResolvedValue({ message: 'no harvests' });
+      const result = await harvestService.getAll();
+      expect(result).toEqual([]);
+    });
+
+    it('getAll returns [] when response is null/primitive', async () => {
+      (apiClient.get as jest.Mock).mockResolvedValue(null);
+      expect(await harvestService.getAll()).toEqual([]);
+
+      (apiClient.get as jest.Mock).mockResolvedValue('oops');
+      expect(await harvestService.getAll()).toEqual([]);
+    });
+
+    it('getMine and getByPlantation share the same array normalization', async () => {
+      (apiClient.get as jest.Mock).mockResolvedValueOnce({ content: [{ id: 5 }] });
+      expect(await harvestService.getMine()).toEqual([{ id: 5 }]);
+
+      (apiClient.get as jest.Mock).mockResolvedValueOnce({ items: [{ id: 6 }] });
+      expect(await harvestService.getByPlantation(1)).toEqual([{ id: 6 }]);
+    });
+
+    it('getAll appends filter query parameters', async () => {
+      (apiClient.get as jest.Mock).mockResolvedValue([]);
+      await harvestService.getAll({
+        harvesterName: 'budi',
+        startDate: '2026-01-01',
+        endDate: '2026-01-31',
+        status: 'PENDING',
+      });
+      expect(apiClient.get).toHaveBeenCalledWith(
+        `${API_ENDPOINTS.HARVESTS.BASE}?harvesterName=budi&startDate=2026-01-01&endDate=2026-01-31&status=PENDING`,
+      );
+    });
+  });
 });

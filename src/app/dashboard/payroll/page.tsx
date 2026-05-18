@@ -24,27 +24,9 @@ const EMPLOYEE_STATUS_COLORS: Record<string, string> = {
 };
 
 export default function PayrollPage() {
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>('employees');
-
-  // Employee state
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [empLoading, setEmpLoading] = useState(true);
-  const [empError, setEmpError] = useState('');
-  const [showEmpForm, setShowEmpForm] = useState(false);
-  const [empForm, setEmpForm] = useState({
-    name: '',
-    employeeCode: '',
-    position: '',
-    plantationId: '',
-    phoneNumber: '',
-    address: '',
-    baseSalary: '',
-    status: 'ACTIVE',
-  });
-
-  // Payroll state
   const [payrolls, setPayrolls] = useState<Payroll[]>([]);
+  const [users, setUsers] = useState<UserDetailResponse[]>([]);
+  const [usersError, setUsersError] = useState('');
   const [payLoading, setPayLoading] = useState(true);
   const [payError, setPayError] = useState('');
   const [showPayForm, setShowPayForm] = useState(false);
@@ -62,26 +44,9 @@ export default function PayrollPage() {
   const visiblePayrolls = useMemo(() => payrolls.slice(0, 24), [payrolls]);
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
-    loadEmployees();
     loadPayrolls();
-  }, [router]);
-
-  const loadEmployees = async () => {
-    try {
-      setEmpLoading(true);
-      const data = await employeeService.getAll();
-      setEmployees(data);
-      setEmpError('');
-    } catch (err) {
-      setEmpError(err instanceof Error ? err.message : 'Failed to load employees');
-    } finally {
-      setEmpLoading(false);
-    }
-  };
+    loadUsers();
+  }, []);
 
   const loadPayrolls = async () => {
     try {
@@ -96,34 +61,13 @@ export default function PayrollPage() {
     }
   };
 
-  const handleCreateEmployee = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
-    e.preventDefault();
+  const loadUsers = async () => {
     try {
-      await employeeService.create({
-        name: empForm.name,
-        employeeCode: empForm.employeeCode,
-        position: empForm.position,
-        plantationId: empForm.plantationId ? parseInt(empForm.plantationId) : undefined,
-        phoneNumber: empForm.phoneNumber || undefined,
-        address: empForm.address || undefined,
-        baseSalary: parseFloat(empForm.baseSalary),
-        status: empForm.status,
-      });
-      setShowEmpForm(false);
-      setEmpForm({ name: '', employeeCode: '', position: '', plantationId: '', phoneNumber: '', address: '', baseSalary: '', status: 'ACTIVE' });
-      loadEmployees();
+      const data = await adminService.getUsers();
+      setUsers(data);
+      setUsersError('');
     } catch (err) {
-      setEmpError(err instanceof Error ? err.message : 'Failed to create employee');
-    }
-  };
-
-  const handleDeleteEmployee = async (id: Employee['id']) => {
-    if (!confirm('Are you sure you want to delete this employee?')) return;
-    try {
-      await employeeService.delete(id as number);
-      loadEmployees();
-    } catch (err) {
-      setEmpError(err instanceof Error ? err.message : 'Failed to delete employee');
+      setUsersError(err instanceof Error ? err.message : 'Failed to load users');
     }
   };
 
@@ -131,7 +75,7 @@ export default function PayrollPage() {
     e.preventDefault();
     try {
       await payrollService.create({
-        employeeId: parseInt(payForm.employeeId),
+        userId: payForm.userId,
         periodStart: payForm.periodStart,
         periodEnd: payForm.periodEnd,
         baseAmount: parseFloat(payForm.baseAmount),
@@ -142,7 +86,7 @@ export default function PayrollPage() {
         status: 'PENDING',
       });
       setShowPayForm(false);
-      setPayForm({ employeeId: '', periodStart: '', periodEnd: '', baseAmount: '', bonusAmount: '0', deductionAmount: '0', paymentMethod: 'BANK_TRANSFER', notes: '' });
+      setPayForm(EMPTY_FORM);
       loadPayrolls();
     } catch (err) {
       setPayError(err instanceof Error ? err.message : 'Failed to create payroll');
@@ -180,10 +124,6 @@ export default function PayrollPage() {
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 
-  if (!authService.isAuthenticated()) {
-    return null;
-  }
-
   return (
     <div className="page-shell space-y-6 animate-fade-in">
       <header className="page-heading">
@@ -210,6 +150,7 @@ export default function PayrollPage() {
             Payrolls
           </button>
         </div>
+      </div>
 
         {/* ── EMPLOYEES TAB ── */}
         {activeTab === 'employees' && (
@@ -328,7 +269,10 @@ export default function PayrollPage() {
                   </div>
                 )}
               </div>
-            )}
+              <button type="submit" className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors font-semibold">
+                Create Payroll
+              </button>
+            </form>
           </div>
         )}
 
@@ -401,7 +345,7 @@ export default function PayrollPage() {
                   <button type="submit" className="btn-primary w-full justify-center py-3">
                     Create Payroll
                   </button>
-                </form>
+                </div>
               </div>
             )}
 
@@ -469,6 +413,6 @@ export default function PayrollPage() {
           </div>
         )}
       </main>
-    </div>
+    </>
   );
 }
