@@ -1,49 +1,119 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { AuthProvider, useAuth } from '@/contexts/auth-context';
+import { useRouter, usePathname } from 'next/navigation';
+import { LayoutDashboard, LogOut, Map, Menu, Sprout, Truck, Users, Wheat, X } from 'lucide-react';
+import { authService } from '@/services/auth.service';
 
-function DashboardHeader() {
-  const { user, logout } = useAuth();
-
-  return (
-    <header className="bg-white shadow">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-        <div>
-          <Link href="/dashboard" className="text-2xl font-bold text-green-800 hover:text-green-900">
-            MySawit Dashboard
-          </Link>
-          <p className="text-sm text-gray-600">
-            Welcome, {user?.username}
-            {user?.role && <span className="ml-2 inline-block px-2 py-0.5 text-xs font-medium text-green-800 bg-green-100 rounded-full">{user.role}</span>}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard/settings"
-            className="px-4 py-2 text-gray-600 hover:text-green-700 transition-colors"
-          >
-            Settings
-          </Link>
-          <button
-            onClick={logout}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-    </header>
-  );
-}
+const NAV_ITEMS = [
+  { href: '/dashboard', label: 'Beranda', Icon: LayoutDashboard, exact: true },
+  { href: '/dashboard/identity', label: 'Tim', Icon: Users },
+  { href: '/dashboard/plantations', label: 'Kebun', Icon: Map },
+  { href: '/dashboard/harvests', label: 'Panen', Icon: Wheat },
+  { href: '/dashboard/shipments', label: 'Pengiriman', Icon: Truck },
+];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const userInfo = authService.getUserInfo();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!authService.isAuthenticated()) {
+      router.push('/login');
+    }
+  }, [router]);
+
+  const handleLogout = () => {
+    authService.logout();
+    router.push('/login');
+  };
+
+  const isActive = (item: typeof NAV_ITEMS[0]) => pathname.startsWith(item.href);
+  const isOverviewActive = pathname === '/dashboard';
+
+  if (!authService.isAuthenticated()) return null;
+
   return (
-    <AuthProvider>
-      <div className="min-h-screen bg-gray-50">
-        <DashboardHeader />
+    <div className="ms-layout">
+      <header className="ms-navbar">
+        <div className="ms-navbar-inner">
+          <Link href="/dashboard" className="ms-brand" onClick={() => setMenuOpen(false)}>
+            <span className="ms-brand-mark">
+              <Sprout size={18} aria-hidden="true" />
+            </span>
+            <span>
+              <span className="ms-brand-title">MySawit</span>
+              <span className="ms-brand-subtitle">Operasional kebun</span>
+            </span>
+          </Link>
+
+          <nav className="ms-nav-desktop" aria-label="Navigasi utama">
+            {NAV_ITEMS.map((item) => {
+              const active = item.exact ? isOverviewActive : isActive(item);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`ms-nav-item ${active ? 'active' : ''}`}
+                >
+                  <item.Icon size={16} aria-hidden="true" className="shrink-0" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="ms-navbar-actions">
+            <div className="ms-user-pill">
+              <span className="ms-user-avatar">
+                {userInfo?.username?.[0]?.toUpperCase() || '?'}
+              </span>
+              <span className="ms-user-name">{userInfo?.username || 'Pengguna'}</span>
+            </div>
+            <button
+              onClick={handleLogout}
+              title="Logout"
+              className="ms-icon-button"
+            >
+              <LogOut size={16} aria-hidden="true" />
+            </button>
+            <button
+              onClick={() => setMenuOpen((open) => !open)}
+              className="ms-icon-button ms-mobile-menu-button"
+              aria-label={menuOpen ? 'Tutup menu' : 'Buka menu'}
+              aria-expanded={menuOpen}
+            >
+              {menuOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
+            </button>
+          </div>
+        </div>
+
+        {menuOpen && (
+          <nav className="ms-nav-mobile" aria-label="Navigasi mobile">
+          {NAV_ITEMS.map((item) => {
+            const active = item.exact ? isOverviewActive : isActive(item);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMenuOpen(false)}
+                className={`ms-nav-item ${active ? 'active' : ''}`}
+              >
+                <item.Icon size={17} aria-hidden="true" className="shrink-0" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+          </nav>
+        )}
+      </header>
+
+      <main className="ms-main">
         {children}
-      </div>
-    </AuthProvider>
+      </main>
+    </div>
   );
 }

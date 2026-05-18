@@ -68,6 +68,10 @@ export const authService = {
     apiClient.clearAuth();
   },
 
+  saveAuth(authResponse: AuthResponse): void {
+    apiClient.saveAuth(authResponse);
+  },
+
   isAuthenticated(): boolean {
     return apiClient.isAuthenticated();
   },

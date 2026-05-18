@@ -157,6 +157,21 @@ describe('auth.service', () => {
     expect(authService.isAdmin()).toBe(false);
   });
 
+  it('saveAuth stores an externally created auth response', () => {
+    const response = {
+      token: 'jwt',
+      type: 'Bearer',
+      id: '1',
+      username: 'shipment-dev',
+      email: 'shipment-dev@mail.com',
+      role: 'MANDOR',
+    };
+
+    authService.saveAuth(response);
+
+    expect(apiClient.saveAuth).toHaveBeenCalledWith(response);
+  });
+
   it('isAuthenticated proxies apiClient', () => {
     (apiClient.isAuthenticated as jest.Mock).mockReturnValue(true);
 

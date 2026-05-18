@@ -14,23 +14,23 @@ describe('Home page', () => {
   it('renders main heading and subtitle', () => {
     render(<Home />);
 
-    expect(screen.getByRole('heading', { name: /mysawit/i })).toBeInTheDocument();
-    expect(screen.getByText(/palm oil management system/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /manajemen kebun sawit modern/i })).toBeInTheDocument();
+    expect(screen.getByText(/platform terintegrasi/i)).toBeInTheDocument();
   });
 
   it('renders login and register links', () => {
     render(<Home />);
 
-    expect(screen.getByRole('link', { name: /login/i })).toHaveAttribute('href', '/login');
-    expect(screen.getByRole('link', { name: /register/i })).toHaveAttribute('href', '/register');
+    expect(screen.getByRole('link', { name: /masuk ke dashboard/i })).toHaveAttribute('href', '/login');
+    expect(screen.getByRole('link', { name: /daftar akun baru/i })).toHaveAttribute('href', '/register');
   });
 
-  it('renders all module cards', () => {
+  it('does not render decorative role, version, or module badges', () => {
     render(<Home />);
 
-    expect(screen.getByText(/^Plantations$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Harvest$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Shipment$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Payroll$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/mysawit platform v2\.0/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^BURUH$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Plantations$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Harvest$/i)).not.toBeInTheDocument();
   });
 });

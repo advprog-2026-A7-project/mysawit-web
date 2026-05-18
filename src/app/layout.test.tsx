@@ -4,8 +4,8 @@ import Providers from './providers';
 
 describe('RootLayout', () => {
   it('exports metadata', () => {
-    expect(metadata.title).toBe('MySawit');
-    expect(metadata.description).toBe('MySawit Palm Oil Management System');
+    expect(metadata.title).toBe('MySawit — Platform Manajemen Kebun Sawit');
+    expect(metadata.description).toContain('Platform terintegrasi');
   });
 
   it('wraps children in html, body, and the OAuth Providers', () => {
@@ -13,15 +13,14 @@ describe('RootLayout', () => {
       children: React.ReactElement;
       lang: string;
     }>;
-    const body = element.props.children as React.ReactElement<{
+    const [, body] = React.Children.toArray(element.props.children) as React.ReactElement<{
       children: React.ReactElement;
       className: string;
-    }>;
-    const providers = body.props.children as React.ReactElement<{ children: React.ReactElement }>;
-    const child = providers.props.children as React.ReactElement<{ children: string }>;
+    }>[];
+    const child = body.props.children as React.ReactElement<{ children: string }>;
 
     expect(element.type).toBe('html');
-    expect(element.props.lang).toBe('en');
+    expect(element.props.lang).toBe('id');
     expect(body.type).toBe('body');
     expect(body.props.className).toBe('antialiased');
     expect(providers.type).toBe(Providers);

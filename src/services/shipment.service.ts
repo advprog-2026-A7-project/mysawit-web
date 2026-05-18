@@ -1,6 +1,29 @@
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-config';
-import { EntityId, Shipment, ShipmentRequest, ShipmentStatus, ShipmentStatusRequest } from '@/types';
+import {
+  AdminApprovalRequest,
+  EntityId,
+  MandorApprovalRequest,
+  Shipment,
+  ShipmentFilters,
+  ShipmentRequest,
+  ShipmentStatus,
+  ShipmentStatusRequest,
+  SupirAssignment,
+} from '@/types';
+
+function buildShipmentListUrl(filters?: ShipmentFilters): string {
+  const params = new URLSearchParams();
+
+  if (filters?.status) params.set('status', String(filters.status));
+  if (filters?.date) params.set('date', filters.date);
+  if (filters?.mandorName) params.set('mandorName', filters.mandorName);
+  if (filters?.supirName) params.set('supirName', filters.supirName);
+  if (filters?.supirUserId) params.set('supirUserId', String(filters.supirUserId));
+
+  const query = params.toString();
+  return query ? `${API_ENDPOINTS.SHIPMENTS.BASE}?${query}` : API_ENDPOINTS.SHIPMENTS.BASE;
+}
 
 const toLocalDateTime = (value?: string) =>
   value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
@@ -12,8 +35,8 @@ const normalizeShipmentRequest = (data: ShipmentRequest): ShipmentRequest => ({
 });
 
 export const shipmentService = {
-  async getAll(): Promise<Shipment[]> {
-    return apiClient.get(API_ENDPOINTS.SHIPMENTS.BASE);
+  async getAll(filters?: ShipmentFilters): Promise<Shipment[]> {
+    return apiClient.get(buildShipmentListUrl(filters));
   },
 
   async getById(id: EntityId): Promise<Shipment> {
@@ -25,7 +48,12 @@ export const shipmentService = {
   },
 
   async getByStatus(status: string): Promise<Shipment[]> {
-    return apiClient.get(API_ENDPOINTS.SHIPMENTS.BY_STATUS(status));
+    return this.getAll({ status });
+  },
+
+  async getAvailableSupirs(name?: string): Promise<SupirAssignment[]> {
+    const query = name ? `?name=${encodeURIComponent(name)}` : '';
+    return apiClient.get(`${API_ENDPOINTS.SHIPMENTS.AVAILABLE_SUPIRS}${query}`);
   },
 
   async create(data: ShipmentRequest): Promise<Shipment> {
@@ -40,8 +68,13 @@ export const shipmentService = {
     return apiClient.patch(API_ENDPOINTS.SHIPMENTS.UPDATE_STATUS(id), data);
   },
 
-  async approveByAdmin(id: EntityId, status: ShipmentStatus): Promise<Shipment> {
-    return apiClient.patch(API_ENDPOINTS.SHIPMENTS.ADMIN_APPROVAL(id), { status });
+  async approveByMandor(id: EntityId, data: MandorApprovalRequest): Promise<Shipment> {
+    return apiClient.patch(API_ENDPOINTS.SHIPMENTS.MANDOR_APPROVAL(id), data);
+  },
+
+  async approveByAdmin(id: EntityId, data: AdminApprovalRequest | ShipmentStatus): Promise<Shipment> {
+    const payload = typeof data === 'string' ? { status: data } : data;
+    return apiClient.patch(API_ENDPOINTS.SHIPMENTS.ADMIN_APPROVAL(id), payload);
   },
 
   async delete(id: EntityId): Promise<{ message: string }> {

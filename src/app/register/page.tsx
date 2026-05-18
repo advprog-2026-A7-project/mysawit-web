@@ -6,11 +6,14 @@ import { useRouter } from 'next/navigation';
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { authService } from '@/services/auth.service';
 
-type RegistrableRole = 'BURUH' | 'MANDOR' | 'SUPIR';
-
-const roles: RegistrableRole[] = ['BURUH', 'MANDOR', 'SUPIR'];
-const fieldClassName =
-  'w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 font-semibold placeholder:font-normal placeholder:text-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent';
+const roles: UserRole[] = ['BURUH', 'MANDOR', 'SUPIR', 'ADMIN'];
+const roleLabels: Record<UserRole, string> = {
+  BURUH: 'Pekerja Panen',
+  MANDOR: 'Mandor',
+  SUPIR: 'Supir',
+  ADMIN: 'Admin',
+};
+const fieldClassName = 'ms-input';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -20,14 +23,6 @@ export default function RegisterPage() {
   const [username, setUsername] = useState('');
   const [role, setRole] = useState<RegistrableRole>('BURUH');
   const [certificationNumber, setCertificationNumber] = useState('');
-  const [mandorId, setMandorId] = useState('');
-  const [kebunId, setKebunId] = useState('');
-
-  // Email-mode-only fields
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -52,12 +47,12 @@ export default function RegisterPage() {
     setError('');
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError('Konfirmasi password belum sama');
       return;
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('Password minimal 6 karakter');
       return;
     }
 
@@ -69,13 +64,13 @@ export default function RegisterPage() {
         email,
         password,
         role,
-        ...(role === 'MANDOR' ? { certificationNumber: certificationNumber || undefined } : {}),
-        mandorId: mandorId || undefined,
-        kebunId: kebunId || undefined,
+        certificationNumber: certificationNumber || undefined,
+        mandorId: undefined,
+        kebunId: undefined,
       });
       router.push('/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed');
+      setError(err instanceof Error ? err.message : 'Gagal membuat akun');
     } finally {
       setLoading(false);
     }
@@ -106,228 +101,116 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100 px-4">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-green-800">Create Account</h1>
-          <p className="text-gray-600 mt-2">Register for MySawit</p>
-        </div>
-
-        <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
-          <button
-            type="button"
-            onClick={() => { setIsGoogleMode(false); resetForm(); }}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-              !isGoogleMode
-                ? 'bg-white text-green-800 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Sign up with Email
-          </button>
-          <button
-            type="button"
-            onClick={() => { setIsGoogleMode(true); resetForm(); }}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-              isGoogleMode
-                ? 'bg-white text-green-800 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Sign up with Google
-          </button>
-        </div>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
+    <div className="auth-shell">
+      <section className="w-full max-w-lg">
+        <div className="auth-panel w-full p-6 md:p-8">
+          <div className="mb-6 text-center">
+            <Link href="/" className="page-eyebrow inline-flex hover:text-green-300">
+              MySawit
+            </Link>
+            <h1 className="mt-3 text-3xl font-bold text-white">Daftar Akun</h1>
+            <p className="text-slate-400 mt-2">Buat akses untuk operasional kebun</p>
           </div>
-        )}
 
-        {!isGoogleMode ? (
-          <form onSubmit={handleEmailSubmit} className="space-y-6">
+          {error && (
+            <div className="alert-error mb-4">
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
+              <label className="label-sm">Nama Pengguna</label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className={fieldClassName}
-                placeholder="Choose a username"
+                placeholder="contoh: budi.mandor"
                 required
                 minLength={3}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <label className="label-sm">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className={fieldClassName}
-                placeholder="Enter your email"
+                placeholder="nama@email.com"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+              <label className="label-sm">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className={fieldClassName}
-                placeholder="Create a password"
+                placeholder="Minimal 6 karakter"
                 required
                 minLength={6}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+              <label className="label-sm">Konfirmasi Password</label>
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className={fieldClassName}
-                placeholder="Confirm your password"
+                placeholder="Ulangi password"
                 required
                 minLength={6}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
+              <label className="label-sm">Daftar Sebagai</label>
               <select
                 value={role}
-                onChange={(e) => setRole(e.target.value as RegistrableRole)}
+                onChange={(e) => setRole(e.target.value as UserRole)}
                 className={fieldClassName}
               >
                 {roles.map((item) => (
-                  <option key={item} value={item}>{item}</option>
+                  <option key={item} value={item}>
+                    {roleLabels[item]}
+                  </option>
                 ))}
               </select>
             </div>
 
-            {role === 'MANDOR' && (
+            {(role === 'MANDOR' || role === 'SUPIR') && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Certification Number
-                </label>
+                <label className="label-sm">Nomor Sertifikasi</label>
                 <input
                   type="text"
                   value={certificationNumber}
                   onChange={(e) => setCertificationNumber(e.target.value)}
                   className={fieldClassName}
-                  placeholder="Enter certification number"
+                  placeholder="Opsional"
                 />
               </div>
             )}
 
-            {role === 'BURUH' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Mandor ID</label>
-                  <input
-                    type="text"
-                    value={mandorId}
-                    onChange={(e) => setMandorId(e.target.value)}
-                    className={fieldClassName}
-                    placeholder="Optional mandor ID"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Kebun ID</label>
-                  <input
-                    type="text"
-                    value={kebunId}
-                    onChange={(e) => setKebunId(e.target.value)}
-                    className={fieldClassName}
-                    placeholder="Optional kebun ID"
-                  />
-                </div>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Creating Account...' : 'Register'}
+            <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-3">
+              {loading ? 'Membuat akun...' : 'Daftar'}
             </button>
           </form>
-        ) : (
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className={fieldClassName}
-                placeholder="Choose a username"
-                required
-                minLength={3}
-              />
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as RegistrableRole)}
-                className={fieldClassName}
-              >
-                {roles.map((item) => (
-                  <option key={item} value={item}>{item}</option>
-                ))}
-              </select>
-            </div>
-
-            {role === 'MANDOR' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Certification Number
-                </label>
-                <input
-                  type="text"
-                  value={certificationNumber}
-                  onChange={(e) => setCertificationNumber(e.target.value)}
-                  className={fieldClassName}
-                  placeholder="Enter certification number"
-                  required
-                />
-              </div>
-            )}
-
-            <p className="text-sm text-gray-600">
-              Fill in your details above, then continue with Google to finish creating your account.
-            </p>
-
-            {loading ? (
-              <p className="text-sm text-gray-500 text-center">Creating account...</p>
-            ) : (
-              <div className={isGoogleFormValid ? '' : 'opacity-50 pointer-events-none'}>
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={() => setError('Google authentication failed')}
-                  text="signup_with"
-                  shape="rectangular"
-                />
-              </div>
-            )}
+          <div className="mt-6 text-center text-sm text-slate-400">
+            Sudah punya akun?{' '}
+            <Link href="/login" className="text-green-300 hover:text-green-200 font-semibold">
+              Masuk
+            </Link>
           </div>
-        )}
-
-        <div className="mt-6 text-center text-sm text-gray-600">
-          Already have an account?{' '}
-          <Link href="/login" className="text-green-600 hover:text-green-700 font-semibold">
-            Login here
-          </Link>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

@@ -112,6 +112,46 @@ describe('plantation.service', () => {
     expect(apiClient.put).toHaveBeenCalledWith(API_ENDPOINTS.PLANTATIONS.TRANSFER_MANDOR, body);
   });
 
+  it('unassignMandor deletes plantation mandor endpoint', async () => {
+    const payload = { id: 4, mandorId: null };
+    (apiClient.delete as jest.Mock).mockResolvedValue(payload);
+
+    const result = await plantationService.unassignMandor(4);
+
+    expect(apiClient.delete).toHaveBeenCalledWith(API_ENDPOINTS.PLANTATIONS.UNASSIGN_MANDOR(4));
+    expect(result).toEqual(payload);
+  });
+
+  it('getSupirs calls plantation supirs endpoint', async () => {
+    const payload = ['supir-1'];
+    (apiClient.get as jest.Mock).mockResolvedValue(payload);
+
+    const result = await plantationService.getSupirs(4);
+
+    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.PLANTATIONS.SUPIRS(4));
+    expect(result).toEqual(payload);
+  });
+
+  it('assignSupir posts supir id to plantation supirs endpoint', async () => {
+    const payload = { id: 4, supirIds: ['supir-1'] };
+    (apiClient.post as jest.Mock).mockResolvedValue(payload);
+
+    const result = await plantationService.assignSupir(4, 'supir-1');
+
+    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.PLANTATIONS.SUPIRS(4), { supirId: 'supir-1' });
+    expect(result).toEqual(payload);
+  });
+
+  it('unassignSupir deletes plantation supir endpoint', async () => {
+    const payload = { id: 4, supirIds: [] };
+    (apiClient.delete as jest.Mock).mockResolvedValue(payload);
+
+    const result = await plantationService.unassignSupir(4, 'supir-1');
+
+    expect(apiClient.delete).toHaveBeenCalledWith(API_ENDPOINTS.PLANTATIONS.UNASSIGN_SUPIR(4, 'supir-1'));
+    expect(result).toEqual(payload);
+  });
+
   it('delete calls delete on BY_ID endpoint', async () => {
     const payload = { message: 'deleted' };
     (apiClient.delete as jest.Mock).mockResolvedValue(payload);

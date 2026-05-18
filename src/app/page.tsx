@@ -2,54 +2,42 @@ import Link from 'next/link';
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100">
-      <div className="text-center space-y-8 px-4">
-        <div className="space-y-4">
-          <h1 className="text-6xl font-bold text-green-800">MySawit</h1>
-          <p className="text-2xl text-green-600">Palm Oil Management System</p>
-        </div>
-        
-        <div className="space-y-4">
-          <p className="text-gray-600 max-w-md mx-auto">
-            Comprehensive platform for managing palm oil plantations, harvest tracking, 
-            shipment monitoring, and payroll management.
-          </p>
-        </div>
+    <main
+      className="min-h-screen bg-cover bg-center text-white"
+      style={{
+        backgroundImage:
+          "linear-gradient(90deg, rgba(8,17,15,0.96) 0%, rgba(8,17,15,0.9) 38%, rgba(8,17,15,0.42) 78%), url('/mysawit-hero.jpg')",
+      }}
+    >
+      <div className="min-h-screen page-shell flex flex-col gap-10">
+        <header className="flex items-center justify-between py-2">
+          <div>
+            <p className="page-eyebrow">MySawit</p>
+            <p className="text-sm text-slate-400">Sistem operasional kebun sawit</p>
+          </div>
+        </header>
 
-        <div className="flex gap-4 justify-center">
-          <Link 
-            href="/login"
-            className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
-          >
-            Login
-          </Link>
-          <Link 
-            href="/register"
-            className="px-8 py-3 bg-white text-green-600 border-2 border-green-600 rounded-lg hover:bg-green-50 transition-colors font-semibold"
-          >
-            Register
-          </Link>
-        </div>
+        <section className="max-w-3xl flex-1 flex flex-col justify-center space-y-7 pb-12">
+          <div className="space-y-4">
+            <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-tight">
+              Manajemen Kebun Sawit Modern
+            </h1>
+            <p className="text-base md:text-lg text-slate-300 max-w-2xl leading-relaxed">
+              Platform terintegrasi <strong className="text-white">BurhanSawit</strong> untuk mengkoordinasi buruh, mandor,
+              supir truk, dan admin dari panen harian sampai pengiriman TBS.
+            </p>
+          </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto pt-8">
-          <div className="p-4 bg-white rounded-lg shadow">
-            <div className="text-3xl mb-2">🌴</div>
-            <div className="font-semibold text-green-800">Plantations</div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Link href="/login" className="btn-primary text-base px-6 py-3 justify-center">
+              Masuk ke Dashboard
+            </Link>
+            <Link href="/register" className="btn-secondary text-base px-6 py-3 justify-center bg-black/30">
+              Daftar Akun Baru
+            </Link>
           </div>
-          <div className="p-4 bg-white rounded-lg shadow">
-            <div className="text-3xl mb-2">🌾</div>
-            <div className="font-semibold text-green-800">Harvest</div>
-          </div>
-          <div className="p-4 bg-white rounded-lg shadow">
-            <div className="text-3xl mb-2">🚚</div>
-            <div className="font-semibold text-green-800">Shipment</div>
-          </div>
-          <div className="p-4 bg-white rounded-lg shadow">
-            <div className="text-3xl mb-2">💰</div>
-            <div className="font-semibold text-green-800">Payroll</div>
-          </div>
-        </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }

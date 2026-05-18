@@ -66,14 +66,14 @@ describe('LoginPage', () => {
 
     render(<LoginPage />);
 
-    fireEvent.change(screen.getByPlaceholderText(/enter your email/i), {
+    fireEvent.change(screen.getByPlaceholderText(/nama@email\.com/i), {
       target: { value: 'user@example.com' },
     });
-    fireEvent.change(screen.getByPlaceholderText(/enter your password/i), {
+    fireEvent.change(screen.getByPlaceholderText(/password/i), {
       target: { value: 'secret' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^masuk$/i }));
 
     await waitFor(() => {
       expect(authService.login).toHaveBeenCalledWith({ email: 'user@example.com', password: 'secret' });
@@ -93,16 +93,16 @@ describe('LoginPage', () => {
 
     render(<LoginPage />);
 
-    fireEvent.change(screen.getByPlaceholderText(/enter your email/i), {
+    fireEvent.change(screen.getByPlaceholderText(/nama@email\.com/i), {
       target: { value: 'user@example.com' },
     });
-    fireEvent.change(screen.getByPlaceholderText(/enter your password/i), {
+    fireEvent.change(screen.getByPlaceholderText(/password/i), {
       target: { value: 'secret' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^masuk$/i }));
 
-    expect(screen.getByRole('button', { name: /logging in\.\.\./i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /masuk\.\.\./i })).toBeDisabled();
 
     resolvePromise?.();
     await waitFor(() => {
@@ -115,14 +115,14 @@ describe('LoginPage', () => {
 
     render(<LoginPage />);
 
-    fireEvent.change(screen.getByPlaceholderText(/enter your email/i), {
+    fireEvent.change(screen.getByPlaceholderText(/nama@email\.com/i), {
       target: { value: 'user@example.com' },
     });
-    fireEvent.change(screen.getByPlaceholderText(/enter your password/i), {
+    fireEvent.change(screen.getByPlaceholderText(/password/i), {
       target: { value: 'wrong' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^masuk$/i }));
 
     expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
   });
@@ -132,16 +132,16 @@ describe('LoginPage', () => {
 
     render(<LoginPage />);
 
-    fireEvent.change(screen.getByPlaceholderText(/enter your email/i), {
+    fireEvent.change(screen.getByPlaceholderText(/nama@email\.com/i), {
       target: { value: 'user@example.com' },
     });
-    fireEvent.change(screen.getByPlaceholderText(/enter your password/i), {
+    fireEvent.change(screen.getByPlaceholderText(/password/i), {
       target: { value: 'wrong' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /login/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^masuk$/i }));
 
-    expect(await screen.findByText('Login failed')).toBeInTheDocument();
+    expect(await screen.findByText('Gagal masuk')).toBeInTheDocument();
   });
 
   it('Google login: redirects on success', async () => {

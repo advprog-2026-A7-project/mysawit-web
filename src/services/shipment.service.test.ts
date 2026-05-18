@@ -27,6 +27,24 @@ describe('shipment.service', () => {
     expect(result).toEqual(payload);
   });
 
+  it('getAll builds shipment query filters', async () => {
+    const payload = [{ id: 10 }];
+    (apiClient.get as jest.Mock).mockResolvedValue(payload);
+
+    const result = await shipmentService.getAll({
+      status: 'MANDOR_APPROVED',
+      date: '2026-05-15',
+      mandorName: 'Mandor',
+      supirName: 'Supir',
+      supirUserId: 'bbbbbbbb-2222-2222-2222-222222222222',
+    });
+
+    expect(apiClient.get).toHaveBeenCalledWith(
+      '/api/gateway/shipment/api/shipments?status=MANDOR_APPROVED&date=2026-05-15&mandorName=Mandor&supirName=Supir&supirUserId=bbbbbbbb-2222-2222-2222-222222222222'
+    );
+    expect(result).toEqual(payload);
+  });
+
   it('getById calls BY_ID endpoint', async () => {
     const payload = { id: 2 };
     (apiClient.get as jest.Mock).mockResolvedValue(payload);
@@ -51,10 +69,30 @@ describe('shipment.service', () => {
     const payload = [{ id: 4 }];
     (apiClient.get as jest.Mock).mockResolvedValue(payload);
 
-    const result = await shipmentService.getByStatus('PENDING');
+    const result = await shipmentService.getByStatus('MEMUAT');
 
-    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.SHIPMENTS.BY_STATUS('PENDING'));
+    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.SHIPMENTS.BY_STATUS('MEMUAT'));
     expect(result).toEqual(payload);
+  });
+
+  it('getAvailableSupirs calls available supirs endpoint with encoded search', async () => {
+    const payload = [{ userId: 'driver-1' }];
+    (apiClient.get as jest.Mock).mockResolvedValue(payload);
+
+    const result = await shipmentService.getAvailableSupirs('Supir Local');
+
+    expect(apiClient.get).toHaveBeenCalledWith(
+      `${API_ENDPOINTS.SHIPMENTS.AVAILABLE_SUPIRS}?name=Supir%20Local`
+    );
+    expect(result).toEqual(payload);
+  });
+
+  it('getAvailableSupirs omits query string when search is blank', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue([]);
+
+    await shipmentService.getAvailableSupirs();
+
+    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.SHIPMENTS.AVAILABLE_SUPIRS);
   });
 
   it('create posts to base endpoint', async () => {
@@ -94,6 +132,43 @@ describe('shipment.service', () => {
     const result = await shipmentService.update(5, body);
 
     expect(apiClient.put).toHaveBeenCalledWith(API_ENDPOINTS.SHIPMENTS.BY_ID(5), body);
+    expect(result).toEqual(payload);
+  });
+
+  it('updateStatus patches status endpoint', async () => {
+    const body = { status: 'MENGIRIM' as const };
+    const payload = { id: 5, status: 'MENGIRIM' };
+    (apiClient.patch as jest.Mock).mockResolvedValue(payload);
+
+    const result = await shipmentService.updateStatus(5, body);
+
+    expect(apiClient.patch).toHaveBeenCalledWith(API_ENDPOINTS.SHIPMENTS.UPDATE_STATUS(5), body);
+    expect(result).toEqual(payload);
+  });
+
+  it('approveByMandor patches mandor approval endpoint', async () => {
+    const body = { status: 'MANDOR_APPROVED' as const };
+    const payload = { id: 5, status: 'MANDOR_APPROVED' };
+    (apiClient.patch as jest.Mock).mockResolvedValue(payload);
+
+    const result = await shipmentService.approveByMandor(5, body);
+
+    expect(apiClient.patch).toHaveBeenCalledWith(API_ENDPOINTS.SHIPMENTS.MANDOR_APPROVAL(5), body);
+    expect(result).toEqual(payload);
+  });
+
+  it('approveByAdmin patches admin approval endpoint with full payload', async () => {
+    const body = {
+      status: 'PARTIALLY_REJECTED' as const,
+      rejectionReason: 'bad weight',
+      kgAccepted: 80,
+    };
+    const payload = { id: 5, status: 'PARTIALLY_REJECTED' };
+    (apiClient.patch as jest.Mock).mockResolvedValue(payload);
+
+    const result = await shipmentService.approveByAdmin(5, body);
+
+    expect(apiClient.patch).toHaveBeenCalledWith(API_ENDPOINTS.SHIPMENTS.ADMIN_APPROVAL(5), body);
     expect(result).toEqual(payload);
   });
 

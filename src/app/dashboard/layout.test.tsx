@@ -1,17 +1,21 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import DashboardLayout from './layout';
 import { authService } from '@/services/auth.service';
 
 const pushMock = jest.fn();
+let pathname = '/dashboard';
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),
+  usePathname: () => pathname,
 }));
 
 jest.mock('next/link', () => ({
   __esModule: true,
-  default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => (
-    <a href={href} {...props}>{children}</a>
+  default: ({ href, children, onClick, ...props }: { href: string; children: React.ReactNode; onClick?: () => void }) => (
+    <a href={href} onClick={onClick} {...props}>
+      {children}
+    </a>
   ),
 }));
 
@@ -26,39 +30,77 @@ jest.mock('@/services/auth.service', () => ({
 describe('DashboardLayout', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-  });
-
-  it('renders header with username and a settings link, logs out via the button', () => {
+    pathname = '/dashboard';
     (authService.isAuthenticated as jest.Mock).mockReturnValue(true);
-    (authService.getUserInfo as jest.Mock).mockReturnValue({
-      id: '1', username: 'budi', email: 'b@mail.com', role: 'BURUH', googleLinked: false, hasPassword: true,
-    });
-
-    render(
-      <DashboardLayout>
-        <p>inner</p>
-      </DashboardLayout>
-    );
-
-    expect(screen.getByText(/welcome, budi/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /mysawit dashboard/i })).toHaveAttribute('href', '/dashboard');
-    expect(screen.getByRole('link', { name: /settings/i })).toHaveAttribute('href', '/dashboard/settings');
-    expect(screen.getByText('inner')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /logout/i }));
-    expect(authService.logout).toHaveBeenCalledTimes(1);
-    expect(pushMock).toHaveBeenCalledWith('/');
+    (authService.getUserInfo as jest.Mock).mockReturnValue({ id: 'u-1', username: 'budi', role: 'ADMIN' });
   });
 
-  it('redirects unauthenticated users via the wrapped AuthProvider', () => {
+  it('redirects to login and renders nothing when unauthenticated', async () => {
     (authService.isAuthenticated as jest.Mock).mockReturnValue(false);
 
-    render(
-      <DashboardLayout>
-        <p>inner</p>
-      </DashboardLayout>
-    );
+    const { container } = render(<DashboardLayout><div>Protected child</div></DashboardLayout>);
 
+    expect(container).toBeEmptyDOMElement();
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/login'));
+  });
+
+  it('renders navigation, user info, active overview, and children', async () => {
+    render(<DashboardLayout><div>Protected child</div></DashboardLayout>);
+
+    expect(screen.getByText('Protected child')).toBeInTheDocument();
+    expect(await screen.findByText('budi')).toBeInTheDocument();
+    expect(screen.queryByText('ADMIN')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Beranda/i })).toHaveClass('active');
+    expect(screen.getByRole('link', { name: /Pengiriman/i })).toHaveAttribute('href', '/dashboard/shipments');
+  });
+
+  it('marks nested dashboard links active', async () => {
+    pathname = '/dashboard/shipments/123';
+
+    render(<DashboardLayout><div>Protected child</div></DashboardLayout>);
+
+    expect(await screen.findByText('budi')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Pengiriman/i })).toHaveClass('active');
+    expect(screen.getByRole('link', { name: /Beranda/i })).not.toHaveClass('active');
+  });
+
+  it('uses fallback user display values when user info is absent', async () => {
+    (authService.getUserInfo as jest.Mock).mockReturnValue(null);
+
+    render(<DashboardLayout><div>Protected child</div></DashboardLayout>);
+
+    expect(await screen.findByText('Pengguna')).toBeInTheDocument();
+    expect(screen.queryByText('UNKNOWN')).not.toBeInTheDocument();
+    expect(screen.getByText('?')).toBeInTheDocument();
+  });
+
+  it('logs out and redirects to login', async () => {
+    render(<DashboardLayout><div>Protected child</div></DashboardLayout>);
+    await screen.findByText('budi');
+
+    fireEvent.click(screen.getByTitle('Logout'));
+
+    expect(authService.logout).toHaveBeenCalledTimes(1);
     expect(pushMock).toHaveBeenCalledWith('/login');
+  });
+
+  it('opens and closes the mobile navbar menu', async () => {
+    render(<DashboardLayout><div>Protected child</div></DashboardLayout>);
+    await screen.findByText('budi');
+
+    expect(document.querySelector('.ms-nav-mobile')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /buka menu/i }));
+    expect(document.querySelector('.ms-nav-mobile')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('link', { name: /MySawit/i }));
+    expect(document.querySelector('.ms-nav-mobile')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /buka menu/i }));
+    const mobileNav = document.querySelector('.ms-nav-mobile') as HTMLElement;
+    expect(mobileNav).toBeInTheDocument();
+
+    fireEvent.click(within(mobileNav).getByRole('link', { name: /Panen/i }));
+    expect(document.querySelector('.ms-nav-mobile')).not.toBeInTheDocument();
   });
 });

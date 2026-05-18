@@ -42,7 +42,13 @@ export const API_ENDPOINTS = {
       gatewayUrl('plantation', `/api/plantations/owner/${ownerId}`),
     ASSIGN_MANDOR: (id: number | string) =>
       gatewayUrl('plantation', `/api/plantations/${id}/mandor`),
+    UNASSIGN_MANDOR: (id: number | string) =>
+      gatewayUrl('plantation', `/api/plantations/${id}/mandor`),
     TRANSFER_MANDOR: gatewayUrl('plantation', '/api/plantations/transfer-mandor'),
+    SUPIRS: (id: number | string) =>
+      gatewayUrl('plantation', `/api/plantations/${id}/supirs`),
+    UNASSIGN_SUPIR: (id: number | string, supirId: string) =>
+      gatewayUrl('plantation', `/api/plantations/${id}/supirs/${supirId}`),
     HEALTH: gatewayUrl('plantation', '/actuator/health'),
   },
   
@@ -65,8 +71,11 @@ export const API_ENDPOINTS = {
       `${gatewayUrl('shipment', '/api/shipments')}?harvestId=${harvestId}`,
     BY_STATUS: (status: string) =>
       `${gatewayUrl('shipment', '/api/shipments')}?status=${status}`,
+    AVAILABLE_SUPIRS: gatewayUrl('shipment', '/api/shipments/available-supirs'),
     UPDATE_STATUS: (id: number | string) =>
       gatewayUrl('shipment', `/api/shipments/${id}/status`),
+    MANDOR_APPROVAL: (id: number | string) =>
+      gatewayUrl('shipment', `/api/shipments/${id}/mandor-approval`),
     ADMIN_APPROVAL: (id: number | string) =>
       gatewayUrl('shipment', `/api/shipments/${id}/admin-approval`),
     HEALTH: gatewayUrl('shipment', '/api/shipments/health'),
