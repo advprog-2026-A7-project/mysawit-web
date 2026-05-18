@@ -87,6 +87,14 @@ describe('shipment.service', () => {
     expect(result).toEqual(payload);
   });
 
+  it('getAvailableSupirs omits query string when search is blank', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue([]);
+
+    await shipmentService.getAvailableSupirs();
+
+    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.SHIPMENTS.AVAILABLE_SUPIRS);
+  });
+
   it('create posts to base endpoint', async () => {
     const body = { harvestId: 1, destination: 'Jakarta', weight: 10 };
     const payload = { id: 5, ...body };

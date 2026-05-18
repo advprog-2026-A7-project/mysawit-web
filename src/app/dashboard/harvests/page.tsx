@@ -1,13 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { harvestService } from '@/services/harvest.service';
 import { authService } from '@/services/auth.service';
 import { Harvest, HarvestStatus } from '@/types';
 
 const statusOptions: HarvestStatus[] = ['PENDING', 'APPROVED', 'REJECTED'];
+const statusLabel: Record<HarvestStatus, string> = {
+  PENDING: 'Menunggu',
+  APPROVED: 'Disetujui',
+  REJECTED: 'Ditolak',
+};
 
 const formatDateTime = (value?: string): string => {
   if (!value) return '-';
@@ -15,12 +19,6 @@ const formatDateTime = (value?: string): string => {
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString('id-ID');
 };
-
-const parsePhotos = (value: string): string[] =>
-  value
-    .split('\n')
-    .map((item) => item.trim())
-    .filter(Boolean);
 
 interface HarvestFilters {
   harvesterName: string;
@@ -87,7 +85,7 @@ export default function HarvestsPage() {
       setHarvests(data);
       setCurrentPage(1);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch harvests');
+      setError(err instanceof Error ? err.message : 'Gagal memuat catatan panen');
     } finally {
       setLoading(false);
     }
@@ -125,7 +123,7 @@ export default function HarvestsPage() {
       setPhotoFiles(null);
       await loadHarvests(filters);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create harvest');
+      setError(err instanceof Error ? err.message : 'Gagal menyimpan catatan panen');
     } finally {
       setSaving(false);
     }
@@ -147,100 +145,97 @@ export default function HarvestsPage() {
       });
       await loadHarvests(filters);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update harvest status');
+      setError(err instanceof Error ? err.message : 'Gagal memperbarui status panen');
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap gap-3 justify-between items-center">
-          <div>
-            <Link href="/dashboard" className="text-green-600 hover:text-green-700 text-sm">
-              Back to Dashboard
-            </Link>
-            <h1 className="text-2xl font-bold text-green-800">Harvest Management</h1>
-          </div>
-          <button
-            onClick={() => {
-              setShowForm(!showForm);
-              setCurrentPage(1);
-            }}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            {showForm ? 'Cancel' : '+ Log Harvest'}
-          </button>
+    <div className="page-shell space-y-6 animate-fade-in">
+      <header className="page-heading">
+        <div>
+          <p className="page-eyebrow">Panen Harian</p>
+          <h1 className="text-2xl font-bold text-white">Pencatatan Panen</h1>
+          <p className="text-sm text-slate-500 mt-1">Catat hasil panen, bukti foto, dan status validasi lapangan.</p>
         </div>
+        <button
+          onClick={() => {
+            setShowForm(!showForm);
+            setCurrentPage(1);
+          }}
+          className="btn-primary"
+        >
+          {showForm ? 'Batal' : '+ Catat Panen'}
+        </button>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="space-y-6">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="alert-error">
             {error}
           </div>
         )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <p className="text-sm text-gray-600">Total Logs</p>
-            <p className="text-2xl font-bold text-green-800">{harvests.length}</p>
+          <div className="metric-card">
+            <p className="text-sm text-slate-400">Total Catatan</p>
+            <p className="text-2xl font-bold text-white">{harvests.length}</p>
           </div>
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <p className="text-sm text-gray-600">Total Weight</p>
-            <p className="text-2xl font-bold text-green-800">{totals.totalWeight.toLocaleString('id-ID')} kg</p>
+          <div className="metric-card">
+            <p className="text-sm text-slate-400">Berat Total</p>
+            <p className="text-2xl font-bold text-white">{totals.totalWeight.toLocaleString('id-ID')} kg</p>
           </div>
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <p className="text-sm text-gray-600">Approved</p>
-            <p className="text-2xl font-bold text-green-800">{totals.approved}</p>
+          <div className="metric-card">
+            <p className="text-sm text-slate-400">Disetujui</p>
+            <p className="text-2xl font-bold text-green-300">{totals.approved}</p>
           </div>
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <p className="text-sm text-gray-600">Pending / Rejected</p>
-            <p className="text-2xl font-bold text-green-800">{totals.pending} / {totals.rejected}</p>
+          <div className="metric-card">
+            <p className="text-sm text-slate-400">Menunggu / Ditolak</p>
+            <p className="text-2xl font-bold text-amber-300">{totals.pending} / {totals.rejected}</p>
           </div>
         </div>
 
-        <form onSubmit={handleFilter} className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Filter Harvest Logs</h2>
+        <form onSubmit={handleFilter} className="surface-panel bg-white p-5">
+          <h2 className="section-title mb-4">Filter Catatan Panen</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <input
               type="text"
               value={filters.harvesterName}
               onChange={(event) => setFilters({ ...filters, harvesterName: event.target.value })}
-              placeholder="Harvester name"
-              className="px-4 py-2 border border-gray-300 rounded-lg"
+              placeholder="Nama pekerja"
+              className="ms-input"
             />
             <input
               type="datetime-local"
               value={filters.startDate}
               onChange={(event) => setFilters({ ...filters, startDate: event.target.value })}
-              className="px-4 py-2 border border-gray-300 rounded-lg"
+              className="ms-input"
             />
             <input
               type="datetime-local"
               value={filters.endDate}
               onChange={(event) => setFilters({ ...filters, endDate: event.target.value })}
-              className="px-4 py-2 border border-gray-300 rounded-lg"
+              className="ms-input"
             />
             <button
               type="submit"
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+              className="btn-primary justify-center"
             >
-              Apply Filter
+              Terapkan Filter
             </button>
           </div>
         </form>
 
         {showForm && (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Log Harvest</h2>
+          <div className="surface-panel bg-white p-5">
+            <h2 className="section-title mb-4">Catat Panen</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input
                   type="text"
                   value={formData.plantationId}
                   onChange={(event) => setFormData({ ...formData, plantationId: event.target.value })}
-                  placeholder="Plantation UUID"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  placeholder="Kebun"
+                  className="ms-input"
                   required
                 />
                 <input
@@ -248,8 +243,8 @@ export default function HarvestsPage() {
                   step="0.01"
                   value={formData.weight}
                   onChange={(event) => setFormData({ ...formData, weight: event.target.value })}
-                  placeholder="Weight kg"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  placeholder="Berat panen (kg)"
+                  className="ms-input"
                   required
                 />
               </div>
@@ -257,8 +252,8 @@ export default function HarvestsPage() {
                 rows={3}
                 value={formData.news}
                 onChange={(event) => setFormData({ ...formData, news: event.target.value })}
-                placeholder="Harvest news"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                placeholder="Keterangan panen"
+                className="ms-input"
                 required
               />
               <div>
@@ -280,33 +275,33 @@ export default function HarvestsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="btn-primary w-full justify-center py-3"
               >
-                {saving ? 'Saving Harvest...' : 'Save Harvest'}
+                {saving ? 'Menyimpan...' : 'Simpan Panen'}
               </button>
             </form>
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Update Harvest Status</h2>
+        <div className="surface-panel bg-white p-5">
+          <h2 className="section-title mb-4">Ubah Status Panen</h2>
           <form onSubmit={handleStatusSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <input
               type="text"
               value={statusForm.id}
               onChange={(event) => setStatusForm({ ...statusForm, id: event.target.value })}
-              placeholder="Harvest log UUID"
-              className="px-4 py-2 border border-gray-300 rounded-lg"
+              placeholder="Nomor catatan panen"
+              className="ms-input"
               required
             />
             <select
               value={statusForm.status}
               onChange={(event) => setStatusForm({ ...statusForm, status: event.target.value as HarvestStatus })}
-              className="px-4 py-2 border border-gray-300 rounded-lg"
+              className="ms-input"
             >
               {statusOptions.map((status) => (
                 <option key={status} value={status}>
-                  {status}
+                  {statusLabel[status]}
                 </option>
               ))}
             </select>
@@ -314,48 +309,48 @@ export default function HarvestsPage() {
               type="text"
               value={statusForm.rejectionReason}
               onChange={(event) => setStatusForm({ ...statusForm, rejectionReason: event.target.value })}
-              placeholder="Rejection reason"
-              className="px-4 py-2 border border-gray-300 rounded-lg"
+              placeholder="Alasan penolakan"
+              className="ms-input"
             />
             <button
               type="submit"
-              className="px-4 py-2 border border-green-600 text-green-700 rounded-lg hover:bg-green-50 transition-colors font-semibold"
+              className="btn-secondary justify-center"
             >
-              Update Status
+              Simpan Status
             </button>
           </form>
         </div>
 
         {loading ? (
-          <div className="text-center py-12 text-gray-600">Loading harvest records...</div>
+          <div className="text-center py-12 text-slate-500">Memuat catatan panen...</div>
         ) : harvests.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">No Harvest Data</h3>
-            <p className="text-gray-600">Create a log or adjust the filter.</p>
+          <div className="empty-state bg-white p-12 text-center">
+            <h3 className="text-xl font-semibold text-white mb-2">Belum ada catatan panen</h3>
+            <p className="text-slate-400">Catat panen baru atau ubah filter.</p>
           </div>
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {currentHarvests.map((harvest) => (
-                <div key={harvest.id} className="bg-white rounded-lg shadow-md p-6">
+                <div key={harvest.id} className="surface-panel bg-white p-5">
                   <div className="flex justify-between gap-3 items-start mb-3">
-                    <h3 className="text-lg font-semibold text-green-800">Harvest #{String(harvest.id).slice(0, 8)}</h3>
-                    <span className="px-2 py-1 rounded bg-green-50 text-green-700 text-xs font-semibold">
-                      {harvest.status || 'PENDING'}
+                    <h3 className="text-lg font-semibold text-white">Catatan Panen</h3>
+                    <span className="badge badge-green">
+                      {statusLabel[harvest.status || 'PENDING']}
                     </span>
                   </div>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <p><span className="font-medium">Plantation:</span> {harvest.plantationId}</p>
-                    <p><span className="font-medium">Harvester:</span> {harvest.harvesterName || harvest.harvesterId || '-'}</p>
-                    <p><span className="font-medium">Foreman:</span> {harvest.foremanId || '-'}</p>
-                    <p><span className="font-medium">Weight:</span> {harvest.weight} kg</p>
-                    <p><span className="font-medium">Date:</span> {formatDateTime(harvest.harvestDate)}</p>
-                    {harvest.news && <p><span className="font-medium">News:</span> {harvest.news}</p>}
+                  <div className="space-y-2 text-sm text-slate-400">
+                    <p><span className="font-medium text-slate-300">Kebun:</span> {harvest.plantationId}</p>
+                    <p><span className="font-medium text-slate-300">Pekerja:</span> {harvest.harvesterName || harvest.harvesterId || '-'}</p>
+                    <p><span className="font-medium text-slate-300">Mandor:</span> {harvest.foremanId ? 'Sudah diverifikasi' : '-'}</p>
+                    <p><span className="font-medium text-slate-300">Berat:</span> {harvest.weight} kg</p>
+                    <p><span className="font-medium text-slate-300">Tanggal:</span> {formatDateTime(harvest.harvestDate)}</p>
+                    {harvest.news && <p><span className="font-medium text-slate-300">Catatan:</span> {harvest.news}</p>}
                     {harvest.rejectionReason && (
-                      <p><span className="font-medium">Rejection:</span> {harvest.rejectionReason}</p>
+                      <p><span className="font-medium text-slate-300">Penolakan:</span> {harvest.rejectionReason}</p>
                     )}
                     {harvest.photos && harvest.photos.length > 0 && (
-                      <p><span className="font-medium">Photos:</span> {harvest.photos.length} attached</p>
+                      <p><span className="font-medium text-slate-300">Foto:</span> {harvest.photos.length} terlampir</p>
                     )}
                   </div>
                 </div>
@@ -364,17 +359,17 @@ export default function HarvestsPage() {
 
             {harvests.length > ITEMS_PER_PAGE && (
               <div className="mt-10 flex flex-col items-center">
-                <span className="text-sm text-gray-700 mb-4">
-                  Showing <span className="font-semibold text-green-700">{indexOfFirstItem + 1}</span> to <span className="font-semibold text-green-700">{Math.min(indexOfLastItem, harvests.length)}</span> of <span className="font-semibold">{harvests.length}</span> entries
+                <span className="text-sm text-slate-400 mb-4">
+                  Menampilkan <span className="font-semibold text-green-300">{indexOfFirstItem + 1}</span> sampai <span className="font-semibold text-green-300">{Math.min(indexOfLastItem, harvests.length)}</span> dari <span className="font-semibold text-white">{harvests.length}</span> catatan
                 </span>
                 <div className="inline-flex rounded-md shadow-sm">
                   <button
                     type="button"
                     onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-l-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 text-sm font-medium text-slate-300 bg-[var(--bg-card)] border border-white/[0.08] rounded-l-lg hover:bg-white/[0.06] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Previous
+                    Sebelumnya
                   </button>
                   {Array.from({ length: totalPages }, (_, i) => (
                     <button
@@ -383,8 +378,8 @@ export default function HarvestsPage() {
                       onClick={() => setCurrentPage(i + 1)}
                       className={`px-4 py-2 text-sm font-medium border-t border-b border-gray-300 ${
                         currentPage === i + 1
-                          ? 'bg-green-600 text-white border-green-600 z-10'
-                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                          ? 'bg-green-700 text-white border-green-700 z-10'
+                          : 'bg-[var(--bg-card)] text-slate-300 hover:bg-white/[0.06]'
                       }`}
                     >
                       {i + 1}
@@ -394,9 +389,9 @@ export default function HarvestsPage() {
                     type="button"
                     onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                     disabled={currentPage === totalPages}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 text-sm font-medium text-slate-300 bg-[var(--bg-card)] border border-white/[0.08] rounded-r-lg hover:bg-white/[0.06] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Next
+                    Berikutnya
                   </button>
                 </div>
               </div>

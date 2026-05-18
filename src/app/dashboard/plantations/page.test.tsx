@@ -1,24 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import PlantationsPage from './page';
 import { plantationService } from '@/services/plantation.service';
 import { authService } from '@/services/auth.service';
+import { identityService } from '@/services/identity.service';
 
-const pushMock = jest.fn();
-const routerMock = { push: pushMock };
 const confirmMock = jest.fn();
-
-jest.mock('next/navigation', () => ({
-  useRouter: () => routerMock,
-}));
-
-jest.mock('next/link', () => ({
-  __esModule: true,
-  default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => (
-    <a href={href} {...props}>
-      {children}
-    </a>
-  ),
-}));
 
 jest.mock('@/services/plantation.service', () => ({
   plantationService: {
@@ -28,549 +14,566 @@ jest.mock('@/services/plantation.service', () => ({
     update: jest.fn(),
     delete: jest.fn(),
     assignMandor: jest.fn(),
+    unassignMandor: jest.fn(),
     transferMandor: jest.fn(),
+    getSupirs: jest.fn(),
+    assignSupir: jest.fn(),
+    unassignSupir: jest.fn(),
   },
 }));
 
 jest.mock('@/services/auth.service', () => ({
   authService: {
-    isAuthenticated: jest.fn(),
     getUserInfo: jest.fn(),
   },
 }));
+
+jest.mock('@/services/identity.service', () => ({
+  identityService: {
+    listUsers: jest.fn(),
+  },
+}));
+
+const samplePlantation = {
+  id: 1,
+  code: 'P-001',
+  name: 'Plantation A',
+  location: 'Riau',
+  area: 10,
+  ownerId: 'owner-1',
+  description: 'With description',
+  mandorId: 'mandor-123456',
+  supirIds: ['supir-1', 'supir-2'],
+  plantDate: '2026-01-15T10:00:00Z',
+  coordinates: [
+    { latitude: 1, longitude: 2 },
+    { latitude: 3, longitude: 4 },
+    { latitude: 5, longitude: 6 },
+    { latitude: 7, longitude: 8 },
+  ],
+};
 
 describe('PlantationsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (window as unknown as { confirm: typeof confirm }).confirm = confirmMock;
-
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(true);
+    confirmMock.mockReturnValue(true);
     (authService.getUserInfo as jest.Mock).mockReturnValue({ id: '10' });
+    (identityService.listUsers as jest.Mock).mockResolvedValue([
+      { id: 'supir-1', username: 'driver', role: 'SUPIR' },
+      { id: 'mandor-1', username: 'foreman', role: 'MANDOR' },
+    ]);
     (plantationService.getAll as jest.Mock).mockResolvedValue([]);
     (plantationService.getByOwner as jest.Mock).mockResolvedValue([]);
     (plantationService.create as jest.Mock).mockResolvedValue({ id: 1 });
     (plantationService.update as jest.Mock).mockResolvedValue({ id: 1 });
     (plantationService.delete as jest.Mock).mockResolvedValue({ message: 'deleted' });
     (plantationService.assignMandor as jest.Mock).mockResolvedValue({ id: 1 });
+    (plantationService.unassignMandor as jest.Mock).mockResolvedValue({ id: 1 });
     (plantationService.transferMandor as jest.Mock).mockResolvedValue(undefined);
-    confirmMock.mockReturnValue(true);
+    (plantationService.getSupirs as jest.Mock).mockResolvedValue(['supir-1']);
+    (plantationService.assignSupir as jest.Mock).mockResolvedValue({ id: 1 });
+    (plantationService.unassignSupir as jest.Mock).mockResolvedValue({ id: 1 });
   });
 
-  const openAndFillForm = () => {
-    fireEvent.click(screen.getByRole('button', { name: /add plantation/i }));
-
-    fireEvent.change(screen.getByLabelText(/plantation name/i), {
-      target: { value: 'Plantation A' },
-    });
-    fireEvent.change(screen.getByLabelText(/^location$/i), {
-      target: { value: 'Riau' },
-    });
-    fireEvent.change(screen.getByLabelText(/area/i), {
-      target: { value: '15.5' },
-    });
-    fireEvent.change(screen.getByLabelText(/description/i), {
-      target: { value: 'Sample plantation' },
-    });
+  const openCreateForm = async () => {
+    await screen.findByText(/Belum ada kebun yang cocok/i);
+    fireEvent.click(screen.getByRole('button', { name: /^\+ Tambah Kebun$/i }));
   };
 
-  it('redirects to login when user is not authenticated', async () => {
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(false);
+  const fillPlantationForm = () => {
+    fireEvent.change(screen.getByPlaceholderText('Kebun Blok A'), { target: { value: 'Plantation A' } });
+    fireEvent.change(screen.getByPlaceholderText('Kalimantan Selatan'), { target: { value: 'Riau' } });
+    fireEvent.change(screen.getByPlaceholderText('25.5'), { target: { value: '15.5' } });
+    fireEvent.change(screen.getByPlaceholderText('Deskripsi kebun...'), { target: { value: 'Sample plantation' } });
+  };
 
-    render(<PlantationsPage />);
-
-    await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith('/login');
-    });
-
-    expect(plantationService.getAll).not.toHaveBeenCalled();
-  });
-
-  it('shows loading state while fetching plantations', async () => {
+  it('shows loading state and then empty state', async () => {
     let resolvePromise: ((value: unknown) => void) | undefined;
-    const pendingPromise = new Promise((resolve) => {
-      resolvePromise = resolve;
-    });
-    (plantationService.getAll as jest.Mock).mockReturnValue(pendingPromise);
+    (plantationService.getAll as jest.Mock).mockReturnValue(new Promise((resolve) => { resolvePromise = resolve; }));
 
     render(<PlantationsPage />);
 
-    expect(screen.getByText(/loading plantations/i)).toBeInTheDocument();
-
+    expect(screen.getByText(/Memuat/i)).toBeInTheDocument();
     resolvePromise?.([]);
-    await waitFor(() => {
-      expect(plantationService.getAll).toHaveBeenCalledTimes(1);
-    });
+    expect(await screen.findByText(/Belum ada kebun yang cocok/i)).toBeInTheDocument();
   });
 
-  it('shows empty state when no plantations exist', async () => {
-    (plantationService.getAll as jest.Mock).mockResolvedValue([]);
-
-    render(<PlantationsPage />);
-
-    expect(await screen.findByText(/no plantations yet/i)).toBeInTheDocument();
-  });
-
-  it('renders plantations list including optional description', async () => {
+  it('renders plantation cards and summary stats', async () => {
     (plantationService.getAll as jest.Mock).mockResolvedValue([
-      {
-        id: 1,
-        name: 'Plantation A',
-        location: 'Riau',
-        area: 10,
-        description: 'With description',
-      },
-      {
-        id: 2,
-        name: 'Plantation B',
-        location: 'Jambi',
-        area: 11,
-      },
+      samplePlantation,
+      { id: 2, name: 'Plantation B', location: 'Jambi', area: 5, plantDate: 'not-a-date' },
+      { id: 3, name: 'Plantation C', location: 'Aceh', area: 3 },
     ]);
 
     render(<PlantationsPage />);
 
     expect(await screen.findByText('Plantation A')).toBeInTheDocument();
-    expect(screen.getByText(/with description/i)).toBeInTheDocument();
-    expect(screen.getByText('Plantation B')).toBeInTheDocument();
-  });
-
-  it('shows load error message from Error object', async () => {
-    (plantationService.getAll as jest.Mock).mockRejectedValue(new Error('Failed to load from API'));
-
-    render(<PlantationsPage />);
-
-    expect(await screen.findByText('Failed to load from API')).toBeInTheDocument();
-  });
-
-  it('shows fallback load error when thrown value is not Error', async () => {
-    (plantationService.getAll as jest.Mock).mockRejectedValue('bad');
-
-    render(<PlantationsPage />);
-
-    expect(await screen.findByText('Failed to load plantations')).toBeInTheDocument();
-  });
-
-  it('toggles add plantation form visibility', async () => {
-    render(<PlantationsPage />);
-
-    await screen.findByText(/no plantations yet/i);
-
-    const addButton = screen.getByRole('button', { name: /add plantation/i });
-    fireEvent.click(addButton);
-    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
-    expect(screen.getByRole('button', { name: /add plantation/i })).toBeInTheDocument();
-  });
-
-  it('creates plantation with session owner id and reloads list', async () => {
-    (plantationService.getAll as jest.Mock)
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
-    (authService.getUserInfo as jest.Mock).mockReturnValue({ id: '10' });
-
-    render(<PlantationsPage />);
-
-    await screen.findByText(/no plantations yet/i);
-    openAndFillForm();
-
-    fireEvent.click(screen.getByRole('button', { name: /create plantation/i }));
-
-    await waitFor(() => {
-      expect(plantationService.create).toHaveBeenCalledWith({
-        name: 'Plantation A',
-        location: 'Riau',
-        area: 15.5,
-        description: 'Sample plantation',
-        ownerId: '10',
-        plantDate: undefined,
-        coordinates: [
-          { latitude: 0, longitude: 0 },
-          { latitude: 0, longitude: 1 },
-          { latitude: 1, longitude: 1 },
-          { latitude: 1, longitude: 0 },
-        ],
-      });
-    });
-
-    await waitFor(() => {
-      expect((plantationService.getAll as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(2);
-    });
-
-    expect(screen.getByRole('button', { name: /add plantation/i })).toBeInTheDocument();
-  });
-
-  it('creates plantation with undefined owner id when user info is missing', async () => {
-    (authService.getUserInfo as jest.Mock).mockReturnValue(null);
-
-    render(<PlantationsPage />);
-
-    await screen.findByText(/no plantations yet/i);
-    openAndFillForm();
-
-    fireEvent.click(screen.getByRole('button', { name: /create plantation/i }));
-
-    await waitFor(() => {
-      expect(plantationService.create).toHaveBeenCalledWith({
-        name: 'Plantation A',
-        location: 'Riau',
-        area: 15.5,
-        description: 'Sample plantation',
-        ownerId: undefined,
-        plantDate: undefined,
-        coordinates: [
-          { latitude: 0, longitude: 0 },
-          { latitude: 0, longitude: 1 },
-          { latitude: 1, longitude: 1 },
-          { latitude: 1, longitude: 0 },
-        ],
-      });
-    });
-  });
-
-  it('shows create error message from Error object', async () => {
-    (plantationService.create as jest.Mock).mockRejectedValue(new Error('Create failed'));
-
-    render(<PlantationsPage />);
-
-    await screen.findByText(/no plantations yet/i);
-    openAndFillForm();
-
-    fireEvent.click(screen.getByRole('button', { name: /create plantation/i }));
-
-    expect(await screen.findByText('Create failed')).toBeInTheDocument();
-  });
-
-  it('shows fallback create error when thrown value is not Error', async () => {
-    (plantationService.create as jest.Mock).mockRejectedValue('bad');
-
-    render(<PlantationsPage />);
-
-    await screen.findByText(/no plantations yet/i);
-    openAndFillForm();
-
-    fireEvent.click(screen.getByRole('button', { name: /create plantation/i }));
-
-    expect(await screen.findByText('Failed to create plantation')).toBeInTheDocument();
-  });
-
-  it('does not delete when confirm is cancelled', async () => {
-    confirmMock.mockReturnValue(false);
-    (plantationService.getAll as jest.Mock).mockResolvedValue([
-      { id: 1, name: 'Plantation A', location: 'Riau', area: 10 },
-    ]);
-
-    render(<PlantationsPage />);
-
-    fireEvent.click(await screen.findByRole('button', { name: /delete/i }));
-
-    expect(plantationService.delete).not.toHaveBeenCalled();
-  });
-
-  it('deletes plantation and reloads list when confirmed', async () => {
-    (plantationService.getAll as jest.Mock)
-      .mockResolvedValueOnce([{ id: 1, name: 'Plantation A', location: 'Riau', area: 10 }])
-      .mockResolvedValueOnce([]);
-
-    render(<PlantationsPage />);
-
-    fireEvent.click(await screen.findByRole('button', { name: /delete/i }));
-
-    await waitFor(() => {
-      expect(plantationService.delete).toHaveBeenCalledWith(1);
-    });
-
-    await waitFor(() => {
-      expect((plantationService.getAll as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(2);
-    });
-  });
-
-  it('shows delete error message from Error object', async () => {
-    (plantationService.getAll as jest.Mock).mockResolvedValue([
-      { id: 1, name: 'Plantation A', location: 'Riau', area: 10 },
-    ]);
-    (plantationService.delete as jest.Mock).mockRejectedValue(new Error('Delete failed'));
-
-    render(<PlantationsPage />);
-
-    fireEvent.click(await screen.findByRole('button', { name: /delete/i }));
-
-    expect(await screen.findByText('Delete failed')).toBeInTheDocument();
-  });
-
-  it('shows fallback delete error when thrown value is not Error', async () => {
-    (plantationService.getAll as jest.Mock).mockResolvedValue([
-      { id: 1, name: 'Plantation A', location: 'Riau', area: 10 },
-    ]);
-    (plantationService.delete as jest.Mock).mockRejectedValue('bad');
-
-    render(<PlantationsPage />);
-
-    fireEvent.click(await screen.findByRole('button', { name: /delete/i }));
-
-    expect(await screen.findByText('Failed to delete plantation')).toBeInTheDocument();
-  });
-
-  it('renders plantation card with coordinates list and parses plantDate', async () => {
-    (plantationService.getAll as jest.Mock).mockResolvedValue([
-      {
-        id: 5,
-        code: 'P-005',
-        name: 'Plantation D',
-        location: 'Lampung',
-        area: 12,
-        ownerId: 'owner-5',
-        mandorId: 'mandor-5',
-        plantDate: '2026-01-15T10:00:00Z',
-        coordinates: [
-          { latitude: 1, longitude: 2 },
-          { latitude: 3, longitude: 4 },
-          { latitude: 5, longitude: 6 },
-          { latitude: 7, longitude: 8 },
-        ],
-      },
-      {
-        id: 6,
-        name: 'Plantation E',
-        location: 'Bengkulu',
-        area: 5,
-        plantDate: 'not-a-date',
-      },
-    ]);
-
-    render(<PlantationsPage />);
-    expect(await screen.findByText('Plantation D')).toBeInTheDocument();
-    expect(screen.getByText('P-005')).toBeInTheDocument();
-    expect(screen.getByText(/1, 2/)).toBeInTheDocument();
+    expect(screen.getByText('Kode P-001')).toBeInTheDocument();
+    expect(screen.getByText(/2 orang/i)).toBeInTheDocument();
     expect(screen.getByText('not-a-date')).toBeInTheDocument();
-    expect(screen.getByText('ID 6')).toBeInTheDocument();
+    expect(screen.queryByText('ID 2')).not.toBeInTheDocument();
+    expect(screen.getByText('Plantation C')).toBeInTheDocument();
   });
 
-  it('filters plantations by owner and resets', async () => {
+  it('shows load errors from Error and non-Error values', async () => {
+    (plantationService.getAll as jest.Mock).mockRejectedValueOnce(new Error('Load failed'));
+    const { unmount } = render(<PlantationsPage />);
+
+    const error = await screen.findByText('Load failed');
+    fireEvent.click(within(error.parentElement as HTMLElement).getByRole('button'));
+    expect(screen.queryByText('Load failed')).not.toBeInTheDocument();
+    unmount();
+
+    (plantationService.getAll as jest.Mock).mockRejectedValueOnce('bad');
     render(<PlantationsPage />);
-    await screen.findByText(/no plantations yet/i);
+    expect(await screen.findByText('Gagal memuat plantasi')).toBeInTheDocument();
+  });
 
-    fireEvent.change(screen.getByPlaceholderText('Owner ID'), { target: { value: 'owner-x' } });
-    fireEvent.click(screen.getByRole('button', { name: /apply filter/i }));
+  it('refreshes the plantation list', async () => {
+    render(<PlantationsPage />);
+    await screen.findByText(/Belum ada kebun yang cocok/i);
 
-    await waitFor(() => expect(plantationService.getByOwner).toHaveBeenCalledWith('owner-x'));
+    fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
 
-    fireEvent.click(screen.getByRole('button', { name: /^reset$/i }));
+    await waitFor(() => expect((plantationService.getAll as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(2));
+  });
+
+  it('opens the create form from the empty-state action', async () => {
+    render(<PlantationsPage />);
+    await screen.findByText(/Belum ada kebun yang cocok/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /^\+ Tambah Kebun Pertama$/i }));
+
+    expect(screen.getByText('Tambah Kebun Baru')).toBeInTheDocument();
+  });
+
+  it('filters plantations by visible search text and resets the filter', async () => {
+    (plantationService.getAll as jest.Mock).mockResolvedValue([
+      samplePlantation,
+      { id: 2, name: 'Plantation B', location: 'Jambi', area: 5 },
+    ]);
+    render(<PlantationsPage />);
+    await screen.findByText('Plantation A');
+
+    fireEvent.change(screen.getByPlaceholderText('Cari nama atau lokasi kebun...'), { target: { value: 'Jambi' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Cari$/i }));
+
+    expect(screen.queryByText('Plantation A')).not.toBeInTheDocument();
+    expect(screen.getByText('Plantation B')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Reset$/i }));
+    expect(screen.getByText('Plantation A')).toBeInTheDocument();
+  });
+
+  it('creates plantation with session owner id and default coordinates', async () => {
+    render(<PlantationsPage />);
+    await openCreateForm();
+    fillPlantationForm();
+    fireEvent.change(document.querySelector('input[type="datetime-local"]') as HTMLInputElement, {
+      target: { value: '2026-01-15T08:30' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Buat Kebun/i }));
+
     await waitFor(() => {
-      expect((plantationService.getAll as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(plantationService.create).toHaveBeenCalledWith({
+        name: 'Plantation A',
+        location: 'Riau',
+        area: 15.5,
+        ownerId: '10',
+        description: 'Sample plantation',
+        plantDate: '2026-01-15T08:30',
+        coordinates: [
+          { latitude: -6.2, longitude: 106.816 },
+          { latitude: -6.2, longitude: 106.826 },
+          { latitude: -6.21, longitude: 106.826 },
+          { latitude: -6.21, longitude: 106.816 },
+        ],
+      });
+    });
+    const success = await screen.findByText('Kebun berhasil dibuat!');
+    fireEvent.click(within(success.parentElement as HTMLElement).getByRole('button'));
+    expect(screen.queryByText('Kebun berhasil dibuat!')).not.toBeInTheDocument();
+  });
+
+  it('creates plantation with blank optional fields and resets via cancel', async () => {
+    (authService.getUserInfo as jest.Mock).mockReturnValue(null);
+    render(<PlantationsPage />);
+    await openCreateForm();
+
+    fireEvent.change(screen.getByPlaceholderText('Kebun Blok A'), { target: { value: 'Plantation Blank' } });
+    fireEvent.change(screen.getByPlaceholderText('Kalimantan Selatan'), { target: { value: 'Riau' } });
+    fireEvent.change(screen.getByPlaceholderText('25.5'), { target: { value: '9' } });
+    expect(screen.queryByPlaceholderText('UUID')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Batal/i }));
+    expect(await screen.findByText(/Belum ada kebun yang cocok/i)).toBeInTheDocument();
+
+    await openCreateForm();
+    fireEvent.change(screen.getByPlaceholderText('Kebun Blok A'), { target: { value: 'Plantation Blank' } });
+    fireEvent.change(screen.getByPlaceholderText('Kalimantan Selatan'), { target: { value: 'Riau' } });
+    fireEvent.change(screen.getByPlaceholderText('25.5'), { target: { value: '9' } });
+    fireEvent.click(screen.getByRole('button', { name: /Buat Kebun/i }));
+
+    await waitFor(() => {
+      expect(plantationService.create).toHaveBeenCalledWith(expect.objectContaining({
+        ownerId: undefined,
+        description: undefined,
+        plantDate: undefined,
+      }));
     });
   });
 
-  it('opens edit form for plantation with invalid plantDate and short coordinates list, restoring defaults', async () => {
-    (plantationService.getAll as jest.Mock).mockResolvedValue([
-      {
-        id: 11,
-        name: 'Plantation H',
-        location: 'Kalbar',
-        area: 8,
-        plantDate: 'not-a-date',
-        coordinates: [{ latitude: 1, longitude: 1 }],
-      },
-    ]);
+  it('rejects submission when coordinates are invalid', async () => {
     render(<PlantationsPage />);
-    fireEvent.click(await screen.findByRole('button', { name: /edit/i }));
-    // toDateTimeInput returns '' for invalid date
-    expect((screen.getByLabelText(/plant date/i) as HTMLInputElement).value).toBe('');
-    // toCoordinateForm returns the 4 defaults when input length != 4
-    expect((screen.getByLabelText(/latitude 1/i) as HTMLInputElement).value).toBe('0');
-    expect((screen.getByLabelText(/latitude 4/i) as HTMLInputElement).value).toBe('1');
+    await openCreateForm();
+    fillPlantationForm();
+    fireEvent.change(screen.getAllByPlaceholderText('Lat')[0], { target: { value: '' } });
+    fireEvent.submit(screen.getByRole('button', { name: /Buat Kebun/i }).closest('form') as HTMLFormElement);
+
+    expect(await screen.findByText('Koordinat tidak valid')).toBeInTheDocument();
+    expect(plantationService.create).not.toHaveBeenCalled();
   });
 
-  it('opens edit form, updates coordinates, and dispatches update', async () => {
-    (plantationService.getAll as jest.Mock).mockResolvedValueOnce([
-      {
-        id: 7,
-        name: 'Plantation F',
-        location: 'Aceh',
-        area: 9,
-        ownerId: 'owner-7',
-        description: 'Existing',
-        plantDate: '2026-02-01T08:00:00Z',
-        coordinates: [
-          { latitude: 0.1, longitude: 0.2 },
-          { latitude: 0.3, longitude: 0.4 },
-          { latitude: 0.5, longitude: 0.6 },
-          { latitude: 0.7, longitude: 0.8 },
-        ],
-      },
-    ]);
-
+  it('shows create errors from Error and non-Error', async () => {
+    (plantationService.create as jest.Mock).mockRejectedValueOnce(new Error('Create failed'));
     render(<PlantationsPage />);
-    fireEvent.click(await screen.findByRole('button', { name: /edit/i }));
+    await openCreateForm();
+    fillPlantationForm();
+    fireEvent.click(screen.getByRole('button', { name: /Buat Kebun/i }));
+    expect(await screen.findByText('Create failed')).toBeInTheDocument();
 
-    expect((screen.getByLabelText(/plantation name/i) as HTMLInputElement).value).toBe('Plantation F');
-    expect((screen.getByLabelText(/owner id/i) as HTMLInputElement).disabled).toBe(true);
-    expect((screen.getByLabelText(/latitude 1/i) as HTMLInputElement).value).toBe('0.1');
+    (plantationService.create as jest.Mock).mockRejectedValueOnce('bad');
+    fireEvent.click(screen.getByRole('button', { name: /Buat Kebun/i }));
+    expect(await screen.findByText('Gagal simpan plantasi')).toBeInTheDocument();
+  });
 
-    fireEvent.change(screen.getByLabelText(/latitude 1/i), { target: { value: '9.9' } });
-    fireEvent.change(screen.getByLabelText(/longitude 1/i), { target: { value: '8.8' } });
-    fireEvent.click(screen.getByRole('button', { name: /^update plantation$/i }));
+  it('edits an existing plantation and submits updated coordinates', async () => {
+    (plantationService.getAll as jest.Mock).mockResolvedValue([samplePlantation]);
+    render(<PlantationsPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Edit/i }));
+    fireEvent.change(screen.getAllByPlaceholderText('Lat')[0], { target: { value: '9.9' } });
+    fireEvent.change(screen.getAllByPlaceholderText('Lon')[0], { target: { value: '8.8' } });
+    fireEvent.click(screen.getByRole('button', { name: /Update Kebun/i }));
 
     await waitFor(() => {
       expect(plantationService.update).toHaveBeenCalledWith(
-        '7',
+        '1',
         expect.objectContaining({
-          name: 'Plantation F',
+          name: 'Plantation A',
           coordinates: [
             { latitude: 9.9, longitude: 8.8 },
-            { latitude: 0.3, longitude: 0.4 },
-            { latitude: 0.5, longitude: 0.6 },
-            { latitude: 0.7, longitude: 0.8 },
+            { latitude: 3, longitude: 4 },
+            { latitude: 5, longitude: 6 },
+            { latitude: 7, longitude: 8 },
           ],
         })
       );
     });
   });
 
-  it('shows update error from Error and from non-Error', async () => {
+  it('edits plantation records with missing optional fields', async () => {
     (plantationService.getAll as jest.Mock).mockResolvedValue([
-      {
-        id: 9,
-        name: 'Plantation G',
-        location: 'Sumut',
-        area: 4,
-        coordinates: [
-          { latitude: 0, longitude: 0 },
-          { latitude: 0, longitude: 1 },
-          { latitude: 1, longitude: 1 },
-          { latitude: 1, longitude: 0 },
-        ],
-      },
+      { id: 4, name: 'Bare Plantation', location: 'Lampung', area: 8, plantDate: 'not-a-real-date', coordinates: [] },
     ]);
-    (plantationService.update as jest.Mock).mockRejectedValueOnce(new Error('Update specific'));
-
     render(<PlantationsPage />);
-    fireEvent.click(await screen.findByRole('button', { name: /edit/i }));
-    fireEvent.click(screen.getByRole('button', { name: /^update plantation$/i }));
-    expect(await screen.findByText('Update specific')).toBeInTheDocument();
 
-    (plantationService.update as jest.Mock).mockRejectedValueOnce('boom');
-    fireEvent.click(screen.getByRole('button', { name: /^update plantation$/i }));
-    expect(await screen.findByText('Failed to update plantation')).toBeInTheDocument();
-  });
-
-  it('rejects submission when coordinates are invalid', async () => {
-    render(<PlantationsPage />);
-    await screen.findByText(/no plantations yet/i);
-
-    openAndFillForm();
-    // Force a NaN coordinate by clearing the latitude and submitting the form
-    // directly (bypassing native HTML5 validation).
-    const lat = screen.getByLabelText(/latitude 1/i) as HTMLInputElement;
-    fireEvent.change(lat, { target: { value: '' } });
-    const form = lat.closest('form') as HTMLFormElement;
-    fireEvent.submit(form);
-
-    expect(await screen.findByText(/Exactly 4 valid coordinates are required/i)).toBeInTheDocument();
-    expect(plantationService.create).not.toHaveBeenCalled();
-  });
-
-  it('updates every coordinate latitude and longitude input', async () => {
-    render(<PlantationsPage />);
-    await screen.findByText(/no plantations yet/i);
-    fireEvent.click(screen.getByRole('button', { name: /add plantation/i }));
-
-    for (let i = 1; i <= 4; i += 1) {
-      fireEvent.change(screen.getByLabelText(new RegExp(`^Latitude ${i}$`, 'i')), { target: { value: String(i) } });
-      fireEvent.change(screen.getByLabelText(new RegExp(`^Longitude ${i}$`, 'i')), { target: { value: String(i + 10) } });
-    }
-
-    expect((screen.getByLabelText(/^latitude 4$/i) as HTMLInputElement).value).toBe('4');
-    expect((screen.getByLabelText(/^longitude 4$/i) as HTMLInputElement).value).toBe('14');
-  });
-
-  it('handles datetime-local plant date input and forwards to service', async () => {
-    render(<PlantationsPage />);
-    await screen.findByText(/no plantations yet/i);
-
-    openAndFillForm();
-    fireEvent.change(screen.getByLabelText(/plant date/i), { target: { value: '2026-03-04T05:06' } });
-    fireEvent.click(screen.getByRole('button', { name: /create plantation/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Edit/i }));
+    expect(screen.getByText('Edit: Bare Plantation')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('UUID')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Update Kebun/i }));
 
     await waitFor(() => {
-      expect(plantationService.create).toHaveBeenCalledWith(
-        expect.objectContaining({ plantDate: '2026-03-04T05:06' })
+      expect(plantationService.update).toHaveBeenCalledWith(
+        '4',
+        expect.objectContaining({
+          ownerId: undefined,
+          description: undefined,
+          plantDate: undefined,
+          coordinates: [
+            { latitude: -6.2, longitude: 106.816 },
+            { latitude: -6.2, longitude: 106.826 },
+            { latitude: -6.21, longitude: 106.826 },
+            { latitude: -6.21, longitude: 106.816 },
+          ],
+        })
       );
     });
   });
 
-  it('assigns mandor to plantation via the assign form', async () => {
+  it('edits plantation records without a plant date', async () => {
+    (plantationService.getAll as jest.Mock).mockResolvedValue([
+      { id: 5, name: 'No Date Plantation', location: 'Bengkulu', area: 6 },
+    ]);
     render(<PlantationsPage />);
-    await screen.findByText(/no plantations yet/i);
 
-    fireEvent.change(screen.getByPlaceholderText('Plantation ID'), { target: { value: '4' } });
-    fireEvent.change(screen.getAllByPlaceholderText('Mandor ID')[0], { target: { value: 'mandor-4' } });
-    fireEvent.click(screen.getByRole('button', { name: /^assign mandor$/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Edit/i }));
 
-    await waitFor(() => {
-      expect(plantationService.assignMandor).toHaveBeenCalledWith('4', { mandorId: 'mandor-4' });
-    });
+    expect(screen.getByText('Edit: No Date Plantation')).toBeInTheDocument();
+    expect(document.querySelector('input[type="datetime-local"]')).toHaveValue('');
   });
 
-  it('shows assign mandor errors from Error and non-Error', async () => {
-    (plantationService.assignMandor as jest.Mock).mockRejectedValueOnce(new Error('Assign blew up'));
+  it('resets editing state and owner fallback when leaving the form tab', async () => {
+    (plantationService.getAll as jest.Mock).mockResolvedValue([samplePlantation]);
     render(<PlantationsPage />);
-    await screen.findByText(/no plantations yet/i);
 
-    fireEvent.change(screen.getByPlaceholderText('Plantation ID'), { target: { value: '4' } });
-    fireEvent.change(screen.getAllByPlaceholderText('Mandor ID')[0], { target: { value: 'mandor-4' } });
-    fireEvent.click(screen.getByRole('button', { name: /^assign mandor$/i }));
-    expect(await screen.findByText('Assign blew up')).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: /Edit/i }));
+    expect(screen.getByText('Edit: Plantation A')).toBeInTheDocument();
 
-    (plantationService.assignMandor as jest.Mock).mockRejectedValueOnce('bad');
-    fireEvent.change(screen.getByPlaceholderText('Plantation ID'), { target: { value: '4' } });
-    fireEvent.change(screen.getAllByPlaceholderText('Mandor ID')[0], { target: { value: 'mandor-4' } });
-    fireEvent.click(screen.getByRole('button', { name: /^assign mandor$/i }));
-    expect(await screen.findByText('Failed to assign mandor')).toBeInTheDocument();
+    (authService.getUserInfo as jest.Mock).mockReturnValue(null);
+    fireEvent.click(screen.getByRole('button', { name: /Daftar Kebun/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^\+ Tambah Kebun$/i }));
+
+    expect(screen.getByText('Tambah Kebun Baru')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('UUID')).not.toBeInTheDocument();
   });
 
-  it('transfers mandor between plantations', async () => {
+  it('deletes and unassigns mandor from plantation cards', async () => {
+    (plantationService.getAll as jest.Mock).mockResolvedValue([samplePlantation]);
     render(<PlantationsPage />);
-    await screen.findByText(/no plantations yet/i);
 
-    const mandorInputs = screen.getAllByPlaceholderText('Mandor ID');
-    fireEvent.change(mandorInputs[mandorInputs.length - 1], { target: { value: 'mandor-7' } });
-    fireEvent.change(screen.getByPlaceholderText('From Plantation ID'), { target: { value: '1' } });
-    fireEvent.change(screen.getByPlaceholderText('To Plantation ID'), { target: { value: '2' } });
-    fireEvent.click(screen.getByRole('button', { name: /^transfer mandor$/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Copot Mandor/i }));
+    await waitFor(() => expect(plantationService.unassignMandor).toHaveBeenCalledWith(1));
 
-    await waitFor(() => {
-      expect(plantationService.transferMandor).toHaveBeenCalledWith({
-        mandorId: 'mandor-7',
-        fromPlantationId: '1',
-        toPlantationId: '2',
-      });
-    });
+    fireEvent.click(screen.getByRole('button', { name: /Hapus/i }));
+    await waitFor(() => expect(plantationService.delete).toHaveBeenCalledWith(1));
   });
 
-  it('shows transfer mandor errors from Error and non-Error', async () => {
-    (plantationService.transferMandor as jest.Mock).mockRejectedValueOnce(new Error('Transfer blew up'));
+  it('does not delete when confirmation is cancelled', async () => {
+    confirmMock.mockReturnValue(false);
+    (plantationService.getAll as jest.Mock).mockResolvedValue([samplePlantation]);
     render(<PlantationsPage />);
-    await screen.findByText(/no plantations yet/i);
 
-    const mandorInputs = screen.getAllByPlaceholderText('Mandor ID');
-    fireEvent.change(mandorInputs[mandorInputs.length - 1], { target: { value: 'mandor-7' } });
-    fireEvent.change(screen.getByPlaceholderText('From Plantation ID'), { target: { value: '1' } });
-    fireEvent.change(screen.getByPlaceholderText('To Plantation ID'), { target: { value: '2' } });
-    fireEvent.click(screen.getByRole('button', { name: /^transfer mandor$/i }));
-    expect(await screen.findByText('Transfer blew up')).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: /Hapus/i }));
+    expect(plantationService.delete).not.toHaveBeenCalled();
+  });
 
+  it('shows delete and unassign-mandor errors', async () => {
+    (plantationService.getAll as jest.Mock).mockResolvedValue([samplePlantation]);
+    (plantationService.delete as jest.Mock).mockRejectedValueOnce(new Error('Delete failed'));
+    (plantationService.unassignMandor as jest.Mock).mockRejectedValueOnce('bad');
+    render(<PlantationsPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Hapus/i }));
+    expect(await screen.findByText('Delete failed')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Copot Mandor/i }));
+    expect(await screen.findByText('Gagal copot mandor')).toBeInTheDocument();
+  });
+
+  it('shows fallback delete and Error unassign-mandor messages', async () => {
+    (plantationService.getAll as jest.Mock).mockResolvedValue([samplePlantation]);
+    (plantationService.delete as jest.Mock).mockRejectedValueOnce('bad');
+    (plantationService.unassignMandor as jest.Mock).mockRejectedValueOnce(new Error('Unassign mandor failed'));
+    render(<PlantationsPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Hapus/i }));
+    expect(await screen.findByText('Gagal hapus — pastikan tidak ada mandor')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Copot Mandor/i }));
+    expect(await screen.findByText('Unassign mandor failed')).toBeInTheDocument();
+  });
+
+  it('does not unassign mandor when confirmation is cancelled', async () => {
+    confirmMock.mockReturnValue(false);
+    (plantationService.getAll as jest.Mock).mockResolvedValue([samplePlantation]);
+    render(<PlantationsPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Copot Mandor/i }));
+    expect(plantationService.unassignMandor).not.toHaveBeenCalled();
+  });
+
+  it('handles mandor assignment and transfer forms', async () => {
+    (plantationService.getAll as jest.Mock).mockResolvedValue([
+      samplePlantation,
+      { id: 2, name: 'Plantation B', location: 'Jambi', area: 5 },
+    ]);
+    render(<PlantationsPage />);
+    await screen.findByText('Plantation A');
+    fireEvent.click(screen.getByRole('button', { name: /Penugasan Mandor/i }));
+    await waitFor(() => expect(identityService.listUsers).toHaveBeenCalled());
+
+    const assignForm = screen.getByText(/Tugaskan Mandor ke Kebun/i).closest('div') as HTMLElement;
+    const assignSelects = within(assignForm).getAllByRole('combobox');
+    fireEvent.change(assignSelects[0], { target: { value: '1' } });
+    fireEvent.change(assignSelects[1], { target: { value: 'mandor-1' } });
+    fireEvent.click(within(assignForm).getByRole('button', { name: /Simpan Penugasan/i }));
+    await waitFor(() => expect(plantationService.assignMandor).toHaveBeenCalledWith('1', { mandorId: 'mandor-1' }));
+
+    const transferForm = screen.getByRole('heading', { name: /Transfer Mandor/i }).closest('div.glass-card') as HTMLElement;
+    const transferSelects = within(transferForm).getAllByRole('combobox');
+    fireEvent.change(transferSelects[0], { target: { value: 'mandor-1' } });
+    fireEvent.change(transferSelects[1], { target: { value: '1' } });
+    fireEvent.change(transferSelects[2], { target: { value: '2' } });
+    fireEvent.click(within(transferForm).getByRole('button', { name: /Pindahkan Mandor/i }));
+    await waitFor(() => expect(plantationService.transferMandor).toHaveBeenCalledWith({
+      mandorId: 'mandor-1',
+      fromPlantationId: '1',
+      toPlantationId: '2',
+    }));
+  });
+
+  it('shows mandor assignment and transfer errors', async () => {
+    (plantationService.getAll as jest.Mock).mockResolvedValue([
+      samplePlantation,
+      { id: 2, name: 'Plantation B', location: 'Jambi', area: 5 },
+    ]);
+    (plantationService.assignMandor as jest.Mock).mockRejectedValueOnce(new Error('Assign failed'));
     (plantationService.transferMandor as jest.Mock).mockRejectedValueOnce('bad');
-    fireEvent.change(mandorInputs[mandorInputs.length - 1], { target: { value: 'mandor-7' } });
-    fireEvent.change(screen.getByPlaceholderText('From Plantation ID'), { target: { value: '1' } });
-    fireEvent.change(screen.getByPlaceholderText('To Plantation ID'), { target: { value: '2' } });
-    fireEvent.click(screen.getByRole('button', { name: /^transfer mandor$/i }));
-    expect(await screen.findByText('Failed to transfer mandor')).toBeInTheDocument();
+    render(<PlantationsPage />);
+    await screen.findByText('Plantation A');
+    fireEvent.click(screen.getByRole('button', { name: /Penugasan Mandor/i }));
+    await waitFor(() => expect(identityService.listUsers).toHaveBeenCalled());
+
+    const assignForm = screen.getByText(/Tugaskan Mandor ke Kebun/i).closest('div') as HTMLElement;
+    const assignSelects = within(assignForm).getAllByRole('combobox');
+    fireEvent.change(assignSelects[0], { target: { value: '1' } });
+    fireEvent.change(assignSelects[1], { target: { value: 'mandor-1' } });
+    fireEvent.click(within(assignForm).getByRole('button', { name: /Simpan Penugasan/i }));
+    expect(await screen.findByText('Assign failed')).toBeInTheDocument();
+
+    const transferForm = screen.getByRole('heading', { name: /Transfer Mandor/i }).closest('div.glass-card') as HTMLElement;
+    const transferSelects = within(transferForm).getAllByRole('combobox');
+    fireEvent.change(transferSelects[0], { target: { value: 'mandor-1' } });
+    fireEvent.change(transferSelects[1], { target: { value: '1' } });
+    fireEvent.change(transferSelects[2], { target: { value: '2' } });
+    fireEvent.click(within(transferForm).getByRole('button', { name: /Pindahkan Mandor/i }));
+    expect(await screen.findByText('Gagal transfer mandor')).toBeInTheDocument();
   });
 
-  it('renders nothing on initial render when not authenticated', () => {
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(false);
-    const { container } = render(<PlantationsPage />);
-    expect(container).toBeEmptyDOMElement();
+  it('shows fallback assign and Error transfer messages', async () => {
+    (plantationService.getAll as jest.Mock).mockResolvedValue([
+      samplePlantation,
+      { id: 2, name: 'Plantation B', location: 'Jambi', area: 5 },
+    ]);
+    (plantationService.assignMandor as jest.Mock).mockRejectedValueOnce('bad');
+    (plantationService.transferMandor as jest.Mock).mockRejectedValueOnce(new Error('Transfer failed'));
+    render(<PlantationsPage />);
+    await screen.findByText('Plantation A');
+    fireEvent.click(screen.getByRole('button', { name: /Penugasan Mandor/i }));
+    await waitFor(() => expect(identityService.listUsers).toHaveBeenCalled());
+
+    const assignForm = screen.getByText(/Tugaskan Mandor ke Kebun/i).closest('div') as HTMLElement;
+    const assignSelects = within(assignForm).getAllByRole('combobox');
+    fireEvent.change(assignSelects[0], { target: { value: '1' } });
+    fireEvent.change(assignSelects[1], { target: { value: 'mandor-1' } });
+    fireEvent.click(within(assignForm).getByRole('button', { name: /Simpan Penugasan/i }));
+    expect(await screen.findByText('Gagal assign mandor')).toBeInTheDocument();
+
+    const transferForm = screen.getByRole('heading', { name: /Transfer Mandor/i }).closest('div.glass-card') as HTMLElement;
+    const transferSelects = within(transferForm).getAllByRole('combobox');
+    fireEvent.change(transferSelects[0], { target: { value: 'mandor-1' } });
+    fireEvent.change(transferSelects[1], { target: { value: '1' } });
+    fireEvent.change(transferSelects[2], { target: { value: '2' } });
+    fireEvent.click(within(transferForm).getByRole('button', { name: /Pindahkan Mandor/i }));
+    expect(await screen.findByText('Transfer failed')).toBeInTheDocument();
+  });
+
+  it('handles supir view, assignment, and unassignment flows', async () => {
+    (plantationService.getAll as jest.Mock).mockResolvedValue([samplePlantation]);
+    render(<PlantationsPage />);
+    await screen.findByText('Plantation A');
+    fireEvent.click(screen.getByRole('button', { name: /Penugasan Supir/i }));
+
+    await waitFor(() => expect(identityService.listUsers).toHaveBeenCalled());
+
+    const viewForm = screen.getByText(/Lihat Supir di Kebun/i).closest('div') as HTMLElement;
+    fireEvent.change(within(viewForm).getByRole('combobox'), { target: { value: '1' } });
+    fireEvent.click(within(viewForm).getByRole('button', { name: /Lihat/i }));
+    expect(await screen.findByText('driver')).toBeInTheDocument();
+    fireEvent.click(within(viewForm).getByRole('button', { name: /^Copot$/i }));
+
+    const assignForm = screen.getByText(/Tugaskan Supir ke Kebun/i).closest('div') as HTMLElement;
+    const assignSelects = within(assignForm).getAllByRole('combobox');
+    fireEvent.change(assignSelects[0], { target: { value: '1' } });
+    fireEvent.change(assignSelects[1], { target: { value: 'supir-1' } });
+    fireEvent.click(within(assignForm).getByRole('button', { name: /Simpan Penugasan/i }));
+    await waitFor(() => expect(plantationService.assignSupir).toHaveBeenCalledWith('1', 'supir-1'));
+
+    const unassignForm = screen.getByText(/Copot Supir dari Kebun/i).closest('div') as HTMLElement;
+    const unassignSelects = within(unassignForm).getAllByRole('combobox');
+    fireEvent.change(unassignSelects[0], { target: { value: '1' } });
+    fireEvent.change(unassignSelects[1], { target: { value: 'supir-1' } });
+    fireEvent.click(within(unassignForm).getByRole('button', { name: /Copot Supir/i }));
+    await waitFor(() => expect(plantationService.unassignSupir).toHaveBeenCalledWith('1', 'supir-1'));
+  });
+
+  it('handles supir error flows', async () => {
+    (plantationService.getAll as jest.Mock).mockResolvedValue([samplePlantation]);
+    (plantationService.getSupirs as jest.Mock).mockRejectedValueOnce(new Error('Supir load failed'));
+    (plantationService.assignSupir as jest.Mock).mockRejectedValueOnce('bad');
+    (plantationService.unassignSupir as jest.Mock).mockRejectedValueOnce(new Error('Unassign supir failed'));
+    render(<PlantationsPage />);
+    await screen.findByText('Plantation A');
+    fireEvent.click(screen.getByRole('button', { name: /Penugasan Supir/i }));
+    await waitFor(() => expect(identityService.listUsers).toHaveBeenCalled());
+
+    const viewForm = screen.getByText(/Lihat Supir di Kebun/i).closest('div') as HTMLElement;
+    fireEvent.change(within(viewForm).getByRole('combobox'), { target: { value: '1' } });
+    fireEvent.click(within(viewForm).getByRole('button', { name: /Lihat/i }));
+    expect(await screen.findByText('Supir load failed')).toBeInTheDocument();
+
+    const assignForm = screen.getByText(/Tugaskan Supir ke Kebun/i).closest('div') as HTMLElement;
+    const assignSelects = within(assignForm).getAllByRole('combobox');
+    fireEvent.change(assignSelects[0], { target: { value: '1' } });
+    fireEvent.change(assignSelects[1], { target: { value: 'supir-1' } });
+    fireEvent.click(within(assignForm).getByRole('button', { name: /Simpan Penugasan/i }));
+    expect(await screen.findByText('Gagal assign supir')).toBeInTheDocument();
+
+    const unassignForm = screen.getByText(/Copot Supir dari Kebun/i).closest('div') as HTMLElement;
+    const unassignSelects = within(unassignForm).getAllByRole('combobox');
+    fireEvent.change(unassignSelects[0], { target: { value: '1' } });
+    fireEvent.change(unassignSelects[1], { target: { value: 'supir-1' } });
+    fireEvent.click(within(unassignForm).getByRole('button', { name: /Copot Supir/i }));
+    expect(await screen.findByText('Unassign supir failed')).toBeInTheDocument();
+  });
+
+  it('shows alternate supir fallback error branches', async () => {
+    (plantationService.getAll as jest.Mock).mockResolvedValue([samplePlantation]);
+    (plantationService.getSupirs as jest.Mock).mockRejectedValueOnce('bad');
+    (plantationService.assignSupir as jest.Mock).mockRejectedValueOnce(new Error('Assign supir failed'));
+    (plantationService.unassignSupir as jest.Mock).mockRejectedValueOnce('bad');
+    render(<PlantationsPage />);
+    await screen.findByText('Plantation A');
+    fireEvent.click(screen.getByRole('button', { name: /Penugasan Supir/i }));
+    await waitFor(() => expect(identityService.listUsers).toHaveBeenCalled());
+
+    const viewForm = screen.getByText(/Lihat Supir di Kebun/i).closest('div') as HTMLElement;
+    fireEvent.change(within(viewForm).getByRole('combobox'), { target: { value: '1' } });
+    fireEvent.click(within(viewForm).getByRole('button', { name: /Lihat/i }));
+    expect(await screen.findByText('Gagal ambil daftar supir')).toBeInTheDocument();
+
+    const assignForm = screen.getByText(/Tugaskan Supir ke Kebun/i).closest('div') as HTMLElement;
+    const assignSelects = within(assignForm).getAllByRole('combobox');
+    fireEvent.change(assignSelects[0], { target: { value: '1' } });
+    fireEvent.change(assignSelects[1], { target: { value: 'supir-1' } });
+    fireEvent.click(within(assignForm).getByRole('button', { name: /Simpan Penugasan/i }));
+    expect(await screen.findByText('Assign supir failed')).toBeInTheDocument();
+
+    const unassignForm = screen.getByText(/Copot Supir dari Kebun/i).closest('div') as HTMLElement;
+    const unassignSelects = within(unassignForm).getAllByRole('combobox');
+    fireEvent.change(unassignSelects[0], { target: { value: '1' } });
+    fireEvent.change(unassignSelects[1], { target: { value: 'supir-1' } });
+    fireEvent.click(within(unassignForm).getByRole('button', { name: /Copot Supir/i }));
+    expect(await screen.findByText('Gagal copot supir')).toBeInTheDocument();
+  });
+
+  it('does not unassign supir when confirmation is cancelled', async () => {
+    confirmMock.mockReturnValue(false);
+    (plantationService.getAll as jest.Mock).mockResolvedValue([samplePlantation]);
+    render(<PlantationsPage />);
+    await screen.findByText('Plantation A');
+    fireEvent.click(screen.getByRole('button', { name: /Penugasan Supir/i }));
+    await waitFor(() => expect(identityService.listUsers).toHaveBeenCalled());
+
+    const unassignForm = screen.getByText(/Copot Supir dari Kebun/i).closest('div') as HTMLElement;
+    const unassignSelects = within(unassignForm).getAllByRole('combobox');
+    fireEvent.change(unassignSelects[0], { target: { value: '1' } });
+    fireEvent.change(unassignSelects[1], { target: { value: 'supir-1' } });
+    fireEvent.click(within(unassignForm).getByRole('button', { name: /Copot Supir/i }));
+
+    expect(plantationService.unassignSupir).not.toHaveBeenCalled();
   });
 });

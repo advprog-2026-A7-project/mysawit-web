@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { shipmentService } from '@/services/shipment.service';
 import { authService } from '@/services/auth.service';
@@ -14,6 +13,16 @@ const shipmentStatuses: ShipmentStatus[] = [
   'ADMIN_APPROVED',
   'PARTIALLY_REJECTED',
 ];
+
+const shipmentStatusLabel: Partial<Record<ShipmentStatus, string>> = {
+  MEMUAT: 'Memuat',
+  MENGIRIM: 'Dalam Perjalanan',
+  TIBA: 'Tiba',
+  ADMIN_APPROVED: 'Disetujui',
+  PARTIALLY_REJECTED: 'Perlu Koreksi',
+};
+
+const formatShipmentStatus = (status: ShipmentStatus) => shipmentStatusLabel[status] || status;
 
 const formatDateTime = (value?: string): string => {
   if (!value) return '-';
@@ -63,7 +72,7 @@ export default function ShipmentsPage() {
       setShipments(data);
       setError('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load shipments');
+      setError(err instanceof Error ? err.message : 'Gagal memuat pengiriman');
     } finally {
       setLoading(false);
     }
@@ -79,6 +88,7 @@ export default function ShipmentsPage() {
       completed: shipments.filter((shipment) => shipment.status === 'TIBA').length,
     };
   }, [shipments]);
+  const visibleShipments = useMemo(() => shipments.slice(0, 24), [shipments]);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -113,7 +123,7 @@ export default function ShipmentsPage() {
       });
       await loadShipments(statusFilter);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create shipment');
+      setError(err instanceof Error ? err.message : 'Gagal membuat pengiriman');
     } finally {
       setSaving(false);
     }
@@ -131,7 +141,7 @@ export default function ShipmentsPage() {
       });
       await loadShipments(statusFilter);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update shipment status');
+      setError(err instanceof Error ? err.message : 'Gagal memperbarui pengiriman');
     }
   };
 
@@ -145,75 +155,69 @@ export default function ShipmentsPage() {
       });
       await loadShipments(statusFilter);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit admin approval');
+      setError(err instanceof Error ? err.message : 'Gagal menyimpan persetujuan');
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div>
-            <Link href="/dashboard" className="text-green-600 hover:text-green-700 text-sm">
-              Back to Dashboard
-            </Link>
-            <h1 className="text-2xl font-bold text-green-800">Shipment Management</h1>
-          </div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            {showForm ? 'Cancel' : '+ Create Shipment'}
-          </button>
+    <div className="page-shell space-y-6 animate-fade-in">
+      <header className="page-heading">
+        <div>
+          <p className="page-eyebrow">Kebun ke Pabrik</p>
+          <h1 className="text-2xl font-bold text-white">Pengiriman TBS</h1>
+          <p className="text-sm text-slate-500 mt-1">Pantau muatan, tujuan, dan progres pengiriman dari supir.</p>
         </div>
+        <button onClick={() => setShowForm(!showForm)} className="btn-primary">
+          {showForm ? 'Batal' : '+ Buat Pengiriman'}
+        </button>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="space-y-6">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="alert-error">
             {error}
           </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <p className="text-sm text-gray-600">Shipments</p>
-            <p className="text-2xl font-bold text-green-800">{shipments.length}</p>
+          <div className="metric-card">
+            <p className="text-sm text-slate-400">Pengiriman</p>
+            <p className="text-2xl font-bold text-white">{shipments.length}</p>
           </div>
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <p className="text-sm text-gray-600">Total Weight</p>
-            <p className="text-2xl font-bold text-green-800">{totals.totalKg.toLocaleString('id-ID')} kg</p>
+          <div className="metric-card">
+            <p className="text-sm text-slate-400">Berat Total</p>
+            <p className="text-2xl font-bold text-white">{totals.totalKg.toLocaleString('id-ID')} kg</p>
           </div>
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <p className="text-sm text-gray-600">Active</p>
-            <p className="text-2xl font-bold text-green-800">{totals.active}</p>
+          <div className="metric-card">
+            <p className="text-sm text-slate-400">Berjalan</p>
+            <p className="text-2xl font-bold text-amber-300">{totals.active}</p>
           </div>
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <p className="text-sm text-gray-600">Arrived</p>
-            <p className="text-2xl font-bold text-green-800">{totals.completed}</p>
+          <div className="metric-card">
+            <p className="text-sm text-slate-400">Tiba</p>
+            <p className="text-2xl font-bold text-cyan-300">{totals.completed}</p>
           </div>
         </div>
 
-        <form onSubmit={handleFilter} className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Filter Shipments</h2>
+        <form onSubmit={handleFilter} className="surface-panel bg-white p-5">
+          <h2 className="section-title mb-4">Filter Pengiriman</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg"
+              className="ms-input"
             >
-              <option value="">All Statuses</option>
+              <option value="">Semua status</option>
               {shipmentStatuses.map((status) => (
                 <option key={status} value={status}>
-                  {status}
+                  {formatShipmentStatus(status)}
                 </option>
               ))}
             </select>
             <button
               type="submit"
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+              className="btn-primary justify-center"
             >
-              Apply Filter
+              Terapkan Filter
             </button>
             <button
               type="button"
@@ -221,7 +225,7 @@ export default function ShipmentsPage() {
                 setStatusFilter('');
                 void loadShipments('');
               }}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="btn-ghost justify-center"
             >
               Reset
             </button>
@@ -229,24 +233,24 @@ export default function ShipmentsPage() {
         </form>
 
         {showForm && (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Create Shipment</h2>
+          <div className="surface-panel bg-white p-5">
+            <h2 className="section-title mb-4">Buat Pengiriman</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input
                   type="text"
                   value={formData.supirUserId}
                   onChange={(event) => setFormData({ ...formData, supirUserId: event.target.value })}
-                  placeholder="Supir UUID"
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
+                  placeholder="Supir"
+                  className="ms-input"
                   required
                 />
                 <input
                   type="text"
                   value={formData.destination}
                   onChange={(event) => setFormData({ ...formData, destination: event.target.value })}
-                  placeholder="Destination"
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
+                  placeholder="Tujuan pabrik"
+                  className="ms-input"
                   required
                 />
               </div>
@@ -254,109 +258,109 @@ export default function ShipmentsPage() {
                 rows={4}
                 value={formData.items}
                 onChange={(event) => setFormData({ ...formData, items: event.target.value })}
-                placeholder="Harvest UUID, weight kg per line"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                placeholder="Catatan panen dan berat, satu baris per muatan"
+                className="ms-input"
                 required
               />
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="btn-primary w-full justify-center py-3"
               >
-                {saving ? 'Creating Shipment...' : 'Save Shipment'}
+                {saving ? 'Menyimpan...' : 'Simpan Pengiriman'}
               </button>
             </form>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Driver Status Update</h2>
+          <div className="surface-panel bg-white p-5">
+            <h2 className="section-title mb-4">Update Supir</h2>
             <form onSubmit={handleStatusSubmit} className="space-y-4">
               <input
                 type="text"
                 value={statusForm.shipmentId}
                 onChange={(event) => setStatusForm({ ...statusForm, shipmentId: event.target.value })}
-                placeholder="Shipment UUID"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                placeholder="Nomor pengiriman"
+                className="ms-input"
                 required
               />
               <select
                 value={statusForm.status}
                 onChange={(event) => setStatusForm({ ...statusForm, status: event.target.value as ShipmentStatus })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="ms-input"
               >
-                <option value="MENGIRIM">MENGIRIM</option>
-                <option value="TIBA">TIBA</option>
+                <option value="MENGIRIM">Dalam Perjalanan</option>
+                <option value="TIBA">Tiba</option>
               </select>
               <button
                 type="submit"
-                className="w-full border border-green-600 text-green-700 py-2 rounded-lg hover:bg-green-50 transition-colors font-semibold"
+                className="btn-secondary w-full justify-center py-3"
               >
-                Update Status
+                Simpan Status
               </button>
             </form>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Admin Approval</h2>
+          <div className="surface-panel bg-white p-5">
+            <h2 className="section-title mb-4">Persetujuan Admin</h2>
             <form onSubmit={handleAdminSubmit} className="space-y-4">
               <input
                 type="text"
                 value={adminForm.shipmentId}
                 onChange={(event) => setAdminForm({ ...adminForm, shipmentId: event.target.value })}
-                placeholder="Shipment UUID"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                placeholder="Nomor pengiriman"
+                className="ms-input"
                 required
               />
               <select
                 value={adminForm.status}
                 onChange={(event) => setAdminForm({ ...adminForm, status: event.target.value as ShipmentStatus })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="ms-input"
               >
-                <option value="ADMIN_APPROVED">ADMIN_APPROVED</option>
-                <option value="PARTIALLY_REJECTED">PARTIALLY_REJECTED</option>
+                <option value="ADMIN_APPROVED">Disetujui</option>
+                <option value="PARTIALLY_REJECTED">Perlu Koreksi</option>
               </select>
               <button
                 type="submit"
-                className="w-full border border-green-600 text-green-700 py-2 rounded-lg hover:bg-green-50 transition-colors font-semibold"
+                className="btn-secondary w-full justify-center py-3"
               >
-                Submit Approval
+                Simpan Persetujuan
               </button>
             </form>
           </div>
         </div>
 
         {loading ? (
-          <div className="text-center py-12 text-gray-600">Loading shipments...</div>
+          <div className="text-center py-12 text-slate-500">Memuat pengiriman...</div>
         ) : shipments.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">No Shipment Data</h3>
-            <p className="text-gray-600">Create a shipment or adjust the filter.</p>
+          <div className="empty-state bg-white p-12 text-center">
+            <h3 className="text-xl font-semibold text-white mb-2">Belum ada pengiriman</h3>
+            <p className="text-slate-400">Buat pengiriman baru atau ubah filter.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {shipments.map((shipment) => (
-              <div key={shipment.id} className="bg-white rounded-lg shadow-md p-6">
+            {visibleShipments.map((shipment) => (
+              <div key={shipment.id} className="surface-panel bg-white p-5">
                 <div className="flex justify-between gap-3 items-start mb-3">
-                  <h3 className="text-lg font-semibold text-green-800">Shipment #{String(shipment.id).slice(0, 8)}</h3>
-                  <span className="px-2 py-1 rounded bg-green-50 text-green-700 text-xs font-semibold">
-                    {shipment.status}
+                  <h3 className="text-lg font-semibold text-white">Pengiriman TBS</h3>
+                  <span className="badge badge-blue">
+                    {formatShipmentStatus(shipment.status)}
                   </span>
                 </div>
-                <div className="space-y-2 text-sm text-gray-600">
-                  <p><span className="font-medium">Destination:</span> {shipment.destination}</p>
-                  <p><span className="font-medium">Mandor:</span> {shipment.mandorUserId || '-'}</p>
-                  <p><span className="font-medium">Supir:</span> {shipment.supirUserId || '-'}</p>
-                  <p><span className="font-medium">Total:</span> {shipment.totalKg ?? shipment.weight ?? 0} kg</p>
-                  <p><span className="font-medium">Created:</span> {formatDateTime(shipment.createdAt)}</p>
+                <div className="space-y-2 text-sm text-slate-400">
+                  <p><span className="font-medium text-slate-300">Tujuan:</span> {shipment.destination}</p>
+                  <p><span className="font-medium text-slate-300">Mandor:</span> {shipment.mandorUserId ? 'Sudah diverifikasi' : '-'}</p>
+                  <p><span className="font-medium text-slate-300">Supir:</span> {shipment.supirUserId ? 'Sudah ditugaskan' : '-'}</p>
+                  <p><span className="font-medium text-slate-300">Total:</span> {shipment.totalKg ?? shipment.weight ?? 0} kg</p>
+                  <p><span className="font-medium text-slate-300">Dibuat:</span> {formatDateTime(shipment.createdAt)}</p>
                   {shipment.items && shipment.items.length > 0 && (
                     <div>
-                      <p className="font-medium text-gray-700">Items</p>
+                      <p className="font-medium text-slate-300">Muatan</p>
                       <ul className="mt-1 space-y-1">
                         {shipment.items.map((item) => (
                           <li key={`${item.harvestId}-${item.weightKg}`}>
-                            {item.harvestId}: {item.weightKg} kg
+                            {item.weightKg} kg
                           </li>
                         ))}
                       </ul>
@@ -365,6 +369,11 @@ export default function ShipmentsPage() {
                 </div>
               </div>
             ))}
+            {shipments.length > visibleShipments.length && (
+              <div className="surface-panel p-5 text-sm text-slate-500">
+                Menampilkan {visibleShipments.length} dari {shipments.length} pengiriman. Gunakan filter status untuk mempersempit daftar.
+              </div>
+            )}
           </div>
         )}
       </main>

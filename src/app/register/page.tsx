@@ -7,8 +7,13 @@ import { authService } from '@/services/auth.service';
 import { UserRole } from '@/types';
 
 const roles: UserRole[] = ['BURUH', 'MANDOR', 'SUPIR', 'ADMIN'];
-const fieldClassName =
-  'w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 font-semibold placeholder:font-normal placeholder:text-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent';
+const roleLabels: Record<UserRole, string> = {
+  BURUH: 'Pekerja Panen',
+  MANDOR: 'Mandor',
+  SUPIR: 'Supir',
+  ADMIN: 'Admin',
+};
+const fieldClassName = 'ms-input';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -18,8 +23,6 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<UserRole>('BURUH');
   const [certificationNumber, setCertificationNumber] = useState('');
-  const [mandorId, setMandorId] = useState('');
-  const [kebunId, setKebunId] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -28,12 +31,12 @@ export default function RegisterPage() {
     setError('');
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError('Konfirmasi password belum sama');
       return;
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('Password minimal 6 karakter');
       return;
     }
 
@@ -46,168 +49,128 @@ export default function RegisterPage() {
         password,
         role,
         certificationNumber: certificationNumber || undefined,
-        mandorId: mandorId || undefined,
-        kebunId: kebunId || undefined,
+        mandorId: undefined,
+        kebunId: undefined,
       });
       router.push('/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed');
+      setError(err instanceof Error ? err.message : 'Gagal membuat akun');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100 px-4">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-green-800">Create Account</h1>
-          <p className="text-gray-600 mt-2">Register for MySawit</p>
-        </div>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Username
-            </label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className={fieldClassName}
-              placeholder="Choose a username"
-              required
-              minLength={3}
-            />
+    <div className="auth-shell">
+      <section className="w-full max-w-lg">
+        <div className="auth-panel w-full p-6 md:p-8">
+          <div className="mb-6 text-center">
+            <Link href="/" className="page-eyebrow inline-flex hover:text-green-300">
+              MySawit
+            </Link>
+            <h1 className="mt-3 text-3xl font-bold text-white">Daftar Akun</h1>
+            <p className="text-slate-400 mt-2">Buat akses untuk operasional kebun</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={fieldClassName}
-              placeholder="Enter your email"
-              required
-            />
-          </div>
+          {error && (
+            <div className="alert-error mb-4">
+              <span>{error}</span>
+            </div>
+          )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={fieldClassName}
-              placeholder="Create a password"
-              required
-              minLength={6}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className={fieldClassName}
-              placeholder="Confirm your password"
-              required
-              minLength={6}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Role
-            </label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
-              className={fieldClassName}
-            >
-              {roles.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {(role === 'MANDOR' || role === 'SUPIR') && (
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Certification Number
-              </label>
+              <label className="label-sm">Nama Pengguna</label>
               <input
                 type="text"
-                value={certificationNumber}
-                onChange={(e) => setCertificationNumber(e.target.value)}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className={fieldClassName}
-                placeholder="Enter certification number"
+                placeholder="contoh: budi.mandor"
+                required
+                minLength={3}
               />
             </div>
-          )}
 
-          {role === 'BURUH' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mandor ID
-                </label>
-                <input
-                  type="text"
-                  value={mandorId}
-                  onChange={(e) => setMandorId(e.target.value)}
-                  className={fieldClassName}
-                  placeholder="Optional mandor ID"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Kebun ID
-                </label>
-                <input
-                  type="text"
-                  value={kebunId}
-                  onChange={(e) => setKebunId(e.target.value)}
-                  className={fieldClassName}
-                  placeholder="Optional kebun ID"
-                />
-              </div>
+            <div>
+              <label className="label-sm">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={fieldClassName}
+                placeholder="nama@email.com"
+                required
+              />
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Creating Account...' : 'Register'}
-          </button>
-        </form>
+            <div>
+              <label className="label-sm">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={fieldClassName}
+                placeholder="Minimal 6 karakter"
+                required
+                minLength={6}
+              />
+            </div>
 
-        <div className="mt-6 text-center text-sm text-gray-600">
-          Already have an account?{' '}
-          <Link href="/login" className="text-green-600 hover:text-green-700 font-semibold">
-            Login here
-          </Link>
+            <div>
+              <label className="label-sm">Konfirmasi Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className={fieldClassName}
+                placeholder="Ulangi password"
+                required
+                minLength={6}
+              />
+            </div>
+
+            <div>
+              <label className="label-sm">Daftar Sebagai</label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as UserRole)}
+                className={fieldClassName}
+              >
+                {roles.map((item) => (
+                  <option key={item} value={item}>
+                    {roleLabels[item]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {(role === 'MANDOR' || role === 'SUPIR') && (
+              <div>
+                <label className="label-sm">Nomor Sertifikasi</label>
+                <input
+                  type="text"
+                  value={certificationNumber}
+                  onChange={(e) => setCertificationNumber(e.target.value)}
+                  className={fieldClassName}
+                  placeholder="Opsional"
+                />
+              </div>
+            )}
+
+            <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-3">
+              {loading ? 'Membuat akun...' : 'Daftar'}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-slate-400">
+            Sudah punya akun?{' '}
+            <Link href="/login" className="text-green-300 hover:text-green-200 font-semibold">
+              Masuk
+            </Link>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

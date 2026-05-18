@@ -34,19 +34,19 @@ jest.mock('@/services/auth.service', () => ({
 }));
 
 const openCreateForm = () => {
-  fireEvent.click(screen.getByRole('button', { name: /\+ create shipment/i }));
+  fireEvent.click(screen.getByRole('button', { name: /\+ Buat Pengiriman/i }));
 };
 
 const fillCreateForm = (
   overrides: Partial<{ supirUserId: string; destination: string; items: string }> = {}
 ) => {
-  fireEvent.change(screen.getByPlaceholderText('Supir UUID'), {
+  fireEvent.change(screen.getByPlaceholderText('Supir'), {
     target: { value: overrides.supirUserId ?? 'supir-uuid' },
   });
-  fireEvent.change(screen.getByPlaceholderText('Destination'), {
+  fireEvent.change(screen.getByPlaceholderText('Tujuan pabrik'), {
     target: { value: overrides.destination ?? 'Jakarta' },
   });
-  fireEvent.change(screen.getByPlaceholderText('Harvest UUID, weight kg per line'), {
+  fireEvent.change(screen.getByPlaceholderText('Catatan panen dan berat, satu baris per muatan'), {
     target: { value: overrides.items ?? 'harvest-1, 100\nharvest-2, 50.5' },
   });
 };
@@ -73,9 +73,9 @@ describe('ShipmentsPage', () => {
     let resolvePromise: ((value: unknown) => void) | undefined;
     (shipmentService.getAll as jest.Mock).mockReturnValue(new Promise((resolve) => { resolvePromise = resolve; }));
     render(<ShipmentsPage />);
-    expect(screen.getByText(/loading shipments/i)).toBeInTheDocument();
+    expect(screen.getByText(/Memuat pengiriman/i)).toBeInTheDocument();
     resolvePromise?.([]);
-    expect(await screen.findByText(/no shipment data/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Belum ada pengiriman/i)).toBeInTheDocument();
   });
 
   it('renders shipments list with items and stat totals', async () => {
@@ -104,25 +104,24 @@ describe('ShipmentsPage', () => {
 
     render(<ShipmentsPage />);
 
-    const heading = await screen.findByText(/Shipment #abcd1234/);
-    const card = heading.closest('div.bg-white') as HTMLElement;
-    expect(within(card).getByText('MEMUAT')).toBeInTheDocument();
+    const destination = await screen.findByText('Jakarta');
+    const card = destination.closest('div.bg-white') as HTMLElement;
+    expect(within(card).getByText('Memuat')).toBeInTheDocument();
     expect(within(card).getByText('Jakarta')).toBeInTheDocument();
-    expect(within(card).getByText('mandor-1')).toBeInTheDocument();
-    expect(within(card).getByText('supir-1')).toBeInTheDocument();
-    expect(within(card).getByText('h-1: 120 kg')).toBeInTheDocument();
+    expect(within(card).getByText('Sudah diverifikasi')).toBeInTheDocument();
+    expect(within(card).getByText('Sudah ditugaskan')).toBeInTheDocument();
+    expect(within(card).getByText('120 kg')).toBeInTheDocument();
 
-    const arrivedHeading = screen.getByText(/Shipment #efgh5678/);
-    const arrivedCard = arrivedHeading.closest('div.bg-white') as HTMLElement;
+    const arrivedCard = screen.getByText('Surabaya').closest('div.bg-white') as HTMLElement;
     expect(within(arrivedCard).getByText('invalid-date')).toBeInTheDocument();
     expect(within(arrivedCard).getAllByText('-').length).toBeGreaterThan(0);
 
     // Stats card aggregates
-    const totalWeightCard = screen.getByText('Total Weight').parentElement!;
+    const totalWeightCard = screen.getByText('Berat Total').parentElement!;
     expect(within(totalWeightCard).getByText(/350/)).toBeInTheDocument();
-    const activeCard = screen.getByText('Active').parentElement!;
+    const activeCard = screen.getByText('Berjalan').parentElement!;
     expect(within(activeCard).getByText('1')).toBeInTheDocument();
-    const arrivedCardStat = screen.getByText('Arrived').parentElement!;
+    const arrivedCardStat = screen.getByText('Tiba').parentElement!;
     expect(within(arrivedCardStat).getByText('1')).toBeInTheDocument();
   });
 
@@ -131,8 +130,7 @@ describe('ShipmentsPage', () => {
       { id: 's-1', destination: 'X', status: 'MEMUAT', createdAt: '', updatedAt: '' },
     ]);
     render(<ShipmentsPage />);
-    const heading = await screen.findByText(/Shipment #s-1/);
-    const card = heading.closest('div.bg-white') as HTMLElement;
+    const card = (await screen.findByText('X')).closest('div.bg-white') as HTMLElement;
     expect(within(card).getAllByText('-').length).toBeGreaterThan(0);
   });
 
@@ -145,16 +143,16 @@ describe('ShipmentsPage', () => {
   it('shows fallback load error when thrown value is not Error', async () => {
     (shipmentService.getAll as jest.Mock).mockRejectedValue('bad');
     render(<ShipmentsPage />);
-    expect(await screen.findByText('Failed to load shipments')).toBeInTheDocument();
+    expect(await screen.findByText('Gagal memuat pengiriman')).toBeInTheDocument();
   });
 
-  it('filters by status via Apply Filter, and resets via Reset', async () => {
+  it('filters by status via Terapkan Filter, and resets via Reset', async () => {
     render(<ShipmentsPage />);
-    await screen.findByText(/no shipment data/i);
+    await screen.findByText(/Belum ada pengiriman/i);
 
     const filterSelect = screen.getAllByRole('combobox')[0];
     fireEvent.change(filterSelect, { target: { value: 'MEMUAT' } });
-    fireEvent.click(screen.getByRole('button', { name: /apply filter/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Terapkan Filter/i }));
 
     await waitFor(() => expect(shipmentService.getByStatus).toHaveBeenCalledWith('MEMUAT'));
 
@@ -168,22 +166,22 @@ describe('ShipmentsPage', () => {
 
   it('toggles create shipment form visibility', async () => {
     render(<ShipmentsPage />);
-    await screen.findByText(/no shipment data/i);
+    await screen.findByText(/Belum ada pengiriman/i);
     openCreateForm();
-    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
-    expect(screen.getByRole('button', { name: /\+ create shipment/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Batal/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Batal/i }));
+    expect(screen.getByRole('button', { name: /\+ Buat Pengiriman/i })).toBeInTheDocument();
   });
 
   it('creates a shipment with parsed items and reloads using current filter', async () => {
     (shipmentService.getByStatus as jest.Mock).mockResolvedValue([]);
     render(<ShipmentsPage />);
-    await screen.findByText(/no shipment data/i);
+    await screen.findByText(/Belum ada pengiriman/i);
 
-    // Apply filter first so loadShipments uses the filter when reloading after create
+    // Terapkan Filter first so loadShipments uses the filter when reloading after create
     const filterSelect = screen.getAllByRole('combobox')[0];
     fireEvent.change(filterSelect, { target: { value: 'MEMUAT' } });
-    fireEvent.click(screen.getByRole('button', { name: /apply filter/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Terapkan Filter/i }));
     await waitFor(() => expect(shipmentService.getByStatus).toHaveBeenCalledWith('MEMUAT'));
 
     openCreateForm();
@@ -192,7 +190,7 @@ describe('ShipmentsPage', () => {
       destination: 'Bandung',
       items: 'h-1, 100\nh-2, 50.5\nbad-line\n,99\nh-3,not-a-number',
     });
-    fireEvent.click(screen.getByRole('button', { name: /save shipment/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Simpan Pengiriman/i }));
 
     await waitFor(() => {
       expect(shipmentService.create).toHaveBeenCalledWith({
@@ -208,38 +206,38 @@ describe('ShipmentsPage', () => {
     await waitFor(() => {
       expect((shipmentService.getByStatus as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(2);
     });
-    expect(screen.getByRole('button', { name: /\+ create shipment/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /\+ Buat Pengiriman/i })).toBeInTheDocument();
   });
 
   it('shows create error from Error', async () => {
     (shipmentService.create as jest.Mock).mockRejectedValue(new Error('Create failed'));
     render(<ShipmentsPage />);
-    await screen.findByText(/no shipment data/i);
+    await screen.findByText(/Belum ada pengiriman/i);
     openCreateForm();
     fillCreateForm();
-    fireEvent.click(screen.getByRole('button', { name: /save shipment/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Simpan Pengiriman/i }));
     expect(await screen.findByText('Create failed')).toBeInTheDocument();
   });
 
   it('shows fallback create error when thrown value is not Error', async () => {
     (shipmentService.create as jest.Mock).mockRejectedValue('bad');
     render(<ShipmentsPage />);
-    await screen.findByText(/no shipment data/i);
+    await screen.findByText(/Belum ada pengiriman/i);
     openCreateForm();
     fillCreateForm();
-    fireEvent.click(screen.getByRole('button', { name: /save shipment/i }));
-    expect(await screen.findByText('Failed to create shipment')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Simpan Pengiriman/i }));
+    expect(await screen.findByText('Gagal membuat pengiriman')).toBeInTheDocument();
   });
 
   it('updates driver status', async () => {
     render(<ShipmentsPage />);
-    await screen.findByText(/no shipment data/i);
+    await screen.findByText(/Belum ada pengiriman/i);
 
-    const allInputs = screen.getAllByPlaceholderText('Shipment UUID');
+    const allInputs = screen.getAllByPlaceholderText('Nomor pengiriman');
     fireEvent.change(allInputs[0], { target: { value: 'ship-1' } });
     const driverStatus = screen.getAllByRole('combobox')[1];
     fireEvent.change(driverStatus, { target: { value: 'TIBA' } });
-    fireEvent.click(screen.getByRole('button', { name: /update status/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Simpan Status/i }));
 
     await waitFor(() => {
       expect(shipmentService.updateStatus).toHaveBeenCalledWith('ship-1', { status: 'TIBA' });
@@ -249,30 +247,30 @@ describe('ShipmentsPage', () => {
   it('shows driver status error from Error', async () => {
     (shipmentService.updateStatus as jest.Mock).mockRejectedValue(new Error('Status failed'));
     render(<ShipmentsPage />);
-    await screen.findByText(/no shipment data/i);
-    fireEvent.change(screen.getAllByPlaceholderText('Shipment UUID')[0], { target: { value: 's-x' } });
-    fireEvent.click(screen.getByRole('button', { name: /update status/i }));
+    await screen.findByText(/Belum ada pengiriman/i);
+    fireEvent.change(screen.getAllByPlaceholderText('Nomor pengiriman')[0], { target: { value: 's-x' } });
+    fireEvent.click(screen.getByRole('button', { name: /Simpan Status/i }));
     expect(await screen.findByText('Status failed')).toBeInTheDocument();
   });
 
   it('shows fallback driver status error when thrown value is not Error', async () => {
     (shipmentService.updateStatus as jest.Mock).mockRejectedValue('bad');
     render(<ShipmentsPage />);
-    await screen.findByText(/no shipment data/i);
-    fireEvent.change(screen.getAllByPlaceholderText('Shipment UUID')[0], { target: { value: 's-x' } });
-    fireEvent.click(screen.getByRole('button', { name: /update status/i }));
-    expect(await screen.findByText('Failed to update shipment status')).toBeInTheDocument();
+    await screen.findByText(/Belum ada pengiriman/i);
+    fireEvent.change(screen.getAllByPlaceholderText('Nomor pengiriman')[0], { target: { value: 's-x' } });
+    fireEvent.click(screen.getByRole('button', { name: /Simpan Status/i }));
+    expect(await screen.findByText('Gagal memperbarui pengiriman')).toBeInTheDocument();
   });
 
   it('submits admin approval', async () => {
     render(<ShipmentsPage />);
-    await screen.findByText(/no shipment data/i);
+    await screen.findByText(/Belum ada pengiriman/i);
 
-    const adminInput = screen.getAllByPlaceholderText('Shipment UUID')[1];
+    const adminInput = screen.getAllByPlaceholderText('Nomor pengiriman')[1];
     fireEvent.change(adminInput, { target: { value: 'ship-9' } });
     const adminStatus = screen.getAllByRole('combobox')[2];
     fireEvent.change(adminStatus, { target: { value: 'PARTIALLY_REJECTED' } });
-    fireEvent.click(screen.getByRole('button', { name: /submit approval/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Simpan Persetujuan/i }));
 
     await waitFor(() => {
       expect(shipmentService.approveByAdmin).toHaveBeenCalledWith('ship-9', 'PARTIALLY_REJECTED');
@@ -282,18 +280,18 @@ describe('ShipmentsPage', () => {
   it('shows admin approval error from Error', async () => {
     (shipmentService.approveByAdmin as jest.Mock).mockRejectedValue(new Error('Admin failed'));
     render(<ShipmentsPage />);
-    await screen.findByText(/no shipment data/i);
-    fireEvent.change(screen.getAllByPlaceholderText('Shipment UUID')[1], { target: { value: 's-x' } });
-    fireEvent.click(screen.getByRole('button', { name: /submit approval/i }));
+    await screen.findByText(/Belum ada pengiriman/i);
+    fireEvent.change(screen.getAllByPlaceholderText('Nomor pengiriman')[1], { target: { value: 's-x' } });
+    fireEvent.click(screen.getByRole('button', { name: /Simpan Persetujuan/i }));
     expect(await screen.findByText('Admin failed')).toBeInTheDocument();
   });
 
   it('shows fallback admin approval error when thrown value is not Error', async () => {
     (shipmentService.approveByAdmin as jest.Mock).mockRejectedValue('bad');
     render(<ShipmentsPage />);
-    await screen.findByText(/no shipment data/i);
-    fireEvent.change(screen.getAllByPlaceholderText('Shipment UUID')[1], { target: { value: 's-x' } });
-    fireEvent.click(screen.getByRole('button', { name: /submit approval/i }));
-    expect(await screen.findByText('Failed to submit admin approval')).toBeInTheDocument();
+    await screen.findByText(/Belum ada pengiriman/i);
+    fireEvent.change(screen.getAllByPlaceholderText('Nomor pengiriman')[1], { target: { value: 's-x' } });
+    fireEvent.click(screen.getByRole('button', { name: /Simpan Persetujuan/i }));
+    expect(await screen.findByText('Gagal menyimpan persetujuan')).toBeInTheDocument();
   });
 });

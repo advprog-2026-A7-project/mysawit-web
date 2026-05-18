@@ -29,16 +29,16 @@ describe('RegisterPage', () => {
   });
 
   const fillRequiredFields = (password: string, confirmPassword: string) => {
-    fireEvent.change(screen.getByPlaceholderText(/choose a username/i), {
+    fireEvent.change(screen.getByPlaceholderText(/budi\.mandor/i), {
       target: { value: 'user' },
     });
-    fireEvent.change(screen.getByPlaceholderText(/enter your email/i), {
+    fireEvent.change(screen.getByPlaceholderText(/nama@email\.com/i), {
       target: { value: 'user@mail.com' },
     });
-    fireEvent.change(screen.getByPlaceholderText(/create a password/i), {
+    fireEvent.change(screen.getByPlaceholderText(/minimal 6 karakter/i), {
       target: { value: password },
     });
-    fireEvent.change(screen.getByPlaceholderText(/confirm your password/i), {
+    fireEvent.change(screen.getByPlaceholderText(/ulangi password/i), {
       target: { value: confirmPassword },
     });
   };
@@ -47,9 +47,9 @@ describe('RegisterPage', () => {
     render(<RegisterPage />);
 
     fillRequiredFields('secret123', 'secret124');
-    fireEvent.click(screen.getByRole('button', { name: /register/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^daftar$/i }));
 
-    expect(await screen.findByText('Passwords do not match')).toBeInTheDocument();
+    expect(await screen.findByText('Konfirmasi password belum sama')).toBeInTheDocument();
     expect(authService.register).not.toHaveBeenCalled();
   });
 
@@ -57,9 +57,9 @@ describe('RegisterPage', () => {
     render(<RegisterPage />);
 
     fillRequiredFields('short', 'short');
-    fireEvent.click(screen.getByRole('button', { name: /register/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^daftar$/i }));
 
-    expect(await screen.findByText('Password must be at least 6 characters')).toBeInTheDocument();
+    expect(await screen.findByText('Password minimal 6 karakter')).toBeInTheDocument();
     expect(authService.register).not.toHaveBeenCalled();
   });
 
@@ -69,7 +69,7 @@ describe('RegisterPage', () => {
     render(<RegisterPage />);
 
     fillRequiredFields('secret123', 'secret123');
-    fireEvent.click(screen.getByRole('button', { name: /register/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^daftar$/i }));
 
     await waitFor(() => {
       expect(authService.register).toHaveBeenCalledWith({
@@ -98,9 +98,9 @@ describe('RegisterPage', () => {
     render(<RegisterPage />);
 
     fillRequiredFields('secret123', 'secret123');
-    fireEvent.click(screen.getByRole('button', { name: /register/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^daftar$/i }));
 
-    expect(screen.getByRole('button', { name: /creating account\.\.\./i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /membuat akun\.\.\./i })).toBeDisabled();
 
     resolvePromise?.();
     await waitFor(() => {
@@ -114,7 +114,7 @@ describe('RegisterPage', () => {
     render(<RegisterPage />);
 
     fillRequiredFields('secret123', 'secret123');
-    fireEvent.click(screen.getByRole('button', { name: /register/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^daftar$/i }));
 
     expect(await screen.findByText('Registration failed from API')).toBeInTheDocument();
   });
@@ -124,8 +124,8 @@ describe('RegisterPage', () => {
     render(<RegisterPage />);
     fillRequiredFields('secret123', 'secret123');
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'MANDOR' } });
-    fireEvent.change(screen.getByPlaceholderText(/enter certification number/i), { target: { value: 'CERT-99' } });
-    fireEvent.click(screen.getByRole('button', { name: /register/i }));
+    fireEvent.change(screen.getByPlaceholderText(/opsional/i), { target: { value: 'CERT-99' } });
+    fireEvent.click(screen.getByRole('button', { name: /^daftar$/i }));
 
     await waitFor(() => {
       expect(authService.register).toHaveBeenCalledWith(expect.objectContaining({
@@ -137,20 +137,20 @@ describe('RegisterPage', () => {
     });
   });
 
-  it('registers BURUH with mandor and kebun ids', async () => {
+  it('does not ask BURUH users to type mandor or kebun ids manually', async () => {
     (authService.register as jest.Mock).mockResolvedValue(undefined);
     render(<RegisterPage />);
     fillRequiredFields('secret123', 'secret123');
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'BURUH' } });
-    fireEvent.change(screen.getByPlaceholderText(/optional mandor id/i), { target: { value: 'mandor-9' } });
-    fireEvent.change(screen.getByPlaceholderText(/optional kebun id/i), { target: { value: 'kebun-9' } });
-    fireEvent.click(screen.getByRole('button', { name: /register/i }));
+    expect(screen.queryByPlaceholderText(/optional mandor id/i)).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/optional kebun id/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^daftar$/i }));
 
     await waitFor(() => {
       expect(authService.register).toHaveBeenCalledWith(expect.objectContaining({
         role: 'BURUH',
-        mandorId: 'mandor-9',
-        kebunId: 'kebun-9',
+        mandorId: undefined,
+        kebunId: undefined,
       }));
     });
   });
@@ -161,8 +161,8 @@ describe('RegisterPage', () => {
     render(<RegisterPage />);
 
     fillRequiredFields('secret123', 'secret123');
-    fireEvent.click(screen.getByRole('button', { name: /register/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^daftar$/i }));
 
-    expect(await screen.findByText('Registration failed')).toBeInTheDocument();
+    expect(await screen.findByText('Gagal membuat akun')).toBeInTheDocument();
   });
 });

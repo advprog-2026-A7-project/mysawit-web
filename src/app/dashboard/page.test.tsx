@@ -1,88 +1,107 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import DashboardPage from './page';
 import { authService } from '@/services/auth.service';
-
-const pushMock = jest.fn();
-const routerMock = { push: pushMock };
-
-jest.mock('next/navigation', () => ({
-  useRouter: () => routerMock,
-}));
-
-jest.mock('next/link', () => ({
-  __esModule: true,
-  default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => (
-    <a href={href} {...props}>
-      {children}
-    </a>
-  ),
-}));
+import { harvestService } from '@/services/harvest.service';
+import { shipmentService } from '@/services/shipment.service';
+import { plantationService } from '@/services/plantation.service';
+import { identityService } from '@/services/identity.service';
 
 jest.mock('@/services/auth.service', () => ({
   authService: {
-    isAuthenticated: jest.fn(),
     getUserInfo: jest.fn(),
-    logout: jest.fn(),
   },
 }));
+
+jest.mock('@/services/harvest.service', () => ({ harvestService: { getAll: jest.fn() } }));
+jest.mock('@/services/shipment.service', () => ({ shipmentService: { getAll: jest.fn() } }));
+jest.mock('@/services/plantation.service', () => ({ plantationService: { getAll: jest.fn() } }));
+jest.mock('@/services/identity.service', () => ({ identityService: { listUsers: jest.fn() } }));
 
 describe('DashboardPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (authService.getUserInfo as jest.Mock).mockReturnValue({ username: 'budi', role: 'USER' });
+    (identityService.listUsers as jest.Mock).mockResolvedValue([{}]);
+    (plantationService.getAll as jest.Mock).mockResolvedValue([{}]);
+    (harvestService.getAll as jest.Mock).mockResolvedValue([{}]);
+    (shipmentService.getAll as jest.Mock).mockResolvedValue([{}]);
   });
 
-  it('redirects to login when user is not authenticated', async () => {
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(false);
-
-    const { container } = render(<DashboardPage />);
-
-    await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith('/login');
-    });
-
-    expect(container.firstChild).toBeNull();
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('renders user info and dashboard modules when authenticated', async () => {
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(true);
-    (authService.getUserInfo as jest.Mock).mockReturnValue({ username: 'budi', role: 'USER' });
-
     render(<DashboardPage />);
 
-    expect(await screen.findByText(/welcome, budi/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /plantations/i })).toHaveAttribute('href', '/dashboard/plantations');
-    expect(screen.getByRole('link', { name: /harvests/i })).toHaveAttribute('href', '/dashboard/harvests');
-    expect(screen.getByRole('link', { name: /shipments/i })).toHaveAttribute('href', '/dashboard/shipments');
-    expect(screen.getByRole('link', { name: /payroll/i })).toHaveAttribute('href', '/dashboard/payroll');
+    expect(await screen.findByText('budi')).toBeInTheDocument();
+    expect(screen.queryByText('USER')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /kelola kebun/i })).toHaveAttribute('href', '/dashboard/plantations');
+    expect(screen.getByRole('link', { name: /catat panen/i })).toHaveAttribute('href', '/dashboard/harvests');
+    expect(screen.getByRole('link', { name: /pantau pengiriman/i })).toHaveAttribute('href', '/dashboard/shipments');
+    expect(screen.queryByRole('link', { name: /payroll/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/ringkasan operasional kebun/i)).toBeInTheDocument();
   });
 
   it('handles null user info without crashing', async () => {
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(true);
     (authService.getUserInfo as jest.Mock).mockReturnValue(null);
 
     render(<DashboardPage />);
 
-    expect(await screen.findByText(/welcome,/i)).toBeInTheDocument();
+    expect(await screen.findByText('Pengguna')).toBeInTheDocument();
   });
 
-  it('uses fallback empty values when user info fields are empty', async () => {
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(true);
+  it('uses fallback display name when user info fields are empty', async () => {
     (authService.getUserInfo as jest.Mock).mockReturnValue({ username: '', role: '' });
 
     render(<DashboardPage />);
 
-    expect(await screen.findByText('Welcome,')).toBeInTheDocument();
+    expect(await screen.findByText('Pengguna')).toBeInTheDocument();
   });
 
-  it('logs out and redirects to home', async () => {
-    (authService.isAuthenticated as jest.Mock).mockReturnValue(true);
-    (authService.getUserInfo as jest.Mock).mockReturnValue({ username: 'budi', role: 'USER' });
+  it('shows zero stats when summary requests fail', async () => {
+    (identityService.listUsers as jest.Mock).mockRejectedValue(new Error('fail'));
+    (plantationService.getAll as jest.Mock).mockRejectedValue(new Error('fail'));
+    (harvestService.getAll as jest.Mock).mockRejectedValue(new Error('fail'));
+    (shipmentService.getAll as jest.Mock).mockRejectedValue(new Error('fail'));
 
     render(<DashboardPage />);
 
-    fireEvent.click(await screen.findByRole('button', { name: /logout/i }));
+    await waitFor(() => expect(identityService.listUsers).toHaveBeenCalled());
+    expect(screen.getAllByText('0').length).toBeGreaterThan(0);
+  });
 
-    expect(authService.logout).toHaveBeenCalledTimes(1);
-    expect(pushMock).toHaveBeenCalledWith('/');
+  it('falls back to zero when a fulfilled stat has no length', async () => {
+    (identityService.listUsers as jest.Mock).mockResolvedValue({});
+
+    render(<DashboardPage />);
+
+    await waitFor(() => expect(identityService.listUsers).toHaveBeenCalled());
+    const totalUsersCard = screen.getByText('Anggota Tim').closest('.stat-card') as HTMLElement;
+    await waitFor(() => expect(totalUsersCard).toHaveTextContent('0'));
+  });
+
+  it.each([
+    [8, 'Selamat Pagi'],
+    [12, 'Selamat Siang'],
+    [16, 'Selamat Sore'],
+    [19, 'Selamat Malam'],
+  ])('renders the %s:00 greeting branch', async (hour, greeting) => {
+    jest.spyOn(Date.prototype, 'getHours').mockReturnValue(hour);
+
+    render(<DashboardPage />);
+
+    expect(await screen.findByText(`${greeting},`)).toBeInTheDocument();
+  });
+
+  it('refreshes health and stats', async () => {
+    render(<DashboardPage />);
+    await waitFor(() => expect(identityService.listUsers).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole('button', { name: /perbarui data/i }));
+
+    await waitFor(() => {
+      expect(identityService.listUsers).toHaveBeenCalledTimes(2);
+    });
   });
 });
