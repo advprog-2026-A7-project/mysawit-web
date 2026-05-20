@@ -16,6 +16,8 @@ import {
   Wheat,
 } from 'lucide-react';
 
+import { useRouter } from 'next/navigation';
+
 interface DashboardStats {
   users: number;
   plantations: number;
@@ -24,6 +26,7 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const userInfo = authService.getUserInfo();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
@@ -49,8 +52,16 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
+    if (userInfo?.role === 'SUPIR') {
+      router.push('/dashboard/shipments');
+      return;
+    }
+    if (userInfo?.role === 'BURUH') {
+      router.push('/dashboard/harvests');
+      return;
+    }
     void loadStats();
-  }, [loadStats]);
+  }, [loadStats, userInfo?.role, router]);
 
   const greeting = () => {
     const h = new Date().getHours();

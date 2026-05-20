@@ -3,16 +3,17 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { LayoutDashboard, LogOut, Map, Menu, Sprout, Truck, Users, Wheat, X } from 'lucide-react';
+import { LayoutDashboard, LogOut, Map, Menu, Sprout, Truck, Users, Wheat, X, CircleDollarSign } from 'lucide-react';
 import { authService } from '@/services/auth.service';
 import { AuthProvider } from '@/contexts/auth-context';
 
-const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Beranda', Icon: LayoutDashboard, exact: true },
-  { href: '/dashboard/identity', label: 'Tim', Icon: Users },
-  { href: '/dashboard/plantations', label: 'Kebun', Icon: Map },
-  { href: '/dashboard/harvests', label: 'Panen', Icon: Wheat },
-  { href: '/dashboard/shipments', label: 'Pengiriman', Icon: Truck },
+const ALL_NAV_ITEMS = [
+  { href: '/dashboard', label: 'Beranda', Icon: LayoutDashboard, exact: true, roles: ['ADMIN', 'MANDOR'] },
+  { href: '/dashboard/identity', label: 'Tim', Icon: Users, roles: ['ADMIN'] },
+  { href: '/dashboard/plantations', label: 'Kebun', Icon: Map, roles: ['ADMIN', 'MANDOR'] },
+  { href: '/dashboard/harvests', label: 'Panen', Icon: Wheat, roles: ['MANDOR', 'BURUH'] },
+  { href: '/dashboard/shipments', label: 'Pengiriman', Icon: Truck, roles: ['ADMIN', 'MANDOR', 'SUPIR'] },
+  { href: '/dashboard/payroll', label: 'Gaji', Icon: CircleDollarSign, roles: ['ADMIN', 'MANDOR', 'SUPIR', 'BURUH'] },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -32,10 +33,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/login');
   };
 
-  const isActive = (item: typeof NAV_ITEMS[0]) => pathname.startsWith(item.href);
+  const isActive = (item: typeof ALL_NAV_ITEMS[0]) => pathname.startsWith(item.href);
   const isOverviewActive = pathname === '/dashboard';
 
   if (!authService.isAuthenticated()) return null;
+
+  const allowedNavItems = ALL_NAV_ITEMS.filter((item) => 
+    !userInfo?.role || item.roles.includes(userInfo.role)
+  );
 
   return (
     <div className="ms-layout">
@@ -52,7 +57,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Link>
 
           <nav className="ms-nav-desktop" aria-label="Navigasi utama">
-            {NAV_ITEMS.map((item) => {
+            {allowedNavItems.map((item) => {
               const active = item.exact ? isOverviewActive : isActive(item);
               return (
                 <Link
@@ -94,7 +99,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {menuOpen && (
           <nav className="ms-nav-mobile" aria-label="Navigasi mobile">
-          {NAV_ITEMS.map((item) => {
+          {allowedNavItems.map((item) => {
             const active = item.exact ? isOverviewActive : isActive(item);
             return (
               <Link

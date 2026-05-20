@@ -1,23 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="f0bd431f-481d-4ccb-bd65-859f74781dfe" name="Changes" comment="fix issue">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/dashboard/harvests/page.test.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/harvests/page.test.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/dashboard/harvests/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/harvests/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/dashboard/layout.test.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/layout.test.tsx" afterDir="false" />
+    <list default="true" id="f0bd431f-481d-4ccb-bd65-859f74781dfe" name="Changes" comment="feat(web): improve registration, harvest, and payroll flows">
       <change beforePath="$PROJECT_DIR$/src/app/dashboard/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/layout.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/dashboard/page.test.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/page.test.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/dashboard/payroll/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/payroll/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/dashboard/plantations/page.test.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/plantations/page.test.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/dashboard/plantations/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/plantations/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/layout.test.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/layout.test.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/layout.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/register/page.test.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/register/page.test.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/register/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/register/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/services/auth.service.test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/auth.service.test.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/services/harvest.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/harvest.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/shipments/page.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -133,7 +120,15 @@
       <option name="project" value="LOCAL" />
       <updated>1771349244743</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="feat(web): improve registration, harvest, and payroll flows">
+      <option name="closed" value="true" />
+      <created>1779289277383</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1779289277383</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -141,6 +136,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="fix issue" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix issue" />
+    <MESSAGE value="feat(web): improve registration, harvest, and payroll flows" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat(web): improve registration, harvest, and payroll flows" />
   </component>
 </project>
