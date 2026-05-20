@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { LayoutDashboard, LogOut, Map, Menu, Sprout, Truck, Users, Wheat, X } from 'lucide-react';
 import { authService } from '@/services/auth.service';
+import { AuthProvider } from '@/contexts/auth-context';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Beranda', Icon: LayoutDashboard, exact: true },
@@ -111,9 +112,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
       </header>
 
-      <main className="ms-main">
-        {children}
-      </main>
+      <AuthProvider>
+        <main className="ms-main">
+          {children}
+        </main>
+      </AuthProvider>
     </div>
   );
 }

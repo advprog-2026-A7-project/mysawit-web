@@ -39,7 +39,6 @@ const EMPTY: FormState = { id: '', name: '', location: '', area: '', ownerId: ''
 
 export default function PlantationsPage() {
   const [plantations, setPlantations] = useState<Plantation[]>([]);
-  const [mandors, setMandors] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');

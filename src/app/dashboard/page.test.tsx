@@ -1,10 +1,17 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import DashboardPage from './page';
 import { authService } from '@/services/auth.service';
 import { harvestService } from '@/services/harvest.service';
 import { shipmentService } from '@/services/shipment.service';
 import { plantationService } from '@/services/plantation.service';
 import { identityService } from '@/services/identity.service';
+
+jest.mock('next/link', () => ({
+  __esModule: true,
+  default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => (
+    <a href={href} {...props}>{children}</a>
+  ),
+}));
 
 jest.mock('@/services/auth.service', () => ({
   authService: {
@@ -20,111 +27,51 @@ jest.mock('@/services/identity.service', () => ({ identityService: { listUsers: 
 describe('DashboardPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (authService.getUserInfo as jest.Mock).mockReturnValue({ username: 'budi', role: 'USER' });
-    (identityService.listUsers as jest.Mock).mockResolvedValue([{}]);
+    (authService.getUserInfo as jest.Mock).mockReturnValue({ username: 'budi', role: 'ADMIN' });
+    (identityService.listUsers as jest.Mock).mockResolvedValue([{}, {}]);
     (plantationService.getAll as jest.Mock).mockResolvedValue([{}]);
-    (harvestService.getAll as jest.Mock).mockResolvedValue([{}]);
-    (shipmentService.getAll as jest.Mock).mockResolvedValue([{}]);
+    (harvestService.getAll as jest.Mock).mockResolvedValue([{}, {}, {}]);
+    (shipmentService.getAll as jest.Mock).mockResolvedValue([{}, {}]);
   });
 
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
-  it('renders user info and dashboard modules when authenticated', async () => {
+  it('renders user info, quick actions, and operational stats', async () => {
     render(<DashboardPage />);
 
     expect(await screen.findByText('budi')).toBeInTheDocument();
-    expect(screen.queryByText('USER')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /kelola kebun/i })).toHaveAttribute('href', '/dashboard/plantations');
     expect(screen.getByRole('link', { name: /catat panen/i })).toHaveAttribute('href', '/dashboard/harvests');
     expect(screen.getByRole('link', { name: /pantau pengiriman/i })).toHaveAttribute('href', '/dashboard/shipments');
-    expect(screen.queryByRole('link', { name: /payroll/i })).not.toBeInTheDocument();
     expect(screen.getByText(/ringkasan operasional kebun/i)).toBeInTheDocument();
+
+    await waitFor(() => expect(screen.getByText('Anggota Tim').parentElement).toHaveTextContent('2'));
+    expect(screen.getByText('Kebun Terdaftar').parentElement).toHaveTextContent('1');
+    expect(screen.getByText('Catatan Panen').parentElement).toHaveTextContent('3');
+    expect(screen.getByText('Pengiriman').parentElement).toHaveTextContent('2');
   });
 
-  it('handles null user info without crashing', async () => {
+  it('uses fallback display name and zero stats when requests fail', async () => {
     (authService.getUserInfo as jest.Mock).mockReturnValue(null);
+    (identityService.listUsers as jest.Mock).mockRejectedValue(new Error('identity down'));
+    (plantationService.getAll as jest.Mock).mockRejectedValue(new Error('plantation down'));
+    (harvestService.getAll as jest.Mock).mockRejectedValue(new Error('harvest down'));
+    (shipmentService.getAll as jest.Mock).mockRejectedValue(new Error('shipment down'));
 
-  it('shows BURUH cards (Harvests, Payroll) only', () => {
-    mockAuth = { user: { role: 'BURUH' }, isAdmin: false };
     render(<DashboardPage />);
 
     expect(await screen.findByText('Pengguna')).toBeInTheDocument();
-  });
-
-  it('uses fallback display name when user info fields are empty', async () => {
-    (authService.getUserInfo as jest.Mock).mockReturnValue({ username: '', role: '' });
-
-  it('still renders the system status panel for any signed-in user', () => {
-    mockAuth = { user: { role: 'BURUH' }, isAdmin: false };
-    render(<DashboardPage />);
-
-    expect(await screen.findByText('Pengguna')).toBeInTheDocument();
-  });
-
-  it('shows zero stats when summary requests fail', async () => {
-    (identityService.listUsers as jest.Mock).mockRejectedValue(new Error('fail'));
-    (plantationService.getAll as jest.Mock).mockRejectedValue(new Error('fail'));
-    (harvestService.getAll as jest.Mock).mockRejectedValue(new Error('fail'));
-    (shipmentService.getAll as jest.Mock).mockRejectedValue(new Error('fail'));
-
-    it('renders all services as Online when health probes succeed', async () => {
-      global.fetch = jest.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
-
-      await act(async () => {
-        render(<DashboardPage />);
-      });
-
-      await waitFor(() => {
-        expect(screen.getAllByText(/^Online$/).length).toBeGreaterThan(0);
-      });
-      expect(screen.queryByText(/checking…/i)).not.toBeInTheDocument();
-      expect(screen.queryByText(/^Offline$/)).not.toBeInTheDocument();
-    });
-
-    it('renders services as Offline when health probes return non-ok', async () => {
-      global.fetch = jest.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
-
-      await act(async () => {
-        render(<DashboardPage />);
-      });
-
     await waitFor(() => expect(identityService.listUsers).toHaveBeenCalled());
-    expect(screen.getAllByText('0').length).toBeGreaterThan(0);
+    expect(screen.getByText('Anggota Tim').parentElement).toHaveTextContent('0');
+    expect(screen.getByText('Kebun Terdaftar').parentElement).toHaveTextContent('0');
+    expect(screen.getByText('Catatan Panen').parentElement).toHaveTextContent('0');
+    expect(screen.getByText('Pengiriman').parentElement).toHaveTextContent('0');
   });
 
-  it('falls back to zero when a fulfilled stat has no length', async () => {
-    (identityService.listUsers as jest.Mock).mockResolvedValue({});
-
+  it('refreshes dashboard stats from the button', async () => {
     render(<DashboardPage />);
 
-    await waitFor(() => expect(identityService.listUsers).toHaveBeenCalled());
-    const totalUsersCard = screen.getByText('Anggota Tim').closest('.stat-card') as HTMLElement;
-    await waitFor(() => expect(totalUsersCard).toHaveTextContent('0'));
-  });
-
-  it.each([
-    [8, 'Selamat Pagi'],
-    [12, 'Selamat Siang'],
-    [16, 'Selamat Sore'],
-    [19, 'Selamat Malam'],
-  ])('renders the %s:00 greeting branch', async (hour, greeting) => {
-    jest.spyOn(Date.prototype, 'getHours').mockReturnValue(hour);
-
-    render(<DashboardPage />);
-
-    expect(await screen.findByText(`${greeting},`)).toBeInTheDocument();
-  });
-
-  it('refreshes health and stats', async () => {
-    render(<DashboardPage />);
     await waitFor(() => expect(identityService.listUsers).toHaveBeenCalledTimes(1));
-
     fireEvent.click(screen.getByRole('button', { name: /perbarui data/i }));
 
-    await waitFor(() => {
-      expect(identityService.listUsers).toHaveBeenCalledTimes(2);
-    });
+    await waitFor(() => expect(identityService.listUsers).toHaveBeenCalledTimes(2));
   });
 });

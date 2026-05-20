@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/auth-context';
 import { harvestService } from '@/services/harvest.service';
 import { Harvest, HarvestStatus } from '@/types';
 
@@ -85,11 +85,23 @@ export default function HarvestsPage() {
   const loadHarvests = useCallback(async (nextFilters: HarvestFilters = emptyFilters) => {
     try {
       setLoading(true);
-      const data = await harvestService.getAll({
-        harvesterName: nextFilters.harvesterName || undefined,
-        startDate: nextFilters.startDate || undefined,
-        endDate: nextFilters.endDate || undefined,
-      });
+      if (!isMandor && !isBuruh) {
+        setHarvests([]);
+        setCurrentPage(1);
+        return;
+      }
+
+      const data = isBuruh
+        ? await harvestService.getMine({
+          startDate: nextFilters.startDate || undefined,
+          endDate: nextFilters.endDate || undefined,
+          status: nextFilters.status || undefined,
+        })
+        : await harvestService.getAll({
+          harvesterName: nextFilters.harvesterName || undefined,
+          startDate: nextFilters.startDate || undefined,
+          endDate: nextFilters.endDate || undefined,
+        });
       setHarvests(data);
       setCurrentPage(1);
     } catch (err) {
@@ -97,7 +109,7 @@ export default function HarvestsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isBuruh, isMandor]);
 
   useEffect(() => {
     void loadHarvests();
@@ -419,6 +431,6 @@ export default function HarvestsPage() {
           </>
         )}
       </main>
-    </>
+    </div>
   );
 }

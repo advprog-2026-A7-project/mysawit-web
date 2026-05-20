@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import DashboardLayout from './layout';
 import { authService } from '@/services/auth.service';
+import { RequireRole } from '@/components/RequireRole';
 
 const pushMock = jest.fn();
 let pathname = '/dashboard';
@@ -52,6 +53,19 @@ describe('DashboardLayout', () => {
     expect(screen.queryByText('ADMIN')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Beranda/i })).toHaveClass('active');
     expect(screen.getByRole('link', { name: /Pengiriman/i })).toHaveAttribute('href', '/dashboard/shipments');
+  });
+
+  it('provides auth context to nested role guards', async () => {
+    render(
+      <DashboardLayout>
+        <RequireRole allow={['ADMIN']}>
+          <div>Admin-only child</div>
+        </RequireRole>
+      </DashboardLayout>,
+    );
+
+    expect(await screen.findByText('Admin-only child')).toBeInTheDocument();
+    expect(screen.queryByText(/access denied/i)).not.toBeInTheDocument();
   });
 
   it('marks nested dashboard links active', async () => {

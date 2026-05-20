@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-config';
-import { EntityId, Harvest, UpdateHarvestStatusRequest } from '@/types';
+import { EntityId, Harvest, HarvestStatus, UpdateHarvestStatusRequest } from '@/types';
 
 interface HarvestFilters {
   harvesterName?: string;
@@ -16,11 +16,22 @@ interface CreateHarvestData {
   files: FileList | File[];
 }
 
+const toArray = <T,>(value: unknown): T[] => {
+  if (Array.isArray(value)) return value as T[];
+  if (value && typeof value === 'object') {
+    const record = value as { data?: unknown; content?: unknown };
+    if (Array.isArray(record.data)) return record.data as T[];
+    if (Array.isArray(record.content)) return record.content as T[];
+  }
+  return [];
+};
+
 const appendFilters = (url: string, filters?: HarvestFilters): string => {
   const params = new URLSearchParams();
   if (filters?.harvesterName) params.set('harvesterName', filters.harvesterName);
   if (filters?.startDate) params.set('startDate', filters.startDate);
   if (filters?.endDate) params.set('endDate', filters.endDate);
+  if (filters?.status) params.set('status', filters.status);
   const query = params.toString();
   return query ? `${url}?${query}` : url;
 };
@@ -56,11 +67,12 @@ export const harvestService = {
    */
   async create(data: CreateHarvestData): Promise<{ message: string; id: string }> {
     const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
-
+    console.log('token from localStorage:', token);
+    console.log('authorization header:', token ? `Bearer ${token}` : 'NO TOKEN');
     const requestBlob = new Blob(
       [JSON.stringify({
         plantationId: data.plantationId,
-        weightKg: data.weight,
+        weight: data.weight,
         news: data.news ?? '',
       })],
       { type: 'application/json' }
