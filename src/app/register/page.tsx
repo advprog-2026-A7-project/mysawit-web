@@ -1,135 +1,216 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { FormEvent, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { authService } from '@/services/auth.service';
+
+const roles: UserRole[] = ['BURUH', 'MANDOR', 'SUPIR', 'ADMIN'];
+const roleLabels: Record<UserRole, string> = {
+  BURUH: 'Pekerja Panen',
+  MANDOR: 'Mandor',
+  SUPIR: 'Supir',
+  ADMIN: 'Admin',
+};
+const fieldClassName = 'ms-input';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [isGoogleMode, setIsGoogleMode] = useState(false);
+
+  // Shared fields
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [role, setRole] = useState<RegistrableRole>('BURUH');
+  const [certificationNumber, setCertificationNumber] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: FormEvent) => {
+  const isGoogleFormValid =
+    username.trim().length >= 3 &&
+    (role !== 'MANDOR' || certificationNumber.trim().length > 0);
+
+  const resetForm = () => {
+    setUsername('');
+    setRole('BURUH');
+    setCertificationNumber('');
+    setMandorId('');
+    setKebunId('');
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setError('');
+  };
+
+  const handleEmailSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError('Konfirmasi password belum sama');
       return;
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('Password minimal 6 karakter');
       return;
     }
 
     setLoading(true);
 
     try {
-      await authService.register({ username, email, password });
+      await authService.register({
+        username,
+        email,
+        password,
+        role,
+        certificationNumber: certificationNumber || undefined,
+        mandorId: undefined,
+        kebunId: undefined,
+      });
       router.push('/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed');
+      setError(err instanceof Error ? err.message : 'Gagal membuat akun');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    if (!credentialResponse.credential) {
+      setError('Google sign-up failed: no credential received');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+
+    try {
+      await authService.googleLogin({
+        idToken: credentialResponse.credential,
+        username,
+        role,
+        ...(role === 'MANDOR' ? { certificationNumber } : {}),
+      });
+      router.push('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google registration failed');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100 px-4">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-green-800">Create Account</h1>
-          <p className="text-gray-600 mt-2">Register for MySawit</p>
+    <div className="auth-shell">
+      <section className="w-full max-w-lg">
+        <div className="auth-panel w-full p-6 md:p-8">
+          <div className="mb-6 text-center">
+            <Link href="/" className="page-eyebrow inline-flex hover:text-green-300">
+              MySawit
+            </Link>
+            <h1 className="mt-3 text-3xl font-bold text-white">Daftar Akun</h1>
+            <p className="text-slate-400 mt-2">Buat akses untuk operasional kebun</p>
+          </div>
+
+          {error && (
+            <div className="alert-error mb-4">
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="label-sm">Nama Pengguna</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className={fieldClassName}
+                placeholder="contoh: budi.mandor"
+                required
+                minLength={3}
+              />
+            </div>
+
+            <div>
+              <label className="label-sm">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={fieldClassName}
+                placeholder="nama@email.com"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="label-sm">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={fieldClassName}
+                placeholder="Minimal 6 karakter"
+                required
+                minLength={6}
+              />
+            </div>
+
+            <div>
+              <label className="label-sm">Konfirmasi Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className={fieldClassName}
+                placeholder="Ulangi password"
+                required
+                minLength={6}
+              />
+            </div>
+
+            <div>
+              <label className="label-sm">Daftar Sebagai</label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as UserRole)}
+                className={fieldClassName}
+              >
+                {roles.map((item) => (
+                  <option key={item} value={item}>
+                    {roleLabels[item]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {(role === 'MANDOR' || role === 'SUPIR') && (
+              <div>
+                <label className="label-sm">Nomor Sertifikasi</label>
+                <input
+                  type="text"
+                  value={certificationNumber}
+                  onChange={(e) => setCertificationNumber(e.target.value)}
+                  className={fieldClassName}
+                  placeholder="Opsional"
+                />
+              </div>
+            )}
+
+            <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-3">
+              {loading ? 'Membuat akun...' : 'Daftar'}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-slate-400">
+            Sudah punya akun?{' '}
+            <Link href="/login" className="text-green-300 hover:text-green-200 font-semibold">
+              Masuk
+            </Link>
+          </div>
         </div>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Username
-            </label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              placeholder="Choose a username"
-              required
-              minLength={3}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              placeholder="Enter your email"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              placeholder="Create a password"
-              required
-              minLength={6}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              placeholder="Confirm your password"
-              required
-              minLength={6}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Creating Account...' : 'Register'}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center text-sm text-gray-600">
-          Already have an account?{' '}
-          <Link href="/login" className="text-green-600 hover:text-green-700 font-semibold">
-            Login here
-          </Link>
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

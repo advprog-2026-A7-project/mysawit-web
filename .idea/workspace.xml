@@ -1,10 +1,96 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="f0bd431f-481d-4ccb-bd65-859f74781dfe" name="Changes" comment="fix issue">
+    <list default="true" id="f0bd431f-481d-4ccb-bd65-859f74781dfe" name="Changes" comment="Merge branch 'staging' of https://github.com/advprog-2026-A7-project/mysawit-web into feat/Nadia&#10;&#10;# Conflicts:&#10;#&#9;.idea/workspace.xml">
+      <change afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.github/workflows/cd-dummy.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/public/mysawit-hero.jpg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/public/mysawit-hero.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/api/dev/shipment-token/route.test.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/api/dev/shipment-token/route.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/api/gateway/[service]/[...path]/route.test.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/api/gateway/[service]/[...path]/route.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/admin/layout.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/admin/layout.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/admin/users/[userId]/page.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/admin/users/[userId]/page.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/admin/users/page.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/admin/users/page.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/harvests/layout.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/harvests/layout.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/harvests/page.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/identity/layout.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/identity/layout.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/identity/page.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/identity/page.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/layout.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/layout.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/page.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/payroll/layout.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/payroll/layout.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/payroll/page.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/plantations/layout.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/plantations/layout.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/plantations/page.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/settings/page.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/settings/page.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/shipments/layout.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/shipments/layout.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/dashboard/shipments/page.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/layout.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/login/page.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/providers.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/providers.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/app/register/page.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/components/RequireRole.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/components/RequireRole.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/components/RequireServiceOnline.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/components/RequireServiceOnline.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/contexts/auth-context.node.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/contexts/auth-context.test.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/contexts/auth-context.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/lib/api-client.browser.test.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/lib/api-client.node.test.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/lib/api-config.test.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/lib/rbac.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/services/admin.service.test.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/services/admin.service.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/services/auth.service.node.test.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/services/auth.service.test.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/services/harvest.service.node.test.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/services/harvest.service.test.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/services/identity.service.test.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/services/identity.service.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/services/payroll.service.test.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/services/plantation.service.test.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/services/shipment.service.test.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.github/workflows/ci.yml" beforeDir="false" afterPath="$PROJECT_DIR$/.github/workflows/ci.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/jest.config.mjs" beforeDir="false" afterPath="$PROJECT_DIR$/jest.config.mjs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pnpm-lock.yaml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/dashboard/harvests/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/harvests/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/payroll/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/payroll/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/plantations/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/plantations/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/shipments/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/globals.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/globals.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/login/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/login/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/page.test.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/page.test.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/register/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/register/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/api-client.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/api-client.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/api-config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/api-config.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/auth.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/auth.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/harvest.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/harvest.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/payroll.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/payroll.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/plantation.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/plantation.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/shipment.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/shipment.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/types/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/types/index.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -34,25 +120,26 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;feat/Nadia&quot;,
-    &quot;js.debugger.nextJs.config.created.client&quot;: &quot;true&quot;,
-    &quot;js.debugger.nextJs.config.created.server&quot;: &quot;true&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/nadiaaisyah/Desktop/ADPRO/ProjectAkhir/mysawit-web&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;ts.external.directory.path&quot;: &quot;/Users/nadiaaisyah/Desktop/ADPRO/ProjectAkhir/mysawit-web/node_modules/typescript/lib&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "git-widget-placeholder": "Merging feat/Nadia",
+    "js.debugger.nextJs.config.created.client": "true",
+    "js.debugger.nextJs.config.created.server": "true",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/Users/Shandy/Documents/Kuliah/Semester 4/ADPRO/TK/group-project/mysawit-web",
+    "node.js.detected.package.eslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "npm.Next.js: server-side.executor": "Run",
+    "ts.external.directory.path": "/Users/nadiaaisyah/Desktop/ADPRO/ProjectAkhir/mysawit-web/node_modules/typescript/lib",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RunManager" selected="npm.Next.js: server-side">
     <configuration name="Next.js: debug client-side" type="JavascriptDebugType" uri="http://localhost:3000/">
       <method v="2" />
@@ -86,9 +173,18 @@
       <workItem from="1771342520496" duration="1818000" />
       <workItem from="1771345758811" duration="14000" />
       <workItem from="1771345783690" duration="8108000" />
-      <workItem from="1771438301655" duration="562000" />
-      <workItem from="1778241641144" duration="4079000" />
-      <workItem from="1779194018444" duration="5882000" />
+      <workItem from="1771438301655" duration="9277000" />
+      <workItem from="1772462499663" duration="1813000" />
+      <workItem from="1772712789256" duration="1218000" />
+      <workItem from="1773028873936" duration="597000" />
+      <workItem from="1773044630396" duration="598000" />
+      <workItem from="1777636311736" duration="10666000" />
+      <workItem from="1778199553113" duration="150000" />
+      <workItem from="1778199760442" duration="658000" />
+      <workItem from="1778512556543" duration="601000" />
+      <workItem from="1778555984135" duration="598000" />
+      <workItem from="1778849414852" duration="228000" />
+      <workItem from="1778849674235" duration="10275000" />
     </task>
     <task id="LOCAL-00001" summary="fix issue">
       <option name="closed" value="true" />

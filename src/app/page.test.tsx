@@ -1,24 +1,36 @@
-import { render, screen } from "@testing-library/react";
-import Home from "./page";
+import { render, screen } from '@testing-library/react';
+import Home from './page';
 
-describe("Home page", () => {
-  it("renders the starter heading", () => {
+jest.mock('next/link', () => ({
+  __esModule: true,
+  default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
+}));
+
+describe('Home page', () => {
+  it('renders main heading and subtitle', () => {
     render(<Home />);
 
-    expect(
-      screen.getByRole("heading", {
-        name: /to get started, edit the page\.tsx file\./i,
-      }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /manajemen kebun sawit modern/i })).toBeInTheDocument();
+    expect(screen.getByText(/platform terintegrasi/i)).toBeInTheDocument();
   });
 
-  it("renders the documentation link", () => {
+  it('renders login and register links', () => {
     render(<Home />);
 
-    expect(
-      screen.getByRole("link", {
-        name: /documentation/i,
-      }),
-    ).toHaveAttribute("href", expect.stringContaining("nextjs.org/docs"));
+    expect(screen.getByRole('link', { name: /masuk ke dashboard/i })).toHaveAttribute('href', '/login');
+    expect(screen.getByRole('link', { name: /daftar akun baru/i })).toHaveAttribute('href', '/register');
+  });
+
+  it('does not render decorative role, version, or module badges', () => {
+    render(<Home />);
+
+    expect(screen.queryByText(/mysawit platform v2\.0/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^BURUH$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Plantations$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Harvest$/i)).not.toBeInTheDocument();
   });
 });

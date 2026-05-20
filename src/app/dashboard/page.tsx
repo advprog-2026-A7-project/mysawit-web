@@ -1,135 +1,154 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { authService } from '@/services/auth.service';
+import { harvestService } from '@/services/harvest.service';
+import { shipmentService } from '@/services/shipment.service';
+import { plantationService } from '@/services/plantation.service';
+import { identityService } from '@/services/identity.service';
+import {
+  ArrowUpRight,
+  Map,
+  RefreshCw,
+  Truck,
+  Users,
+  Wheat,
+} from 'lucide-react';
+
+interface DashboardStats {
+  users: number;
+  plantations: number;
+  harvests: number;
+  shipments: number;
+}
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const [userInfo, setUserInfo] = useState({ username: '', role: '' });
+  const userInfo = authService.getUserInfo();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  const loadStats = useCallback(async () => {
+    setLoadingStats(true);
+    try {
+      const [users, plantations, harvests, shipments] = await Promise.allSettled([
+        identityService.listUsers(),
+        plantationService.getAll(),
+        harvestService.getAll(),
+        shipmentService.getAll(),
+      ]);
+      setStats({
+        users:       users.status === 'fulfilled' ? users.value.length : 0,
+        plantations: plantations.status === 'fulfilled' ? plantations.value.length : 0,
+        harvests:    harvests.status === 'fulfilled' ? harvests.value.length : 0,
+        shipments:   shipments.status === 'fulfilled' ? shipments.value.length : 0,
+      });
+    } finally {
+      setLoadingStats(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
+    void loadStats();
+  }, [loadStats]);
 
-    const info = authService.getUserInfo();
-    if (info) {
-      setUserInfo({
-        username: info.username || '',
-        role: info.role || '',
-      });
-    }
-  }, [router]);
-
-  const handleLogout = () => {
-    authService.logout();
-    router.push('/');
+  const greeting = () => {
+    const h = new Date().getHours();
+    if (h < 11) return 'Selamat Pagi';
+    if (h < 15) return 'Selamat Siang';
+    if (h < 18) return 'Selamat Sore';
+    return 'Selamat Malam';
   };
 
-  if (!authService.isAuthenticated()) {
-    return null;
-  }
+  const statCards = useMemo(() => [
+    { label: 'Anggota Tim', value: stats?.users, Icon: Users, iconBg: 'bg-cyan-500/15 text-cyan-300' },
+    { label: 'Kebun Terdaftar', value: stats?.plantations, Icon: Map, iconBg: 'bg-green-500/15 text-green-300' },
+    { label: 'Catatan Panen', value: stats?.harvests, Icon: Wheat, iconBg: 'bg-amber-500/15 text-amber-300' },
+    { label: 'Pengiriman', value: stats?.shipments, Icon: Truck, iconBg: 'bg-orange-500/15 text-orange-300' },
+  ], [stats]);
+
+  const quickActions = [
+    { href: '/dashboard/plantations', Icon: Map, title: 'Kelola Kebun', desc: 'Data lokasi, luas, koordinator, dan supir kebun.', iconBg: 'bg-green-500/15 text-green-300' },
+    { href: '/dashboard/harvests', Icon: Wheat, title: 'Catat Panen', desc: 'Input hasil panen dan validasi status pekerjaan.', iconBg: 'bg-amber-500/15 text-amber-300' },
+    { href: '/dashboard/shipments', Icon: Truck, title: 'Pantau Pengiriman', desc: 'Ikuti muatan TBS dari kebun sampai tujuan.', iconBg: 'bg-orange-500/15 text-orange-300' },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-green-800">MySawit Dashboard</h1>
-            <p className="text-sm text-gray-600">Welcome, {userInfo.username}</p>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          >
-            Logout
-          </button>
+    <div className="page-shell space-y-6">
+      <div className="flex flex-wrap gap-4 items-start justify-between">
+        <div>
+          <p className="page-eyebrow">{greeting()},</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-white mt-1">
+            {userInfo?.username || 'Pengguna'}
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
         </div>
-      </header>
+        <button
+          onClick={() => { void loadStats(); }}
+          className="btn-ghost text-sm"
+        >
+          <RefreshCw size={15} aria-hidden="true" />
+          Perbarui Data
+        </button>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Plantations Module */}
-          <Link
-            href="/dashboard/plantations"
-            className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
-          >
-            <div className="text-5xl mb-4">🌴</div>
-            <h2 className="text-xl font-semibold text-green-800 mb-2">Plantations</h2>
-            <p className="text-gray-600 text-sm">
-              Manage palm oil plantations, track areas, and monitor ownership
-            </p>
-          </Link>
-
-          {/* Harvest Module */}
-          <Link
-            href="/dashboard/harvests"
-            className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
-          >
-            <div className="text-5xl mb-4">🌾</div>
-            <h2 className="text-xl font-semibold text-green-800 mb-2">Harvests</h2>
-            <p className="text-gray-600 text-sm">
-              Track harvest records, quality, and production metrics
-            </p>
-          </Link>
-
-          {/* Shipment Module */}
-          <Link
-            href="/dashboard/shipments"
-            className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
-          >
-            <div className="text-5xl mb-4">🚚</div>
-            <h2 className="text-xl font-semibold text-green-800 mb-2">Shipments</h2>
-            <p className="text-gray-600 text-sm">
-              Monitor shipment status, tracking, and delivery schedules
-            </p>
-          </Link>
-
-          {/* Payroll Module */}
-          <Link
-            href="/dashboard/payroll"
-            className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
-          >
-            <div className="text-5xl mb-4">💰</div>
-            <h2 className="text-xl font-semibold text-green-800 mb-2">Payroll</h2>
-            <p className="text-gray-600 text-sm">
-              Manage employee payroll, salaries, and payment records
-            </p>
-          </Link>
+      <div className="surface-panel p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div>
+          <p className="font-semibold text-white">Ringkasan operasional kebun</p>
+          <p className="text-sm text-slate-500 mt-1">Pantau kebun, panen, dan pengiriman dari satu tempat.</p>
         </div>
-
-        {/* Quick Stats */}
-        <div className="mt-8 bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">System Status</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">●</div>
-              <div className="text-sm text-gray-600">Identity Service</div>
-              <div className="text-xs text-green-600">Online</div>
-            </div>
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">●</div>
-              <div className="text-sm text-gray-600">Plantation Service</div>
-              <div className="text-xs text-green-600">Online</div>
-            </div>
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">●</div>
-              <div className="text-sm text-gray-600">Harvest Service</div>
-              <div className="text-xs text-green-600">Online</div>
-            </div>
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">●</div>
-              <div className="text-sm text-gray-600">Shipment Service</div>
-              <div className="text-xs text-green-600">Online</div>
-            </div>
-          </div>
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <span className="w-2 h-2 rounded-full bg-green-500" />
+          Data siap diperbarui kapan saja
         </div>
-      </main>
+      </div>
+
+      <div>
+        <h2 className="section-title mb-4">
+          <span className="w-1 h-5 rounded-full bg-green-500 inline-block" />
+          Ringkasan Data
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-children">
+          {statCards.map(card => (
+            <div key={card.label} className="stat-card">
+              <div className={`w-9 h-9 rounded-lg ${card.iconBg} flex items-center justify-center mb-3`}>
+                <card.Icon size={18} aria-hidden="true" />
+              </div>
+              {loadingStats ? (
+                <div className="skeleton h-7 w-12 mb-1" />
+              ) : (
+                <p className="text-2xl font-bold text-white">{card.value ?? 0}</p>
+              )}
+              <p className="text-xs text-slate-500 font-medium mt-1">{card.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h2 className="section-title mb-4">
+          <span className="w-1 h-5 rounded-full bg-green-500 inline-block" />
+          Pekerjaan Utama
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 stagger-children">
+          {quickActions.map(item => (
+            <Link key={item.href} href={item.href}
+              className="glass-card p-5 group cursor-pointer hover:border-green-500/25 transition-colors">
+              <div className={`w-10 h-10 rounded-lg ${item.iconBg} flex items-center justify-center mb-3`}>
+                <item.Icon size={19} aria-hidden="true" />
+              </div>
+              <p className="font-semibold text-white text-[15px] mb-1">{item.title}</p>
+              <p className="text-xs text-slate-500 leading-relaxed">{item.desc}</p>
+              <p className="mt-3 text-xs text-green-500 font-medium flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                Buka
+                <ArrowUpRight size={12} aria-hidden="true" />
+              </p>
+            </Link>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

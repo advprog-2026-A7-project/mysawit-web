@@ -1,0 +1,45 @@
+name: Dummy CD (Guarded)
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      simulated_quality_result:
+        description: Simulate CI quality result for this dummy CD
+        required: true
+        default: pass
+        type: choice
+        options:
+          - pass
+          - fail
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate quality gate from CI workflow result
+        if: ${{ github.event_name == 'workflow_run' }}
+        run: |
+          echo "CI workflow conclusion: ${{ github.event.workflow_run.conclusion }}"
+          if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
+            echo "Quality checks are not passed. Blocking CD."
+            exit 1
+          fi
+
+      - name: Validate quality gate from manual simulation
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          echo "Simulated quality result: ${{ inputs.simulated_quality_result }}"
+          if [ "${{ inputs.simulated_quality_result }}" != "pass" ]; then
+            echo "Simulated quality gate failed. Blocking CD."
+            exit 1
+          fi
+
+  dummy-deploy:
+    runs-on: ubuntu-latest
+    needs: [quality-gate]
+    steps:
+      - name: Dummy deployment
+        run: echo "Dummy CD executed because quality gate passed."

@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-config';
-import { Employee, EmployeeRequest, Payroll, PayrollRequest, WageConfig, WageConfigRequest } from '@/types';
+import { Payroll, PayrollRequest, WageConfig, WageConfigRequest } from '@/types';
 
 const toLocalDateTime = (value: string) =>
   /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
@@ -10,41 +10,6 @@ const normalizePayrollRequest = (data: PayrollRequest): PayrollRequest => ({
   periodStart: toLocalDateTime(data.periodStart),
   periodEnd: toLocalDateTime(data.periodEnd),
 });
-
-// Employee operations
-export const employeeService = {
-  async getAll(): Promise<Employee[]> {
-    return apiClient.get(API_ENDPOINTS.EMPLOYEES.BASE);
-  },
-
-  async getById(id: number): Promise<Employee> {
-    return apiClient.get(API_ENDPOINTS.EMPLOYEES.BY_ID(id));
-  },
-
-  async getByCode(code: string): Promise<Employee> {
-    return apiClient.get(API_ENDPOINTS.EMPLOYEES.BY_CODE(code));
-  },
-
-  async getByPlantation(plantationId: number): Promise<Employee[]> {
-    return apiClient.get(API_ENDPOINTS.EMPLOYEES.BY_PLANTATION(plantationId));
-  },
-
-  async getByStatus(status: string): Promise<Employee[]> {
-    return apiClient.get(API_ENDPOINTS.EMPLOYEES.BY_STATUS(status));
-  },
-
-  async create(data: EmployeeRequest): Promise<Employee> {
-    return apiClient.post(API_ENDPOINTS.EMPLOYEES.BASE, data);
-  },
-
-  async update(id: number, data: EmployeeRequest): Promise<Employee> {
-    return apiClient.put(API_ENDPOINTS.EMPLOYEES.BY_ID(id), data);
-  },
-
-  async delete(id: number): Promise<void> {
-    return apiClient.delete(API_ENDPOINTS.EMPLOYEES.BY_ID(id));
-  },
-};
 
 // Payroll operations
 export const payrollService = {
@@ -56,8 +21,8 @@ export const payrollService = {
     return apiClient.get(API_ENDPOINTS.PAYROLLS.BY_ID(id));
   },
 
-  async getByEmployee(employeeId: number): Promise<Payroll[]> {
-    return apiClient.get(API_ENDPOINTS.PAYROLLS.BY_EMPLOYEE(employeeId));
+  async getByUser(userId: string): Promise<Payroll[]> {
+    return apiClient.get(API_ENDPOINTS.PAYROLLS.BY_USER(userId));
   },
 
   async getByStatus(status: string): Promise<Payroll[]> {
@@ -122,4 +87,5 @@ export const wageConfigService = {
   async delete(id: number): Promise<void> {
     return apiClient.delete(API_ENDPOINTS.WAGE_CONFIGS.BY_ID(id));
   },
+
 };
