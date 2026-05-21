@@ -157,7 +157,7 @@ describe('RegisterPage', () => {
     render(<RegisterPage />);
     fillRequiredFields('secret123', 'secret123');
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'MANDOR' } });
-    fireEvent.change(screen.getByPlaceholderText(/opsional/i), { target: { value: 'CERT-99' } });
+    fireEvent.change(screen.getByPlaceholderText(/cert-001/i), { target: { value: 'CERT-99' } });
     fireEvent.click(screen.getByRole('button', { name: /^daftar$/i }));
 
     await waitFor(() => {

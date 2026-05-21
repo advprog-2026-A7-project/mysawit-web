@@ -17,7 +17,8 @@ describe('RootLayout', () => {
       children: React.ReactElement;
       className: string;
     }>[];
-    const child = body.props.children as React.ReactElement<{ children: string }>;
+    const providers = body.props.children as React.ReactElement<{ children: React.ReactElement }>;
+    const child = providers.props.children as React.ReactElement<{ children: string }>;
 
     expect(element.type).toBe('html');
     expect(element.props.lang).toBe('id');

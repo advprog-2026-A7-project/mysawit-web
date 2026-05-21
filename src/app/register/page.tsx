@@ -5,13 +5,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { authService } from '@/services/auth.service';
+import type { UserRole } from '@/types';
 
-const roles: UserRole[] = ['BURUH', 'MANDOR', 'SUPIR', 'ADMIN'];
-const roleLabels: Record<UserRole, string> = {
+type RegistrableRole = Exclude<UserRole, 'ADMIN'>;
+
+const roles: RegistrableRole[] = ['BURUH', 'MANDOR', 'SUPIR'];
+const roleLabels: Record<RegistrableRole, string> = {
   BURUH: 'Pekerja Panen',
   MANDOR: 'Mandor',
   SUPIR: 'Supir',
-  ADMIN: 'Admin',
 };
 const fieldClassName = 'ms-input';
 
@@ -19,10 +21,12 @@ export default function RegisterPage() {
   const router = useRouter();
   const [isGoogleMode, setIsGoogleMode] = useState(false);
 
-  // Shared fields
   const [username, setUsername] = useState('');
   const [role, setRole] = useState<RegistrableRole>('BURUH');
   const [certificationNumber, setCertificationNumber] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -34,17 +38,25 @@ export default function RegisterPage() {
     setUsername('');
     setRole('BURUH');
     setCertificationNumber('');
-    setMandorId('');
-    setKebunId('');
     setEmail('');
     setPassword('');
     setConfirmPassword('');
     setError('');
   };
 
+  const setRegistrationMode = (nextIsGoogleMode: boolean) => {
+    resetForm();
+    setIsGoogleMode(nextIsGoogleMode);
+  };
+
   const handleEmailSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
+
+    if (role === 'MANDOR' && certificationNumber.trim().length === 0) {
+      setError('Nomor sertifikasi wajib diisi untuk Mandor');
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError('Konfirmasi password belum sama');
@@ -60,11 +72,11 @@ export default function RegisterPage() {
 
     try {
       await authService.register({
-        username,
-        email,
+        username: username.trim(),
+        email: email.trim(),
         password,
         role,
-        certificationNumber: certificationNumber || undefined,
+        certificationNumber: certificationNumber.trim() || undefined,
         mandorId: undefined,
         kebunId: undefined,
       });
@@ -82,15 +94,22 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!isGoogleFormValid) {
+      setError(role === 'MANDOR'
+        ? 'Isi username dan nomor sertifikasi Mandor terlebih dahulu'
+        : 'Username minimal 3 karakter');
+      return;
+    }
+
     setError('');
     setLoading(true);
 
     try {
       await authService.googleLogin({
         idToken: credentialResponse.credential,
-        username,
+        username: username.trim(),
         role,
-        ...(role === 'MANDOR' ? { certificationNumber } : {}),
+        ...(role === 'MANDOR' ? { certificationNumber: certificationNumber.trim() } : {}),
       });
       router.push('/dashboard');
     } catch (err) {
@@ -118,90 +137,101 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="label-sm">Nama Pengguna</label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className={fieldClassName}
-                placeholder="contoh: budi.mandor"
-                required
-                minLength={3}
+          <div className="mb-5 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              aria-label="Sign up with Email"
+              onClick={() => setRegistrationMode(false)}
+              className={`tab-button justify-center ${!isGoogleMode ? 'active' : ''}`}
+            >
+              Email
+            </button>
+            <button
+              type="button"
+              aria-label="Sign up with Google"
+              onClick={() => setRegistrationMode(true)}
+              className={`tab-button justify-center ${isGoogleMode ? 'active' : ''}`}
+            >
+              Google
+            </button>
+          </div>
+
+          {!isGoogleMode ? (
+            <form onSubmit={handleEmailSubmit} className="space-y-4">
+              <AccountFields
+                username={username}
+                role={role}
+                certificationNumber={certificationNumber}
+                onUsernameChange={setUsername}
+                onRoleChange={setRole}
+                onCertificationNumberChange={setCertificationNumber}
               />
-            </div>
 
-            <div>
-              <label className="label-sm">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={fieldClassName}
-                placeholder="nama@email.com"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="label-sm">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={fieldClassName}
-                placeholder="Minimal 6 karakter"
-                required
-                minLength={6}
-              />
-            </div>
-
-            <div>
-              <label className="label-sm">Konfirmasi Password</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className={fieldClassName}
-                placeholder="Ulangi password"
-                required
-                minLength={6}
-              />
-            </div>
-
-            <div>
-              <label className="label-sm">Daftar Sebagai</label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as UserRole)}
-                className={fieldClassName}
-              >
-                {roles.map((item) => (
-                  <option key={item} value={item}>
-                    {roleLabels[item]}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {(role === 'MANDOR' || role === 'SUPIR') && (
               <div>
-                <label className="label-sm">Nomor Sertifikasi</label>
+                <label className="label-sm">Email</label>
                 <input
-                  type="text"
-                  value={certificationNumber}
-                  onChange={(e) => setCertificationNumber(e.target.value)}
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className={fieldClassName}
-                  placeholder="Opsional"
+                  placeholder="Enter your email, contoh: nama@email.com"
+                  required
                 />
               </div>
-            )}
 
-            <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-3">
-              {loading ? 'Membuat akun...' : 'Daftar'}
-            </button>
-          </form>
+              <div>
+                <label className="label-sm">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={fieldClassName}
+                  placeholder="Minimal 6 karakter"
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              <div>
+                <label className="label-sm">Konfirmasi Password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={fieldClassName}
+                  placeholder="Ulangi password"
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-3">
+                {loading ? 'Membuat akun...' : 'Daftar'}
+              </button>
+            </form>
+          ) : (
+            <div className="space-y-4">
+              <AccountFields
+                username={username}
+                role={role}
+                certificationNumber={certificationNumber}
+                onUsernameChange={setUsername}
+                onRoleChange={setRole}
+                onCertificationNumberChange={setCertificationNumber}
+              />
+
+              <div className="flex justify-center">
+                {loading ? (
+                  <div className="text-sm text-slate-400">Creating account...</div>
+                ) : (
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={() => setError('Google authentication failed')}
+                  />
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="mt-6 text-center text-sm text-slate-400">
             Sudah punya akun?{' '}
@@ -212,5 +242,69 @@ export default function RegisterPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+interface AccountFieldsProps {
+  username: string;
+  role: RegistrableRole;
+  certificationNumber: string;
+  onUsernameChange: (value: string) => void;
+  onRoleChange: (value: RegistrableRole) => void;
+  onCertificationNumberChange: (value: string) => void;
+}
+
+function AccountFields({
+  username,
+  role,
+  certificationNumber,
+  onUsernameChange,
+  onRoleChange,
+  onCertificationNumberChange,
+}: AccountFieldsProps) {
+  return (
+    <>
+      <div>
+        <label className="label-sm">Nama Pengguna</label>
+        <input
+          type="text"
+          value={username}
+          onChange={(e) => onUsernameChange(e.target.value)}
+          className={fieldClassName}
+          placeholder="Choose a username, contoh: budi.mandor"
+          required
+          minLength={3}
+        />
+      </div>
+
+      <div>
+        <label className="label-sm">Daftar Sebagai</label>
+        <select
+          value={role}
+          onChange={(e) => onRoleChange(e.target.value as RegistrableRole)}
+          className={fieldClassName}
+        >
+          {roles.map((item) => (
+            <option key={item} value={item}>
+              {roleLabels[item]}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {role === 'MANDOR' && (
+        <div>
+          <label className="label-sm">Nomor Sertifikasi</label>
+          <input
+            type="text"
+            value={certificationNumber}
+            onChange={(e) => onCertificationNumberChange(e.target.value)}
+            className={fieldClassName}
+            placeholder="Enter certification number, contoh: CERT-001"
+            required
+          />
+        </div>
+      )}
+    </>
   );
 }

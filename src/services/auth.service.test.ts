@@ -164,7 +164,9 @@ describe('auth.service', () => {
       id: '1',
       username: 'shipment-dev',
       email: 'shipment-dev@mail.com',
-      role: 'MANDOR',
+      role: 'MANDOR' as const,
+      googleLinked: false,
+      hasPassword: true,
     };
 
     authService.saveAuth(response);
