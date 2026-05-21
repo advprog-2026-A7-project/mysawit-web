@@ -62,7 +62,7 @@ describe('LoginPage', () => {
   });
 
   it('submits credentials and redirects on success', async () => {
-    (authService.login as jest.Mock).mockResolvedValue(undefined);
+    (authService.login as jest.Mock).mockResolvedValue({ role: 'ADMIN' });
 
     render(<LoginPage />);
 
@@ -80,13 +80,15 @@ describe('LoginPage', () => {
     });
 
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith('/dashboard');
+      expect(pushMock).toHaveBeenCalledWith('/admin/dashboard');
     });
   });
 
   it('shows loading text while request is pending', async () => {
-    let resolvePromise: (() => void) | undefined;
-    const pendingPromise = new Promise<void>((resolve) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let resolvePromise: ((value: any) => void) | undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pendingPromise = new Promise<any>((resolve) => {
       resolvePromise = resolve;
     });
     (authService.login as jest.Mock).mockReturnValue(pendingPromise);
@@ -104,9 +106,9 @@ describe('LoginPage', () => {
 
     expect(screen.getByRole('button', { name: /masuk\.\.\./i })).toBeDisabled();
 
-    resolvePromise?.();
+    resolvePromise?.({ role: 'ADMIN' });
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith('/dashboard');
+      expect(pushMock).toHaveBeenCalledWith('/admin/dashboard');
     });
   });
 
@@ -145,7 +147,7 @@ describe('LoginPage', () => {
   });
 
   it('Google login: redirects on success', async () => {
-    (authService.googleLogin as jest.Mock).mockResolvedValue(undefined);
+    (authService.googleLogin as jest.Mock).mockResolvedValue({ role: 'ADMIN' });
     render(<LoginPage />);
 
     await act(async () => {
@@ -156,7 +158,7 @@ describe('LoginPage', () => {
       expect(authService.googleLogin).toHaveBeenCalledWith({ idToken: 'fake-google-token' });
     });
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith('/dashboard');
+      expect(pushMock).toHaveBeenCalledWith('/admin/dashboard');
     });
   });
 

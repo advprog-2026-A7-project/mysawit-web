@@ -38,12 +38,11 @@ describe('harvest.service', () => {
 
     await harvestService.getAll({
       harvesterName: 'Budi',
-      startDate: '2026-01-01',
-      endDate: '2026-01-31',
+      date: '2026-01-01',
     });
 
     expect(apiClient.get).toHaveBeenCalledWith(
-      `${API_ENDPOINTS.HARVESTS.BASE}?harvesterName=Budi&startDate=2026-01-01&endDate=2026-01-31`
+      `${API_ENDPOINTS.HARVESTS.BASE}?harvesterName=Budi&date=2026-01-01`
     );
   });
 
@@ -157,9 +156,9 @@ describe('harvest.service', () => {
 
   it('getMine appends query parameters when filters are provided', async () => {
     (apiClient.get as jest.Mock).mockResolvedValue([]);
-    await harvestService.getMine({ startDate: '2026-01-01', endDate: '2026-01-31' });
+    await harvestService.getMine({ date: '2026-01-01' });
     expect(apiClient.get).toHaveBeenCalledWith(
-      `${API_ENDPOINTS.HARVESTS.MY}?startDate=2026-01-01&endDate=2026-01-31`
+      `${API_ENDPOINTS.HARVESTS.MY}?date=2026-01-01`
     );
   });
 
@@ -225,12 +224,11 @@ describe('harvest.service', () => {
       (apiClient.get as jest.Mock).mockResolvedValue([]);
       await harvestService.getAll({
         harvesterName: 'budi',
-        startDate: '2026-01-01',
-        endDate: '2026-01-31',
+        date: '2026-01-01',
         status: 'PENDING',
       });
       expect(apiClient.get).toHaveBeenCalledWith(
-        `${API_ENDPOINTS.HARVESTS.BASE}?harvesterName=budi&startDate=2026-01-01&endDate=2026-01-31&status=PENDING`,
+        `${API_ENDPOINTS.HARVESTS.BASE}?harvesterName=budi&date=2026-01-01&status=PENDING`,
       );
     });
   });

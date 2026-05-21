@@ -80,6 +80,9 @@ body {
   max-width: 1180px;
   margin: 0 auto;
   padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .page-heading {
@@ -108,9 +111,11 @@ body {
 
 .empty-state {
   background: var(--bg-card) !important;
-  border: 1px dashed rgba(148, 163, 184, 0.26) !important;
+  border: 1px dashed rgba(148, 163, 184, 0.15) !important;
   border-radius: 8px !important;
   color: var(--text-secondary);
+  padding: 40px 24px;
+  text-align: center;
 }
 
 .tab-bar {

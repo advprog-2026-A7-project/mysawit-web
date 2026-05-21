@@ -13,14 +13,33 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const handleRedirect = (role: string) => {
+    switch (role) {
+      case 'ADMIN':
+        router.push('/admin/dashboard');
+        break;
+      case 'MANDOR':
+        router.push('/mandor/plantations');
+        break;
+      case 'BURUH':
+        router.push('/harvest');
+        break;
+      case 'SUPIR':
+        router.push('/shipment/active');
+        break;
+      default:
+        router.push('/login');
+    }
+  };
+
   const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      await authService.login({ email, password });
-      router.push('/dashboard');
+      const response = await authService.login({ email, password });
+      handleRedirect(response.role);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal masuk');
     } finally {
@@ -38,8 +57,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await authService.googleLogin({ idToken: credentialResponse.credential });
-      router.push('/dashboard');
+      const response = await authService.googleLogin({ idToken: credentialResponse.credential });
+      handleRedirect(response.role);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Google login failed';
       if (message.toLowerCase().includes('already registered') || message.toLowerCase().includes('conflict')) {
@@ -50,6 +69,10 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleError = () => {
+    setError('Google login failed');
   };
 
   return (
@@ -104,6 +127,23 @@ export default function LoginPage() {
             <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-3">
               {loading ? 'Masuk...' : 'Masuk'}
             </button>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-700"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-[#121418] px-2 text-slate-500">Atau masuk dengan</span>
+              </div>
+            </div>
+
+            <div className="flex justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                useOneTap={false}
+              />
+            </div>
           </form>
 
           <div className="mt-6 text-center text-sm text-slate-400">

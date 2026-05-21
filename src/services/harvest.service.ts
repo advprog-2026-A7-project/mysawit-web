@@ -4,8 +4,7 @@ import { EntityId, Harvest, HarvestStatus, UpdateHarvestStatusRequest } from '@/
 
 interface HarvestFilters {
   harvesterName?: string;
-  startDate?: string;
-  endDate?: string;
+  date?: string;
   status?: HarvestStatus;
 }
 
@@ -19,9 +18,10 @@ interface CreateHarvestData {
 const toArray = <T,>(value: unknown): T[] => {
   if (Array.isArray(value)) return value as T[];
   if (value && typeof value === 'object') {
-    const record = value as { data?: unknown; content?: unknown };
+    const record = value as { data?: unknown; content?: unknown; items?: unknown };
     if (Array.isArray(record.data)) return record.data as T[];
     if (Array.isArray(record.content)) return record.content as T[];
+    if (Array.isArray(record.items)) return record.items as T[];
   }
   return [];
 };
@@ -29,8 +29,7 @@ const toArray = <T,>(value: unknown): T[] => {
 const appendFilters = (url: string, filters?: HarvestFilters): string => {
   const params = new URLSearchParams();
   if (filters?.harvesterName) params.set('harvesterName', filters.harvesterName);
-  if (filters?.startDate) params.set('startDate', filters.startDate);
-  if (filters?.endDate) params.set('endDate', filters.endDate);
+  if (filters?.date) params.set('date', filters.date);
   if (filters?.status) params.set('status', filters.status);
   const query = params.toString();
   return query ? `${url}?${query}` : url;

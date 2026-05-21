@@ -1,10 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="f0bd431f-481d-4ccb-bd65-859f74781dfe" name="Changes" comment="feat(web): improve registration, harvest, and payroll flows">
-      <change beforePath="$PROJECT_DIR$/src/app/dashboard/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/layout.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/dashboard/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/shipments/page.tsx" afterDir="false" />
+    <list default="true" id="f0bd431f-481d-4ccb-bd65-859f74781dfe" name="Changes" comment="feat(web): improve paging on shipment">
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/admin/layout.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/admin/layout.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/admin/users/[userId]/page.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/admin/users/[userId]/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/admin/users/page.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/admin/users/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/harvests/layout.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/harvests/layout.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/harvests/page.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/harvests/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/identity/layout.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/identity/layout.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/identity/page.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/identity/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/layout.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/layout.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/page.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/payroll/layout.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/payroll/layout.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/payroll/page.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/payroll/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/plantations/layout.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/plantations/layout.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/plantations/page.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/plantations/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/settings/page.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/settings/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/layout.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/layout.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/page.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/utils.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/views/AdminShipmentView.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/views/MandorShipmentView.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/views/SupirShipmentView.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/globals.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/globals.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/login/page.test.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/login/page.test.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/login/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/login/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/harvest.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/harvest.service.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -128,7 +165,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779289277383</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="feat(web): improve paging on shipment">
+      <option name="closed" value="true" />
+      <created>1779301524502</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1779301524502</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -137,6 +182,7 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="fix issue" />
     <MESSAGE value="feat(web): improve registration, harvest, and payroll flows" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat(web): improve registration, harvest, and payroll flows" />
+    <MESSAGE value="feat(web): improve paging on shipment" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat(web): improve paging on shipment" />
   </component>
 </project>
