@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { authService } from '@/services/auth.service';
 
 export default function LoginPage() {
@@ -12,82 +13,147 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const handleRedirect = (role: string) => {
+    switch (role) {
+      case 'ADMIN':
+        router.push('/admin/dashboard');
+        break;
+      case 'MANDOR':
+        router.push('/mandor/plantations');
+        break;
+      case 'BURUH':
+        router.push('/harvest');
+        break;
+      case 'SUPIR':
+        router.push('/shipment/active');
+        break;
+      default:
+        router.push('/login');
+    }
+  };
+
   const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      await authService.login({ email, password });
-      router.push('/dashboard');
+      const response = await authService.login({ email, password });
+      handleRedirect(response.role);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : 'Gagal masuk');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    if (!credentialResponse.credential) {
+      setError('Google login failed: no credential received');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await authService.googleLogin({ idToken: credentialResponse.credential });
+      handleRedirect(response.role);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Google login failed';
+      if (message.toLowerCase().includes('already registered') || message.toLowerCase().includes('conflict')) {
+        setError('This email is already registered with a password. Please log in with your email and password, then link your Google account from Settings.');
+      } else {
+        setError(message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError('Google login failed');
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100 px-4">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-green-800">Welcome Back</h1>
-          <p className="text-gray-600 mt-2">Login to MySawit</p>
+    <div className="auth-shell">
+      <section className="w-full max-w-md">
+        <div className="auth-panel w-full p-8">
+          <div className="mb-8 text-center">
+            <Link href="/" className="page-eyebrow inline-flex hover:text-green-300">
+              MySawit
+            </Link>
+            <h1 className="mt-3 text-3xl font-bold text-white">Masuk</h1>
+            <p className="text-slate-400 mt-2">Lanjutkan pekerjaan operasional kebun</p>
+          </div>
+
+          {error && (
+            <div className="alert-error mb-4">
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label htmlFor="email" className="label-sm">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="ms-input"
+                placeholder="nama@email.com"
+                required
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="label-sm">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="ms-input"
+                placeholder="Password"
+                required
+              />
+            </div>
+
+            <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-3">
+              {loading ? 'Masuk...' : 'Masuk'}
+            </button>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-700"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-[#121418] px-2 text-slate-500">Atau masuk dengan</span>
+              </div>
+            </div>
+
+            <div className="flex justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                useOneTap={false}
+              />
+            </div>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-slate-400">
+            Belum punya akun?{' '}
+            <Link href="/register" className="text-green-300 hover:text-green-200 font-semibold">
+              Daftar
+            </Link>
+          </div>
         </div>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              placeholder="Enter your email"
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              placeholder="Enter your password"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center text-sm text-gray-600">
-          Don&apos;t have an account?{' '}
-          <Link href="/register" className="text-green-600 hover:text-green-700 font-semibold">
-            Register here
-          </Link>
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

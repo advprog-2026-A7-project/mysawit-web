@@ -1,12 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="f0bd431f-481d-4ccb-bd65-859f74781dfe" name="Changes" comment="fix issue">
-      <change beforePath="$PROJECT_DIR$/jest.config.mjs" beforeDir="false" afterPath="$PROJECT_DIR$/jest.config.mjs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/dashboard/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/page.test.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/page.test.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/api-config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/api-config.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/types/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/types/index.ts" afterDir="false" />
+    <list default="true" id="f0bd431f-481d-4ccb-bd65-859f74781dfe" name="Changes" comment="feat(web): improve paging on shipment">
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/admin/layout.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/admin/layout.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/admin/users/[userId]/page.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/admin/users/[userId]/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/admin/users/page.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/admin/users/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/harvests/layout.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/harvests/layout.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/harvests/page.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/harvests/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/identity/layout.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/identity/layout.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/identity/page.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/identity/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/layout.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/layout.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/page.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/payroll/layout.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/payroll/layout.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/payroll/page.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/payroll/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/plantations/layout.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/plantations/layout.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/plantations/page.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/plantations/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/settings/page.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/settings/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/layout.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/layout.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/page.test.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/page.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/utils.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/views/AdminShipmentView.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/views/MandorShipmentView.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/shipments/views/SupirShipmentView.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/globals.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/globals.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/login/page.test.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/login/page.test.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/login/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/login/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/services/harvest.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/services/harvest.service.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -28,6 +63,10 @@
     &quot;accountId&quot;: &quot;f1c36d2e-75f7-49e7-8ec0-e3e2329da6d2&quot;
   }
 }</component>
+  <component name="KubernetesApiPersistence"><![CDATA[{}]]></component>
+  <component name="KubernetesApiProvider"><![CDATA[{
+  "isMigrated": true
+}]]></component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 0
 }</component>
@@ -43,18 +82,20 @@
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "git-widget-placeholder": "staging",
+    "git-widget-placeholder": "feat/Shandy",
     "js.debugger.nextJs.config.created.client": "true",
     "js.debugger.nextJs.config.created.server": "true",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "/Users/Shandy/Documents/Kuliah/Semester 4/ADPRO/TK/group-project/mysawit-web",
+    "node.js.detected.package.eslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
     "npm.Next.js: server-side.executor": "Run",
     "ts.external.directory.path": "/Users/Shandy/Library/Application Support/JetBrains/IntelliJIdea2025.3/plugins/javascript-plugin/jsLanguageServicesImpl/external",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
-  <component name="RunManager" selected="npm.Next.js: server-side">
+  <component name="RunManager" selected="JavaScript Debug.Next.js: debug client-side">
     <configuration name="Next.js: debug client-side" type="JavascriptDebugType" uri="http://localhost:3000/">
       <method v="2" />
     </configuration>
@@ -87,7 +128,18 @@
       <workItem from="1771342520496" duration="1818000" />
       <workItem from="1771345758811" duration="14000" />
       <workItem from="1771345783690" duration="8108000" />
-      <workItem from="1771438301655" duration="8429000" />
+      <workItem from="1771438301655" duration="9277000" />
+      <workItem from="1772462499663" duration="1813000" />
+      <workItem from="1772712789256" duration="1218000" />
+      <workItem from="1773028873936" duration="597000" />
+      <workItem from="1773044630396" duration="598000" />
+      <workItem from="1777636311736" duration="10666000" />
+      <workItem from="1778199553113" duration="150000" />
+      <workItem from="1778199760442" duration="658000" />
+      <workItem from="1778512556543" duration="601000" />
+      <workItem from="1778555984135" duration="598000" />
+      <workItem from="1778849414852" duration="228000" />
+      <workItem from="1778849674235" duration="10275000" />
     </task>
     <task id="LOCAL-00001" summary="fix issue">
       <option name="closed" value="true" />
@@ -105,7 +157,23 @@
       <option name="project" value="LOCAL" />
       <updated>1771349244743</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="feat(web): improve registration, harvest, and payroll flows">
+      <option name="closed" value="true" />
+      <created>1779289277383</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1779289277383</updated>
+    </task>
+    <task id="LOCAL-00004" summary="feat(web): improve paging on shipment">
+      <option name="closed" value="true" />
+      <created>1779301524502</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1779301524502</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -113,6 +181,8 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="fix issue" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix issue" />
+    <MESSAGE value="feat(web): improve registration, harvest, and payroll flows" />
+    <MESSAGE value="feat(web): improve paging on shipment" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat(web): improve paging on shipment" />
   </component>
 </project>

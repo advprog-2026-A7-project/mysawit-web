@@ -1,73 +1,117 @@
-// API Base URLs for all microservices
+// Browser code talks only to this Next.js API gateway. The gateway route
+// owns the real microservice base URLs on the server side.
 export const API_CONFIG = {
-  IDENTITY_SERVICE: process.env.NEXT_PUBLIC_IDENTITY_SERVICE_URL || 'http://localhost:8081',
-  PLANTATION_SERVICE: process.env.NEXT_PUBLIC_PLANTATION_SERVICE_URL || 'http://localhost:8082',
-  HARVEST_SERVICE: process.env.NEXT_PUBLIC_HARVEST_SERVICE_URL || 'http://localhost:8083',
-  SHIPMENT_SERVICE: process.env.NEXT_PUBLIC_SHIPMENT_SERVICE_URL || 'http://localhost:8084',
-  PAYROLL_SERVICE: process.env.NEXT_PUBLIC_PAYROLL_SERVICE_URL || 'http://localhost:8085',
+  GATEWAY_BASE: '/api/gateway',
 };
+
+const gatewayUrl = (service: string, path: string): string =>
+  `${API_CONFIG.GATEWAY_BASE}/${service}${path}`;
 
 // API Endpoints
 export const API_ENDPOINTS = {
   // Auth endpoints (Identity Service)
   AUTH: {
-    LOGIN: `${API_CONFIG.IDENTITY_SERVICE}/api/auth/login`,
-    REGISTER: `${API_CONFIG.IDENTITY_SERVICE}/api/auth/register`,
-    HEALTH: `${API_CONFIG.IDENTITY_SERVICE}/api/auth/health`,
+    LOGIN: gatewayUrl('identity', '/api/auth/login'),
+    REGISTER: gatewayUrl('identity', '/api/auth/register'),
+    GOOGLE: gatewayUrl('identity', '/api/auth/google'),
+    VALIDATE: gatewayUrl('identity', '/api/auth/validate'),
+    REFRESH: gatewayUrl('identity', '/api/auth/refresh'),
+    LOGOUT: gatewayUrl('identity', '/api/auth/logout'),
+    LINK_GOOGLE: gatewayUrl('identity', '/api/auth/link-google'),
+    SET_PASSWORD: gatewayUrl('identity', '/api/auth/set-password'),
+    HEALTH: gatewayUrl('identity', '/api/auth/health'),
   },
-  
+
+  // Identity admin endpoints
+  IDENTITY: {
+    USERS: gatewayUrl('identity', '/api/admin/users'),
+    USER_BY_ID: (id: string) => gatewayUrl('identity', `/api/admin/users/${id}`),
+    ASSIGN_MANDOR: (buruhId: string) =>
+      gatewayUrl('identity', `/api/admin/users/${buruhId}/assign-mandor`),
+    UNASSIGN_MANDOR: (buruhId: string) =>
+      gatewayUrl('identity', `/api/admin/users/${buruhId}/unassign-mandor`),
+    INTERNAL_USER_BY_ID: (id: string) =>
+      gatewayUrl('identity', `/api/internal/users/${id}`),
+  },
+
   // Plantation endpoints
   PLANTATIONS: {
-    BASE: `${API_CONFIG.PLANTATION_SERVICE}/api/plantations`,
-    BY_ID: (id: number) => `${API_CONFIG.PLANTATION_SERVICE}/api/plantations/${id}`,
-    BY_OWNER: (ownerId: number) => `${API_CONFIG.PLANTATION_SERVICE}/api/plantations?ownerId=${ownerId}`,
-    HEALTH: `${API_CONFIG.PLANTATION_SERVICE}/api/plantations/health`,
+    BASE: gatewayUrl('plantation', '/api/plantations'),
+    BY_ID: (id: number | string) => gatewayUrl('plantation', `/api/plantations/${id}`),
+    BY_OWNER: (ownerId: number | string) =>
+      gatewayUrl('plantation', `/api/plantations/owner/${ownerId}`),
+    ASSIGN_MANDOR: (id: number | string) =>
+      gatewayUrl('plantation', `/api/plantations/${id}/mandor`),
+    UNASSIGN_MANDOR: (id: number | string) =>
+      gatewayUrl('plantation', `/api/plantations/${id}/mandor`),
+    TRANSFER_MANDOR: gatewayUrl('plantation', '/api/plantations/transfer-mandor'),
+    SUPIRS: (id: number | string) =>
+      gatewayUrl('plantation', `/api/plantations/${id}/supirs`),
+    UNASSIGN_SUPIR: (id: number | string, supirId: string) =>
+      gatewayUrl('plantation', `/api/plantations/${id}/supirs/${supirId}`),
+    HEALTH: gatewayUrl('plantation', '/actuator/health'),
   },
   
   // Harvest endpoints
   HARVESTS: {
-    BASE: `${API_CONFIG.HARVEST_SERVICE}/api/harvests`,
-    BY_ID: (id: number) => `${API_CONFIG.HARVEST_SERVICE}/api/harvests/${id}`,
-    BY_PLANTATION: (plantationId: number) => `${API_CONFIG.HARVEST_SERVICE}/api/harvests?plantationId=${plantationId}`,
-    HEALTH: `${API_CONFIG.HARVEST_SERVICE}/api/harvests/health`,
+    BASE: gatewayUrl('harvest', '/harvests'),
+    MY: gatewayUrl('harvest', '/harvests/my'),
+    BY_ID: (id: number | string) => gatewayUrl('harvest', `/harvests/${id}`),
+    BY_PLANTATION: (plantationId: number | string) =>
+      `${gatewayUrl('harvest', '/harvests')}?plantationId=${plantationId}`,
+    UPDATE_STATUS: gatewayUrl('harvest', '/harvests/update'),
+    HEALTH: gatewayUrl('harvest', '/actuator/health'),
   },
   
   // Shipment endpoints
   SHIPMENTS: {
-    BASE: `${API_CONFIG.SHIPMENT_SERVICE}/api/shipments`,
-    BY_ID: (id: number) => `${API_CONFIG.SHIPMENT_SERVICE}/api/shipments/${id}`,
-    BY_HARVEST: (harvestId: number) => `${API_CONFIG.SHIPMENT_SERVICE}/api/shipments?harvestId=${harvestId}`,
-    BY_STATUS: (status: string) => `${API_CONFIG.SHIPMENT_SERVICE}/api/shipments?status=${status}`,
-    HEALTH: `${API_CONFIG.SHIPMENT_SERVICE}/api/shipments/health`,
+    BASE: gatewayUrl('shipment', '/api/shipments'),
+    BY_ID: (id: number | string) => gatewayUrl('shipment', `/api/shipments/${id}`),
+    BY_HARVEST: (harvestId: number | string) =>
+      `${gatewayUrl('shipment', '/api/shipments')}?harvestId=${harvestId}`,
+    BY_STATUS: (status: string) =>
+      `${gatewayUrl('shipment', '/api/shipments')}?status=${status}`,
+    AVAILABLE_SUPIRS: gatewayUrl('shipment', '/api/shipments/available-supirs'),
+    UPDATE_STATUS: (id: number | string) =>
+      gatewayUrl('shipment', `/api/shipments/${id}/status`),
+    MANDOR_APPROVAL: (id: number | string) =>
+      gatewayUrl('shipment', `/api/shipments/${id}/mandor-approval`),
+    ADMIN_APPROVAL: (id: number | string) =>
+      gatewayUrl('shipment', `/api/shipments/${id}/admin-approval`),
+    HEALTH: gatewayUrl('shipment', '/api/shipments/health'),
   },
 
-  // Employee endpoints (Payroll Service)
-  EMPLOYEES: {
-    BASE: `${API_CONFIG.PAYROLL_SERVICE}/api/employees`,
-    BY_ID: (id: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/employees/${id}`,
-    BY_CODE: (code: string) => `${API_CONFIG.PAYROLL_SERVICE}/api/employees/code/${code}`,
-    BY_PLANTATION: (plantationId: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/employees/plantation/${plantationId}`,
-    BY_STATUS: (status: string) => `${API_CONFIG.PAYROLL_SERVICE}/api/employees/status/${status}`,
-    HEALTH: `${API_CONFIG.PAYROLL_SERVICE}/actuator/health`,
+  // Payroll endpoints
+  PAYROLL: {
+    PAYROLLS: gatewayUrl('payroll', '/api/payrolls'),
+    PAYROLL_BY_ID: (id: number | string) => gatewayUrl('payroll', `/api/payrolls/${id}`),
+    PAYROLLS_BY_USER: (userId: string) =>
+      gatewayUrl('payroll', `/api/payrolls/user/${userId}`),
+    PAYROLLS_BY_STATUS: (status: string) =>
+      gatewayUrl('payroll', `/api/payrolls/status/${status}`),
+    APPROVE_PAYROLL: (id: number | string) =>
+      gatewayUrl('payroll', `/api/payrolls/${id}/approve`),
+    PAY_PAYROLL: (id: number | string) =>
+      gatewayUrl('payroll', `/api/payrolls/${id}/pay`),
+    HEALTH: gatewayUrl('payroll', '/actuator/health'),
   },
 
-  // Payroll endpoints (Payroll Service)
   PAYROLLS: {
-    BASE: `${API_CONFIG.PAYROLL_SERVICE}/api/payrolls`,
-    BY_ID: (id: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/payrolls/${id}`,
-    BY_EMPLOYEE: (employeeId: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/payrolls/employee/${employeeId}`,
-    BY_STATUS: (status: string) => `${API_CONFIG.PAYROLL_SERVICE}/api/payrolls/status/${status}`,
-    APPROVE: (id: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/payrolls/${id}/approve`,
-    ACCEPT: (id: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/payrolls/${id}/accept`,
-    REJECT: (id: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/payrolls/${id}/reject`,
-    PAY: (id: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/payrolls/${id}/pay`,
+    BASE: gatewayUrl('payroll', '/api/payrolls'),
+    BY_ID: (id: number | string) => gatewayUrl('payroll', `/api/payrolls/${id}`),
+    BY_USER: (userId: string) => gatewayUrl('payroll', `/api/payrolls/user/${userId}`),
+    BY_STATUS: (status: string) => gatewayUrl('payroll', `/api/payrolls/status/${status}`),
+    APPROVE: (id: number | string) => gatewayUrl('payroll', `/api/payrolls/${id}/approve`),
+    ACCEPT: (id: number | string) => gatewayUrl('payroll', `/api/payrolls/${id}/accept`),
+    REJECT: (id: number | string) => gatewayUrl('payroll', `/api/payrolls/${id}/reject`),
+    PAY: (id: number | string) => gatewayUrl('payroll', `/api/payrolls/${id}/pay`),
   },
 
-  // WageConfig endpoints (Payroll Service)
   WAGE_CONFIGS: {
-    BASE: `${API_CONFIG.PAYROLL_SERVICE}/api/admin/wage-configs`,
-    BY_ID: (id: number) => `${API_CONFIG.PAYROLL_SERVICE}/api/admin/wage-configs/${id}`,
-    BY_ROLE: (role: string) => `${API_CONFIG.PAYROLL_SERVICE}/api/admin/wage-configs/role/${role}`,
-    BY_ROLE_ACTIVE: (role: string) => `${API_CONFIG.PAYROLL_SERVICE}/api/admin/wage-configs/role/${role}/active`,
+    BASE: gatewayUrl('payroll', '/api/wage-configs'),
+    BY_ID: (id: number | string) => gatewayUrl('payroll', `/api/wage-configs/${id}`),
+    BY_ROLE: (role: string) => gatewayUrl('payroll', `/api/wage-configs/role/${role}`),
+    BY_ROLE_ACTIVE: (role: string) =>
+      gatewayUrl('payroll', `/api/wage-configs/role/${role}/active`),
   },
 };
