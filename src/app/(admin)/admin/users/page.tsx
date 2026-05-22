@@ -11,6 +11,7 @@ import { UserDetailResponse, UserRole } from '@/types';
 export default function AdminUsersPage() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserDetailResponse[]>([]);
+  const [mandors, setMandors] = useState<UserDetailResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -19,6 +20,11 @@ export default function AdminUsersPage() {
   const [nameFilter, setNameFilter] = useState('');
   const [emailFilter, setEmailFilter] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserRole | ''>('');
+
+  // Assign-mandor modal state
+  const [assignTarget, setAssignTarget] = useState<UserDetailResponse | null>(null);
+  const [selectedMandorId, setSelectedMandorId] = useState('');
+  const [assigning, setAssigning] = useState(false);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -41,6 +47,56 @@ export default function AdminUsersPage() {
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
+
+  // Load mandor list once for the assign modal
+  useEffect(() => {
+    adminService
+      .getUsers({ role: 'MANDOR' })
+      .then(setMandors)
+      .catch(() => {
+        // Non-fatal: the modal will just show an empty list
+      });
+  }, []);
+
+  const openAssignModal = (buruh: UserDetailResponse) => {
+    setAssignTarget(buruh);
+    setSelectedMandorId(buruh.mandorId ?? '');
+  };
+
+  const closeAssignModal = () => {
+    setAssignTarget(null);
+    setSelectedMandorId('');
+  };
+
+  const handleAssignMandor = async () => {
+    if (!assignTarget || !selectedMandorId) return;
+    try {
+      setAssigning(true);
+      setError('');
+      await adminService.assignMandor(assignTarget.id, selectedMandorId);
+      setSuccess(`Mandor berhasil ditugaskan ke "${assignTarget.name || assignTarget.username}".`);
+      setTimeout(() => setSuccess(''), 3000);
+      closeAssignModal();
+      loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal menugaskan mandor');
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleUnassignMandor = async (buruh: UserDetailResponse) => {
+    if (!confirm(`Lepas mandor dari "${buruh.name || buruh.username}"?`)) return;
+    try {
+      setError('');
+      await adminService.unassignMandor(buruh.id);
+      setSuccess(`Mandor dilepas dari "${buruh.name || buruh.username}".`);
+      setTimeout(() => setSuccess(''), 3000);
+      loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal melepas mandor');
+    }
+  };
 
   const handleDelete = async (userId: string, username: string) => {
     if (!confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) return;
@@ -174,6 +230,24 @@ export default function AdminUsersPage() {
                         >
                           View
                         </Link>
+                        {u.role === 'BURUH' && (
+                          <>
+                            <button
+                              onClick={() => openAssignModal(u)}
+                              className="text-blue-400 hover:text-blue-300 font-semibold transition-colors"
+                            >
+                              {u.mandorId ? 'Reassign' : 'Assign'} Mandor
+                            </button>
+                            {u.mandorId && (
+                              <button
+                                onClick={() => handleUnassignMandor(u)}
+                                className="text-yellow-400 hover:text-yellow-300 font-semibold transition-colors"
+                              >
+                                Lepas
+                              </button>
+                            )}
+                          </>
+                        )}
                         {u.id !== currentUser?.id && (
                           <button
                             onClick={() => handleDelete(u.id, u.username)}
@@ -188,6 +262,63 @@ export default function AdminUsersPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Mandor Modal */}
+      {assignTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={closeAssignModal}
+        >
+          <div
+            className="surface-panel max-w-md w-full p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <h2 className="text-lg font-bold text-white">Tugaskan Mandor</h2>
+              <p className="text-sm text-slate-400 mt-1">
+                Buruh: <span className="font-semibold text-white">{assignTarget.name || assignTarget.username}</span>
+              </p>
+            </div>
+
+            <div>
+              <label className="label-sm">Pilih Mandor</label>
+              <select
+                value={selectedMandorId}
+                onChange={(e) => setSelectedMandorId(e.target.value)}
+                className="ms-input"
+                disabled={assigning}
+              >
+                <option value="">— Pilih mandor —</option>
+                {mandors.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name || m.username} ({m.email})
+                  </option>
+                ))}
+              </select>
+              {mandors.length === 0 && (
+                <p className="text-xs text-yellow-400 mt-2">Tidak ada mandor tersedia.</p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={closeAssignModal}
+                className="btn-secondary"
+                disabled={assigning}
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleAssignMandor}
+                className="btn-primary"
+                disabled={!selectedMandorId || assigning}
+              >
+                {assigning ? 'Menyimpan...' : 'Simpan'}
+              </button>
+            </div>
           </div>
         </div>
       )}
