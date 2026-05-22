@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { adminService } from '@/services/admin.service';
+import { authService } from '@/services/auth.service';
 import { payrollService } from '@/services/payroll.service';
 import { Payroll, UserDetailResponse } from '@/types';
 
@@ -23,7 +24,7 @@ const EMPTY_FORM: PayrollFormState = {
   baseAmount: '',
   bonusAmount: '0',
   deductionAmount: '0',
-  paymentMethod: 'BANK_TRANSFER',
+  paymentMethod: 'SANDBOX',
   notes: '',
 };
 
@@ -33,13 +34,18 @@ const PAYROLL_STATUS_COLORS: Record<string, string> = {
   ACCEPTED: 'badge-purple',
   REJECTED: 'badge-red',
   PAID: 'badge-green',
-  CANCELLED: 'badge-gray',
 };
 
 const visibleLimit = 24;
 
 const getUserLabel = (user: UserDetailResponse) =>
   `${user.name || user.username || user.email} (${user.role})`;
+
+const getPayrollUser = (users: UserDetailResponse[], userId: string) =>
+  users.find((user) => String(user.id) === String(userId));
+
+const canReceivePayroll = (user: UserDetailResponse) =>
+  user.role === 'BURUH' || user.role === 'SUPIR' || user.role === 'MANDOR';
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('id-ID', {
@@ -66,8 +72,10 @@ export default function PayrollPage() {
   const [payError, setPayError] = useState('');
   const [showPayForm, setShowPayForm] = useState(false);
   const [payForm, setPayForm] = useState<PayrollFormState>(EMPTY_FORM);
+  const currentUser = authService.getUserInfo();
 
   const visiblePayrolls = useMemo(() => payrolls.slice(0, visibleLimit), [payrolls]);
+  const payrollUsers = useMemo(() => users.filter(canReceivePayroll), [users]);
 
   const loadPayrolls = async () => {
     try {
@@ -89,7 +97,7 @@ export default function PayrollPage() {
       setUsersError('');
       setPayForm((current) => ({
         ...current,
-        userId: current.userId || data[0]?.id || '',
+        userId: current.userId || data.find(canReceivePayroll)?.id || '',
       }));
     } catch (err) {
       setUsersError(err instanceof Error ? err.message : 'Failed to load users');
@@ -107,6 +115,8 @@ export default function PayrollPage() {
     try {
       await payrollService.create({
         userId: payForm.userId,
+        roleType: getPayrollUser(users, payForm.userId)?.role,
+        sourceType: 'MANUAL',
         periodStart: payForm.periodStart,
         periodEnd: payForm.periodEnd,
         baseAmount: Number.parseFloat(payForm.baseAmount),
@@ -119,7 +129,7 @@ export default function PayrollPage() {
       setShowPayForm(false);
       setPayForm({
         ...EMPTY_FORM,
-        userId: users[0]?.id || '',
+        userId: payrollUsers[0]?.id || '',
       });
       await loadPayrolls();
     } catch (err) {
@@ -129,10 +139,22 @@ export default function PayrollPage() {
 
   const handleApprovePayroll = async (id: Payroll['id']) => {
     try {
-      await payrollService.approve(Number(id));
+      await payrollService.approve(Number(id), currentUser?.id || undefined);
       await loadPayrolls();
     } catch (err) {
       setPayError(err instanceof Error ? err.message : 'Failed to approve payroll');
+    }
+  };
+
+  const handleRejectPayroll = async (id: Payroll['id']) => {
+    const reason = prompt('Masukkan alasan penolakan payroll:');
+    if (!reason?.trim()) return;
+
+    try {
+      await payrollService.reject(Number(id), reason.trim());
+      await loadPayrolls();
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : 'Failed to reject payroll');
     }
   };
 
@@ -190,7 +212,7 @@ export default function PayrollPage() {
                   required
                 >
                   <option value="" disabled>Pilih user</option>
-                  {users.map((user) => (
+                  {payrollUsers.map((user) => (
                     <option key={user.id} value={user.id}>
                       {getUserLabel(user)}
                     </option>
@@ -252,6 +274,7 @@ export default function PayrollPage() {
                   onChange={(e) => setPayForm({ ...payForm, paymentMethod: e.target.value })}
                   className="ms-input"
                 >
+                  <option value="SANDBOX">SANDBOX</option>
                   <option value="BANK_TRANSFER">BANK_TRANSFER</option>
                   <option value="CASH">CASH</option>
                   <option value="CHEQUE">CHEQUE</option>
@@ -283,7 +306,10 @@ export default function PayrollPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {visiblePayrolls.map((payroll) => (
+          {visiblePayrolls.map((payroll) => {
+            const payrollUser = getPayrollUser(users, payroll.userId);
+
+            return (
             <article key={payroll.id} className="surface-panel bg-white p-5">
               <div className="flex justify-between items-start gap-3 mb-3">
                 <h3 className="text-lg font-semibold text-white">Payroll #{payroll.id}</h3>
@@ -292,7 +318,10 @@ export default function PayrollPage() {
                 </span>
               </div>
               <div className="space-y-2 text-sm text-slate-400 mb-4">
-                <p><span className="font-medium text-slate-300">User ID:</span> {payroll.userId}</p>
+                <p><span className="font-medium text-slate-300">User:</span> {payrollUser ? getUserLabel(payrollUser) : payroll.userId}</p>
+                {payroll.roleType && <p><span className="font-medium text-slate-300">Role:</span> {payroll.roleType}</p>}
+                {payroll.sourceType && <p><span className="font-medium text-slate-300">Source:</span> {payroll.sourceType}</p>}
+                {payroll.kilograms && <p><span className="font-medium text-slate-300">Kg:</span> {payroll.kilograms}</p>}
                 <p><span className="font-medium text-slate-300">Period:</span> {formatDate(payroll.periodStart)} - {formatDate(payroll.periodEnd)}</p>
                 <p><span className="font-medium text-slate-300">Base:</span> {formatCurrency(payroll.baseAmount)}</p>
                 <p><span className="font-medium text-slate-300">Bonus:</span> {formatCurrency(payroll.bonusAmount)}</p>
@@ -301,15 +330,30 @@ export default function PayrollPage() {
                 {payroll.paymentMethod && (
                   <p><span className="font-medium text-slate-300">Method:</span> {payroll.paymentMethod}</p>
                 )}
+                {payroll.rejectionReason && (
+                  <p><span className="font-medium text-slate-300">Rejection:</span> {payroll.rejectionReason}</p>
+                )}
+                {payroll.walletSettled && (
+                  <p><span className="font-medium text-slate-300">Wallet:</span> settled{payroll.walletTransferAmount ? ` (${formatCurrency(payroll.walletTransferAmount)})` : ''}</p>
+                )}
               </div>
               <div className="flex flex-col gap-2">
-                {payroll.status === 'PENDING' && (
+                {(payroll.status === 'PENDING' || payroll.status === 'ACCEPTED') && (
                   <button
                     type="button"
                     onClick={() => handleApprovePayroll(payroll.id)}
                     className="btn-secondary w-full justify-center"
                   >
                     Approve
+                  </button>
+                )}
+                {(payroll.status === 'PENDING' || payroll.status === 'ACCEPTED') && (
+                  <button
+                    type="button"
+                    onClick={() => handleRejectPayroll(payroll.id)}
+                    className="btn-secondary border-red-500/30 text-red-400 hover:bg-red-500/10 w-full justify-center"
+                  >
+                    Reject
                   </button>
                 )}
                 {payroll.status === 'APPROVED' && (
@@ -330,7 +374,8 @@ export default function PayrollPage() {
                 </button>
               </div>
             </article>
-          ))}
+            );
+          })}
           {payrolls.length > visiblePayrolls.length && (
             <div className="surface-panel p-5 text-sm text-slate-500">
               Menampilkan {visiblePayrolls.length} dari {payrolls.length} payroll.

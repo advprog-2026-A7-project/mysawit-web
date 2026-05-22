@@ -84,6 +84,30 @@ describe('LoginPage', () => {
     });
   });
 
+  it.each([
+    ['ADMIN', '/admin/dashboard'],
+    ['MANDOR', '/mandor/plantations'],
+    ['BURUH', '/harvest'],
+    ['SUPIR', '/shipment/active'],
+  ])('redirects %s credential login to the matching role landing page', async (role, path) => {
+    (authService.login as jest.Mock).mockResolvedValue({ role });
+
+    render(<LoginPage />);
+
+    fireEvent.change(screen.getByPlaceholderText(/nama@email\.com/i), {
+      target: { value: 'user@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/password/i), {
+      target: { value: 'secret' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^masuk$/i }));
+
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith(path);
+    });
+  });
+
   it('shows loading text while request is pending', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let resolvePromise: ((value: any) => void) | undefined;
@@ -159,6 +183,24 @@ describe('LoginPage', () => {
     });
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith('/admin/dashboard');
+    });
+  });
+
+  it.each([
+    ['ADMIN', '/admin/dashboard'],
+    ['MANDOR', '/mandor/plantations'],
+    ['BURUH', '/harvest'],
+    ['SUPIR', '/shipment/active'],
+  ])('Google login redirects %s users to the matching role landing page', async (role, path) => {
+    (authService.googleLogin as jest.Mock).mockResolvedValue({ role });
+    render(<LoginPage />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('google-ok'));
+    });
+
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith(path);
     });
   });
 

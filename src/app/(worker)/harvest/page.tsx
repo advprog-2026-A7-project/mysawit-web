@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { harvestService } from '@/services/harvest.service';
 import { authService } from '@/services/auth.service';
 import { Harvest } from '@/types';
+import { Camera, Send } from 'lucide-react';
 
 const formatDate = (value?: string) => {
   if (!value) return '-';
@@ -28,35 +29,79 @@ const statusConfig: Record<string, { label: string; badge: string }> = {
 export default function WorkerHarvestPage() {
   const [harvests, setHarvests] = useState<Harvest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [form, setForm] = useState({
+    plantationId: '',
+    weight: '',
+    news: '',
+    files: null as FileList | null,
+  });
 
   const userInfo = authService.getUserInfo();
 
-  useEffect(() => {
-    const fetchHarvests = async () => {
+  const fetchHarvests = async () => {
+    try {
+      setLoading(true);
+      if (!userInfo?.id) return;
+
       try {
-        setLoading(true);
-        if (!userInfo?.id) return;
-
-        try {
-          const data = await harvestService.getMine();
-          setHarvests(data);
-        } catch {
-          const data = await harvestService.getAll();
-          const myHarvests = data.filter(
-            (h) => String(h.harvesterId) === String(userInfo.id),
-          );
-          setHarvests(myHarvests);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Gagal memuat data panen');
-      } finally {
-        setLoading(false);
+        const data = await harvestService.getMine();
+        setHarvests(data);
+      } catch {
+        const data = await harvestService.getAll();
+        const myHarvests = data.filter(
+          (h) => String(h.harvesterId) === String(userInfo.id),
+        );
+        setHarvests(myHarvests);
       }
-    };
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal memuat data panen');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchHarvests();
+  useEffect(() => {
+    void fetchHarvests();
   }, [userInfo?.id]);
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setError('');
+    setSuccess('');
+
+    const weight = Number(form.weight);
+    if (!Number.isFinite(weight) || weight <= 0) {
+      setError('Berat panen harus lebih dari 0 kg');
+      return;
+    }
+
+    if (!form.files || form.files.length === 0) {
+      setError('Minimal 1 foto hasil panen harus dilampirkan');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await harvestService.create({
+        plantationId: form.plantationId,
+        weight,
+        news: form.news.trim(),
+        files: form.files,
+      });
+      setSuccess('Log panen berhasil dikirim dan menunggu validasi mandor.');
+      setForm({ plantationId: '', weight: '', news: '', files: null });
+      const fileInput = document.getElementById('harvest-photos') as HTMLInputElement | null;
+      if (fileInput) fileInput.value = '';
+      await fetchHarvests();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal mengirim log panen');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -78,6 +123,76 @@ export default function WorkerHarvestPage() {
       </header>
 
       {error && <div className="alert-error"><span>{error}</span></div>}
+      {success && <div className="alert-success"><span>{success}</span></div>}
+
+      <section className="surface-panel p-5">
+        <div className="flex items-start gap-3 mb-5">
+          <div className="w-10 h-10 rounded-lg bg-green-500/15 text-green-300 flex items-center justify-center shrink-0">
+            <Camera size={18} aria-hidden="true" />
+          </div>
+          <div>
+            <h2 className="section-title">Log Panen Baru</h2>
+            <p className="text-sm text-slate-500 mt-1">Kirim hasil panen harian untuk divalidasi mandor.</p>
+          </div>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="harvest-plantation" className="label-sm">ID Kebun</label>
+              <input
+                id="harvest-plantation"
+                type="text"
+                value={form.plantationId}
+                onChange={(event) => setForm({ ...form, plantationId: event.target.value })}
+                className="ms-input"
+                placeholder="Contoh: 1"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="harvest-weight" className="label-sm">Berat Panen (kg)</label>
+              <input
+                id="harvest-weight"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={form.weight}
+                onChange={(event) => setForm({ ...form, weight: event.target.value })}
+                className="ms-input"
+                placeholder="120"
+                required
+              />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="harvest-news" className="label-sm">Catatan Panen</label>
+            <textarea
+              id="harvest-news"
+              rows={3}
+              value={form.news}
+              onChange={(event) => setForm({ ...form, news: event.target.value })}
+              className="ms-input resize-none"
+              placeholder="Kondisi buah, blok panen, atau catatan lapangan"
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="harvest-photos" className="label-sm">Foto Hasil Panen</label>
+            <input
+              id="harvest-photos"
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(event) => setForm({ ...form, files: event.target.files })}
+              className="ms-input file:mr-3 file:rounded-md file:border-0 file:bg-green-500/20 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-green-200"
+              required
+            />
+          </div>
+          <button type="submit" disabled={saving} className="btn-primary w-full justify-center py-3">
+            <Send size={16} aria-hidden="true" />{saving ? 'Mengirim...' : 'Kirim Log Panen'}
+          </button>
+        </form>
+      </section>
 
       {harvests.length === 0 ? (
         <div className="empty-state">

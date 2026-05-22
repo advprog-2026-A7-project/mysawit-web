@@ -274,14 +274,25 @@ export interface UserReplica {
 
 export interface Payroll {
   id: EntityId;
+  eventId?: string;
   userId: string;
+  roleType?: string;
+  sourceType?: string;
+  sourceReference?: string;
+  kilograms?: number;
   periodStart: string;
   periodEnd: string;
   baseAmount: number;
   bonusAmount: number;
   deductionAmount: number;
   totalAmount: number;
-  status: 'PENDING' | 'APPROVED' | 'ACCEPTED' | 'REJECTED' | 'PAID' | 'CANCELLED';
+  status: 'PENDING' | 'ACCEPTED' | 'APPROVED' | 'REJECTED' | 'PAID';
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+  walletSettled?: boolean;
+  walletTransferAmount?: number;
   paymentDate?: string;
   paymentMethod?: string;
   notes?: string;
@@ -291,6 +302,10 @@ export interface Payroll {
 
 export interface PayrollRequest {
   userId: string;
+  roleType?: string;
+  sourceType?: string;
+  sourceReference?: string;
+  kilograms?: number;
   periodStart: string;
   periodEnd: string;
   baseAmount: number;
@@ -301,9 +316,16 @@ export interface PayrollRequest {
   notes?: string;
 }
 
+export interface PayrollSearchParams {
+  userId?: string;
+  status?: string;
+  from?: string;
+  to?: string;
+}
+
 // WageConfig Types
 export interface WageConfig {
-  id: number;
+  id: EntityId;
   roleType: string;
   ratePerKg: number;
   effectiveDate: string;

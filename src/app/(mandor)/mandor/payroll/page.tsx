@@ -12,7 +12,6 @@ const STATUS_BADGE: Record<string, string> = {
   ACCEPTED: 'badge badge-purple',
   REJECTED: 'badge badge-red',
   PAID: 'badge badge-green',
-  CANCELLED: 'badge badge-gray',
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -21,7 +20,6 @@ const STATUS_LABEL: Record<string, string> = {
   ACCEPTED: 'Diterima',
   REJECTED: 'Ditolak',
   PAID: 'Dibayar',
-  CANCELLED: 'Dibatalkan',
 };
 
 const formatCurrency = (amount: number) =>
@@ -77,10 +75,10 @@ export default function MandorPayrollPage() {
     void init();
   }, []);
 
-  const handleAction = async (id: string | number, action: 'APPROVE' | 'REJECT', reason?: string) => {
+  const handleAction = async (id: string | number, action: 'ACCEPT' | 'REJECT', reason?: string) => {
     try {
-      if (action === 'APPROVE') {
-        await payrollService.approve(Number(id));
+      if (action === 'ACCEPT') {
+        await payrollService.accept(Number(id));
       } else {
         await payrollService.reject(Number(id), reason);
       }
@@ -236,8 +234,8 @@ export default function MandorPayrollPage() {
 
                   {!isMine && payroll.status === 'PENDING' && (
                     <div className="flex gap-3 pt-4 border-t border-white/[0.06]">
-                      <button 
-                        onClick={() => handleAction(payroll.id, 'APPROVE')}
+                      <button
+                        onClick={() => handleAction(payroll.id, 'ACCEPT')}
                         className="flex-1 btn-primary bg-green-600 hover:bg-green-500 justify-center"
                       >
                         Validasi
@@ -255,8 +253,18 @@ export default function MandorPayrollPage() {
                   )}
                   
                   {isMine && payroll.status === 'PENDING' && (
-                    <div className="bg-orange-500/10 border border-orange-500/20 p-3 rounded-lg text-center text-sm text-orange-300 mt-2">
-                      Menunggu Persetujuan Admin
+                    <button
+                      type="button"
+                      onClick={() => handleAction(payroll.id, 'ACCEPT')}
+                      className="w-full btn-primary bg-green-600 hover:bg-green-500 justify-center mt-2"
+                    >
+                      Konfirmasi Slip
+                    </button>
+                  )}
+
+                  {payroll.status === 'ACCEPTED' && (
+                    <div className="bg-purple-500/10 border border-purple-500/20 p-3 rounded-lg text-center text-sm text-purple-300 mt-2">
+                      Sudah divalidasi, menunggu approval Admin
                     </div>
                   )}
                   

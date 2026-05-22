@@ -28,7 +28,6 @@ const STATUS_LABEL: Record<string, string> = {
   ACCEPTED: 'Diterima',
   REJECTED: 'Ditolak',
   PAID: 'Dibayar',
-  CANCELLED: 'Dibatalkan',
 };
 
 const STATUS_BADGE: Record<string, string> = {
@@ -37,7 +36,6 @@ const STATUS_BADGE: Record<string, string> = {
   ACCEPTED: 'badge badge-purple',
   REJECTED: 'badge badge-red',
   PAID: 'badge badge-green',
-  CANCELLED: 'badge badge-gray',
 };
 
 export default function WorkerPayrollPage() {
@@ -75,8 +73,8 @@ export default function WorkerPayrollPage() {
 
   const handleAccept = async (id: string | number) => {
     try {
-      await payrollService.accept(Number(id));
-      setPayrolls(prev => prev.map(p => p.id === id ? { ...p, status: 'ACCEPTED' } : p));
+      const accepted = await payrollService.accept(Number(id));
+      setPayrolls(prev => prev.map(p => p.id === id ? accepted : p));
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Gagal menerima gaji');
     }
@@ -170,12 +168,12 @@ export default function WorkerPayrollPage() {
                 </div>
 
                 {/* Action */}
-                {payroll.status === 'PAID' && (
+                {payroll.status === 'PENDING' && (
                   <button
                     onClick={() => handleAccept(payroll.id)}
                     className="w-full btn-primary bg-green-600 hover:bg-green-500 justify-center py-3"
                   >
-                    Konfirmasi Terima Dana
+                    Konfirmasi Slip Gaji
                   </button>
                 )}
 
@@ -185,11 +183,15 @@ export default function WorkerPayrollPage() {
                   </div>
                 )}
 
-                {(payroll.status === 'PENDING' || payroll.status === 'APPROVED') && (
+                {payroll.status === 'APPROVED' && (
                   <div className="w-full bg-orange-500/10 border border-orange-500/20 p-3 rounded-lg flex items-center justify-center text-sm text-orange-300">
-                    {payroll.status === 'PENDING'
-                      ? 'Gaji sedang diverifikasi oleh Mandor.'
-                      : 'Gaji telah diverifikasi, menunggu pembayaran dari Admin.'}
+                    Gaji telah disetujui, menunggu pembayaran dari Admin.
+                  </div>
+                )}
+
+                {payroll.status === 'PAID' && (
+                  <div className="w-full bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg flex items-center justify-center text-sm text-blue-300">
+                    Dana sudah dibayarkan.
                   </div>
                 )}
               </div>

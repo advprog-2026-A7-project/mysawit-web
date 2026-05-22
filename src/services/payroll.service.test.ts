@@ -26,6 +26,21 @@ describe('payrollService', () => {
     expect(result).toEqual([{ id: 10 }]);
   });
 
+  it('getAll appends supported search params', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue([{ id: 10 }]);
+
+    await payrollService.getAll({
+      userId: USER_ID,
+      status: 'PENDING',
+      from: '2026-05-01',
+      to: '2026-05-31T23:59:59',
+    });
+
+    expect(apiClient.get).toHaveBeenCalledWith(
+      `${API_ENDPOINTS.PAYROLLS.BASE}?userId=${USER_ID}&status=PENDING&from=2026-05-01T00%3A00%3A00&to=2026-05-31T23%3A59%3A59`
+    );
+  });
+
   it('getById calls payrolls by-id endpoint', async () => {
     (apiClient.get as jest.Mock).mockResolvedValue({ id: 11 });
     const result = await payrollService.getById(11);
@@ -94,8 +109,17 @@ describe('payrollService', () => {
   it('approve patches payrolls approve endpoint', async () => {
     (apiClient.patch as jest.Mock).mockResolvedValue({ id: 16, status: 'APPROVED' });
     const result = await payrollService.approve(16);
-    expect(apiClient.patch).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLLS.APPROVE(16));
+    expect(apiClient.patch).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLLS.APPROVE(16), undefined);
     expect(result).toEqual({ id: 16, status: 'APPROVED' });
+  });
+
+  it('approve sends adminId when provided', async () => {
+    (apiClient.patch as jest.Mock).mockResolvedValue({ id: 16, status: 'APPROVED' });
+    await payrollService.approve(16, 'admin-1');
+    expect(apiClient.patch).toHaveBeenCalledWith(
+      API_ENDPOINTS.PAYROLLS.APPROVE(16),
+      { adminId: 'admin-1' }
+    );
   });
 
   it('accept patches payrolls accept endpoint', async () => {
@@ -120,7 +144,7 @@ describe('payrollService', () => {
   it('pay patches payrolls pay endpoint with default method', async () => {
     (apiClient.patch as jest.Mock).mockResolvedValue({ id: 19, status: 'PAID' });
     await payrollService.pay(19);
-    expect(apiClient.patch).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLLS.PAY(19), { paymentMethod: 'BANK_TRANSFER' });
+    expect(apiClient.patch).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLLS.PAY(19), { paymentMethod: 'SANDBOX' });
   });
 
   it('pay patches payrolls pay endpoint with custom method', async () => {

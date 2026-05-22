@@ -21,6 +21,7 @@ jest.mock('@/services/auth.service', () => ({
   authService: {
     register: jest.fn(),
     googleLogin: jest.fn(),
+    logout: jest.fn(),
   },
 }));
 
@@ -96,7 +97,7 @@ describe('RegisterPage', () => {
     expect(authService.register).not.toHaveBeenCalled();
   });
 
-  it('registers and redirects on success', async () => {
+  it('registers and redirects users to login', async () => {
     (authService.register as jest.Mock).mockResolvedValue(undefined);
 
     render(<RegisterPage />);
@@ -117,7 +118,8 @@ describe('RegisterPage', () => {
     });
 
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith('/dashboard');
+      expect(authService.logout).toHaveBeenCalled();
+      expect(pushMock).toHaveBeenCalledWith('/login');
     });
   });
 
@@ -137,7 +139,7 @@ describe('RegisterPage', () => {
 
     resolvePromise?.();
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith('/dashboard');
+      expect(pushMock).toHaveBeenCalledWith('/login');
     });
   });
 
@@ -240,7 +242,8 @@ describe('RegisterPage', () => {
         });
       });
       await waitFor(() => {
-        expect(pushMock).toHaveBeenCalledWith('/dashboard');
+        expect(authService.logout).toHaveBeenCalled();
+        expect(pushMock).toHaveBeenCalledWith('/login');
       });
     });
 
@@ -261,6 +264,9 @@ describe('RegisterPage', () => {
           role: 'MANDOR',
           certificationNumber: 'CERT-7',
         });
+      });
+      await waitFor(() => {
+        expect(pushMock).toHaveBeenCalledWith('/login');
       });
     });
 

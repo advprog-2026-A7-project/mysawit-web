@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { authService } from '@/services/auth.service';
+import { getPostAuthRedirectPath } from '@/lib/role-redirect';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,22 +15,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const handleRedirect = (role: string) => {
-    switch (role) {
-      case 'ADMIN':
-        router.push('/admin/dashboard');
-        break;
-      case 'MANDOR':
-        router.push('/mandor/plantations');
-        break;
-      case 'BURUH':
-        router.push('/harvest');
-        break;
-      case 'SUPIR':
-        router.push('/shipment/active');
-        break;
-      default:
-        router.push('/login');
-    }
+    router.push(getPostAuthRedirectPath(role));
   };
 
   const handleSubmit = async (e: { preventDefault: () => void }) => {

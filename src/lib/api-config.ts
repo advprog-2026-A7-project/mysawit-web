@@ -108,10 +108,10 @@ export const API_ENDPOINTS = {
   },
 
   WAGE_CONFIGS: {
-    BASE: gatewayUrl('payroll', '/api/wage-configs'),
-    BY_ID: (id: number | string) => gatewayUrl('payroll', `/api/wage-configs/${id}`),
-    BY_ROLE: (role: string) => gatewayUrl('payroll', `/api/wage-configs/role/${role}`),
+    BASE: gatewayUrl('payroll', '/api/admin/wage-configs'),
+    BY_ID: (id: number | string) => gatewayUrl('payroll', `/api/admin/wage-configs/${id}`),
+    BY_ROLE: (role: string) => gatewayUrl('payroll', `/api/admin/wage-configs/role/${role}`),
     BY_ROLE_ACTIVE: (role: string) =>
-      gatewayUrl('payroll', `/api/wage-configs/role/${role}/active`),
+      gatewayUrl('payroll', `/api/admin/wage-configs/role/${role}/active`),
   },
 };

@@ -49,6 +49,11 @@ export default function RegisterPage() {
     setIsGoogleMode(nextIsGoogleMode);
   };
 
+  const handleRegistrationSuccess = () => {
+    authService.logout();
+    router.push('/login');
+  };
+
   const handleEmailSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
@@ -80,7 +85,7 @@ export default function RegisterPage() {
         mandorId: undefined,
         kebunId: undefined,
       });
-      router.push('/dashboard');
+      handleRegistrationSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal membuat akun');
     } finally {
@@ -111,7 +116,7 @@ export default function RegisterPage() {
         role,
         ...(role === 'MANDOR' ? { certificationNumber: certificationNumber.trim() } : {}),
       });
-      router.push('/dashboard');
+      handleRegistrationSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Google registration failed');
     } finally {
