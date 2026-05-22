@@ -4,7 +4,14 @@ const createJsonResponse = (ok: boolean, body: unknown, status = 200) => ({
   ok,
   status,
   headers: { get: jest.fn().mockReturnValue(null) },
-  json: jest.fn().mockResolvedValue(body),
+  text: jest.fn().mockResolvedValue(JSON.stringify(body)),
+}) as unknown as Response;
+
+const createEmptyResponse = (ok: boolean, status = 200) => ({
+  ok,
+  status,
+  headers: { get: jest.fn().mockReturnValue(null) },
+  text: jest.fn().mockResolvedValue(''),
 }) as unknown as Response;
 
 describe('api-client (browser)', () => {
@@ -93,6 +100,12 @@ describe('api-client (browser)', () => {
     await expect(apiClient.get('/resource')).rejects.toThrow('bad request');
   });
 
+  it('throws API-provided message field when error field is missing', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(createJsonResponse(false, { message: 'not found' }));
+
+    await expect(apiClient.get('/resource')).rejects.toThrow('not found');
+  });
+
   it('throws fallback error for failed get request without error field', async () => {
     (global.fetch as jest.Mock).mockResolvedValue(createJsonResponse(false, { detail: 'missing field' }));
 
@@ -128,7 +141,7 @@ describe('api-client (browser)', () => {
       ok: true,
       status: 204,
       headers: { get: jest.fn().mockReturnValue(null) },
-      json: jest.fn().mockResolvedValue({}),
+      text: jest.fn().mockResolvedValue(''),
     } as unknown as Response);
 
     const result = await apiClient.delete('/resource/1');
@@ -141,7 +154,7 @@ describe('api-client (browser)', () => {
       ok: true,
       status: 200,
       headers: { get: jest.fn().mockReturnValue('0') },
-      json: jest.fn().mockResolvedValue({}),
+      text: jest.fn().mockResolvedValue(''),
     } as unknown as Response);
 
     const result = await apiClient.delete('/resource/1');
@@ -149,15 +162,23 @@ describe('api-client (browser)', () => {
     expect(result).toBeUndefined();
   });
 
-  it('delete throws fallback error when response json cannot be parsed', async () => {
+  it('delete throws fallback error when response body cannot be parsed as json', async () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: false,
       status: 500,
       headers: { get: jest.fn().mockReturnValue(null) },
-      json: jest.fn().mockRejectedValue(new Error('not json')),
+      text: jest.fn().mockResolvedValue('not json'),
     } as unknown as Response);
 
     await expect(apiClient.delete('/resource/1')).rejects.toThrow('Request failed');
+  });
+
+  it('get returns undefined for empty successful responses', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(createEmptyResponse(true));
+
+    const result = await apiClient.get('/resource/1');
+
+    expect(result).toBeUndefined();
   });
 
   it('patch sends body and returns json', async () => {
@@ -191,12 +212,20 @@ describe('api-client (browser)', () => {
     await expect(apiClient.patch('/resource/3')).rejects.toThrow('patch failed');
   });
 
-  it('patch throws fallback error when response json cannot be parsed', async () => {
+  it('patch returns undefined for empty successful responses', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(createEmptyResponse(true));
+
+    const result = await apiClient.patch('/resource/3');
+
+    expect(result).toBeUndefined();
+  });
+
+  it('patch throws fallback error when response body cannot be parsed as json', async () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: false,
       status: 500,
       headers: { get: jest.fn().mockReturnValue(null) },
-      json: jest.fn().mockRejectedValue(new Error('not json')),
+      text: jest.fn().mockResolvedValue('not json'),
     } as unknown as Response);
 
     await expect(apiClient.patch('/resource/3')).rejects.toThrow('Request failed');

@@ -100,38 +100,15 @@ export interface ShipmentRequest {
   notes?: string;
 }
 
-// Employee Types
-export interface Employee {
-  id: number;
-  name: string;
-  employeeCode: string;
-  position: string;
-  plantationId?: number;
-  phoneNumber?: string;
-  address?: string;
-  hireDate?: string;
-  baseSalary: number;
-  status: 'ACTIVE' | 'INACTIVE' | 'TERMINATED';
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface EmployeeRequest {
-  name: string;
-  employeeCode: string;
-  position: string;
-  plantationId?: number;
-  phoneNumber?: string;
-  address?: string;
-  hireDate?: string;
-  baseSalary: number;
-  status?: string;
-}
-
 // Payroll Types
 export interface Payroll {
   id: number;
-  employeeId: number;
+  eventId?: string;
+  userId: string;
+  roleType?: string;
+  sourceType?: string;
+  sourceReference?: string;
+  kilograms?: number;
   periodStart: string;
   periodEnd: string;
   baseAmount: number;
@@ -139,6 +116,12 @@ export interface Payroll {
   deductionAmount: number;
   totalAmount: number;
   status: 'PENDING' | 'APPROVED' | 'ACCEPTED' | 'REJECTED' | 'PAID' | 'CANCELLED';
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+  walletSettled?: boolean;
+  walletTransferAmount?: number;
   paymentDate?: string;
   paymentMethod?: string;
   notes?: string;
@@ -147,7 +130,11 @@ export interface Payroll {
 }
 
 export interface PayrollRequest {
-  employeeId: number;
+  userId: string;
+  roleType?: string;
+  sourceType?: string;
+  sourceReference?: string;
+  kilograms?: number;
   periodStart: string;
   periodEnd: string;
   baseAmount: number;
@@ -156,6 +143,32 @@ export interface PayrollRequest {
   status?: string;
   paymentMethod?: string;
   notes?: string;
+}
+
+export interface Wallet {
+  id: number;
+  userId: string;
+  balance: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentTransaction {
+  id: number;
+  transactionId: string;
+  userId: string;
+  gateway: string;
+  status: string;
+  amountSawitDollar: number;
+  amountIdr: number;
+  checkoutUrl?: string;
+  paidAt?: string;
+  createdAt: string;
+}
+
+export interface WalletTopUpRequest {
+  amountSawitDollar: number;
+  gateway?: string;
 }
 
 // WageConfig Types

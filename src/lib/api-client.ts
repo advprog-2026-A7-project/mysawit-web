@@ -18,6 +18,28 @@ class ApiClient {
         };
   }
 
+  private async parseResponseBody<T>(response: Response): Promise<T> {
+    if (response.status === 204 || response.headers.get('content-length') === '0') {
+      return undefined as T;
+    }
+
+    const text = await response.text();
+    if (!text.trim()) {
+      return undefined as T;
+    }
+
+    return JSON.parse(text) as T;
+  }
+
+  private async getErrorMessage(response: Response): Promise<string> {
+    try {
+      const error = await this.parseResponseBody<{ error?: string; message?: string }>(response);
+      return error?.error || error?.message || 'Request failed';
+    } catch {
+      return 'Request failed';
+    }
+  }
+
   async get<T>(url: string): Promise<T> {
     const response = await fetch(url, {
       method: 'GET',
@@ -25,11 +47,10 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Request failed');
+      throw new Error(await this.getErrorMessage(response));
     }
 
-    return response.json();
+    return this.parseResponseBody(response);
   }
 
   async post<T>(url: string, data: unknown): Promise<T> {
@@ -40,11 +61,10 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Request failed');
+      throw new Error(await this.getErrorMessage(response));
     }
 
-    return response.json();
+    return this.parseResponseBody(response);
   }
 
   async put<T>(url: string, data: unknown): Promise<T> {
@@ -55,11 +75,10 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Request failed');
+      throw new Error(await this.getErrorMessage(response));
     }
 
-    return response.json();
+    return this.parseResponseBody(response);
   }
 
   async delete<T>(url: string): Promise<T> {
@@ -69,15 +88,10 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || 'Request failed');
+      throw new Error(await this.getErrorMessage(response));
     }
 
-    if (response.status === 204 || response.headers.get('content-length') === '0') {
-      return undefined as T;
-    }
-
-    return response.json();
+    return this.parseResponseBody(response);
   }
 
   async patch<T>(url: string, data?: unknown): Promise<T> {
@@ -88,11 +102,10 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || 'Request failed');
+      throw new Error(await this.getErrorMessage(response));
     }
 
-    return response.json();
+    return this.parseResponseBody(response);
   }
 
   saveAuth(authResponse: AuthResponse): void {

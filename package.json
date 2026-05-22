@@ -9,6 +9,7 @@
     "lint": "eslint",
     "type-check": "tsc --noEmit",
     "test": "jest",
+    "test:e2e:local": "node e2e/local-ui-flow.selenium.mjs",
     "test:e2e:real": "node e2e/real-integration.selenium.mjs",
     "test:watch": "jest --watch",
     "test:coverage": "jest --ci --coverage --reporters=default --reporters=jest-junit"

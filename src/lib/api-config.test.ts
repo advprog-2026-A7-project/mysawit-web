@@ -32,6 +32,10 @@ describe('api-config', () => {
     expect(API_ENDPOINTS.SHIPMENTS.BY_ID(5)).toBe('http://localhost:8084/api/shipments/5');
     expect(API_ENDPOINTS.SHIPMENTS.BY_HARVEST(6)).toBe('http://localhost:8084/api/shipments?harvestId=6');
     expect(API_ENDPOINTS.SHIPMENTS.BY_STATUS('PENDING')).toBe('http://localhost:8084/api/shipments?status=PENDING');
+    expect(API_ENDPOINTS.PAYROLLS.BY_USER('worker-1')).toBe('http://localhost:8085/api/payrolls/user/worker-1');
+    expect(API_ENDPOINTS.WALLETS.BY_USER('admin')).toBe('http://localhost:8085/api/wallets/admin');
+    expect(API_ENDPOINTS.WALLETS.TRANSACTIONS('admin')).toBe('http://localhost:8085/api/wallets/admin/transactions');
+    expect(API_ENDPOINTS.WALLETS.TOP_UP_SANDBOX('admin')).toBe('http://localhost:8085/api/wallets/admin/top-up/sandbox');
   });
 
   it('uses environment-provided URLs', () => {
@@ -54,5 +58,7 @@ describe('api-config', () => {
     expect(API_ENDPOINTS.PLANTATIONS.BASE).toBe('https://plantation.example.com/api/plantations');
     expect(API_ENDPOINTS.HARVESTS.BASE).toBe('https://harvest.example.com/api/harvests');
     expect(API_ENDPOINTS.SHIPMENTS.BASE).toBe('https://shipment.example.com/api/shipments');
+    expect(API_ENDPOINTS.PAYROLLS.BASE).toBe('https://payroll.example.com/api/payrolls');
+    expect(API_ENDPOINTS.WAGE_CONFIGS.BASE).toBe('https://payroll.example.com/api/admin/wage-configs');
   });
 });
