@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { payrollService } from '@/services/payroll.service';
 import { authService } from '@/services/auth.service';
 import { Payroll } from '@/types';
+import { Filter, RefreshCw } from 'lucide-react';
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('id-ID', {
@@ -42,17 +43,27 @@ export default function WorkerPayrollPage() {
   const [payrolls, setPayrolls] = useState<Payroll[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [filters, setFilters] = useState({
+    from: '',
+    to: '',
+    status: '',
+  });
 
   const userInfo = authService.getUserInfo();
 
-  const fetchPayrolls = async () => {
+  const fetchPayrolls = async (nextFilters = filters) => {
     try {
       setLoading(true);
       setError('');
       if (!userInfo?.id) return;
 
       try {
-        const data = await payrollService.getByUser(String(userInfo.id));
+        const data = await payrollService.getAll({
+          userId: String(userInfo.id),
+          from: nextFilters.from || undefined,
+          to: nextFilters.to || undefined,
+          status: nextFilters.status || undefined,
+        });
         setPayrolls(data);
       } catch {
         const data = await payrollService.getAll();
@@ -67,9 +78,24 @@ export default function WorkerPayrollPage() {
   };
 
   useEffect(() => {
-    fetchPayrolls();
+    fetchPayrolls({ from: '', to: '', status: '' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userInfo?.id]);
+
+  const handleFilter = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (filters.from && filters.to && filters.to < filters.from) {
+      setError('Tanggal akhir tidak boleh sebelum tanggal mulai');
+      return;
+    }
+    await fetchPayrolls(filters);
+  };
+
+  const handleResetFilter = async () => {
+    const emptyFilters = { from: '', to: '', status: '' };
+    setFilters(emptyFilters);
+    await fetchPayrolls(emptyFilters);
+  };
 
   const handleAccept = async (id: string | number) => {
     try {
@@ -100,6 +126,52 @@ export default function WorkerPayrollPage() {
       </header>
 
       {error && <div className="alert-error"><span>{error}</span></div>}
+
+      <section className="surface-panel p-4">
+        <form onSubmit={handleFilter} className="grid grid-cols-1 gap-4 md:grid-cols-4 md:items-end">
+          <div>
+            <label className="label-sm">Tanggal Mulai</label>
+            <input
+              type="date"
+              value={filters.from}
+              onChange={(event) => setFilters({ ...filters, from: event.target.value })}
+              className="ms-input"
+            />
+          </div>
+          <div>
+            <label className="label-sm">Tanggal Akhir</label>
+            <input
+              type="date"
+              value={filters.to}
+              onChange={(event) => setFilters({ ...filters, to: event.target.value })}
+              className="ms-input"
+            />
+          </div>
+          <div>
+            <label className="label-sm">Status</label>
+            <select
+              value={filters.status}
+              onChange={(event) => setFilters({ ...filters, status: event.target.value })}
+              className="ms-input"
+            >
+              <option value="">Semua Status</option>
+              <option value="PENDING">Menunggu</option>
+              <option value="ACCEPTED">Diterima</option>
+              <option value="APPROVED">Disetujui</option>
+              <option value="PAID">Dibayar</option>
+              <option value="REJECTED">Ditolak</option>
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button type="submit" className="btn-primary flex-1 justify-center">
+              <Filter size={15} aria-hidden="true" />Filter
+            </button>
+            <button type="button" onClick={handleResetFilter} className="btn-ghost justify-center">
+              <RefreshCw size={15} aria-hidden="true" />
+            </button>
+          </div>
+        </form>
+      </section>
 
       {payrolls.length === 0 ? (
         <div className="empty-state">

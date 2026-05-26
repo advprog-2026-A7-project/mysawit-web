@@ -390,6 +390,7 @@ describe('api-client (browser)', () => {
       username: 'user',
       email: 'user@mail.com',
       role: 'BURUH',
+      mandorId: 'mandor-1',
       googleLinked: false,
       hasPassword: false,
     });
@@ -518,6 +519,7 @@ describe('api-client (browser)', () => {
       username: 'user',
       email: 'user@mail.com',
       role: 'BURUH',
+      mandorId: 'mandor-1',
       googleLinked: false,
       hasPassword: false,
     });
@@ -526,12 +528,15 @@ describe('api-client (browser)', () => {
     expect(localStorage.getItem('userId')).toBe('10');
     expect(localStorage.getItem('username')).toBe('user');
     expect(localStorage.getItem('userRole')).toBe('BURUH');
+    expect(localStorage.getItem('mandorId')).toBe('mandor-1');
     expect(apiClient.isAuthenticated()).toBe(true);
     expect(apiClient.getUserInfo()).toEqual({
       id: '10',
       username: 'user',
       email: 'user@mail.com',
       role: 'BURUH',
+      mandorId: 'mandor-1',
+      kebunId: null,
       googleLinked: false,
       hasPassword: false,
     });
@@ -542,6 +547,7 @@ describe('api-client (browser)', () => {
     expect(localStorage.getItem('userId')).toBeNull();
     expect(localStorage.getItem('username')).toBeNull();
     expect(localStorage.getItem('userRole')).toBeNull();
+    expect(localStorage.getItem('mandorId')).toBeNull();
     expect(apiClient.isAuthenticated()).toBe(false);
   });
 });

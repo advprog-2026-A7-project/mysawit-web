@@ -4,7 +4,7 @@ import Providers from "./providers";
 
 export const metadata: Metadata = {
   title: "MySawit — Platform Manajemen Kebun Sawit",
-  description: "Platform terintegrasi untuk manajemen perkebunan kelapa sawit BurhanSawit. Kelola panen, pengiriman, dan payroll secara efisien.",
+  description: "Platform terintegrasi untuk manajemen perkebunan kelapa sawit BurhanSawit. Kelola panen, pengiriman, gaji, dan wallet secara efisien.",
   keywords: ["sawit", "palm oil", "perkebunan", "manajemen", "MySawit"],
   authors: [{ name: "BurhanSawit" }],
   robots: "noindex",

@@ -30,10 +30,10 @@ export default function Home() {
 
           <div className="flex flex-col sm:flex-row gap-3">
             <Link href="/login" className="btn-primary text-base px-6 py-3 justify-center">
-              Login
+              Masuk
             </Link>
             <Link href="/register" className="btn-secondary text-base px-6 py-3 justify-center bg-black/30">
-              Register
+              Daftar
             </Link>
           </div>
         </section>

@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { plantationService } from '@/services/plantation.service';
 import { authService } from '@/services/auth.service';
-import { identityService } from '@/services/identity.service';
-import { Plantation, User } from '@/types';
+import { Plantation } from '@/types';
 
 export default function MandorPlantationsPage() {
   const [plantations, setPlantations] = useState<Plantation[]>([]);
@@ -19,39 +18,24 @@ export default function MandorPlantationsPage() {
       setError('');
       const userInfo = authService.getUserInfo();
       
-      let data: Plantation[] = [];
-      
-      // Try getAll first, if forbidden try getByOwner
-      try {
-        data = await plantationService.getAll();
-      } catch {
-        // If forbidden, try fetching by owner (mandor's own id)
-        if (userInfo?.id) {
-          try {
-            data = await plantationService.getByOwner(userInfo.id);
-          } catch {
-            // If that also fails, show empty state
-            data = [];
-          }
-        }
+      if (!userInfo?.id) {
+        setPlantations([]);
+        return;
       }
-      
-      // Filter to only keep plantations assigned to this mandor
-      if (userInfo?.id) {
-        const myPlantations = data.filter(p => String(p.mandorId) === String(userInfo.id));
-        // If no plantations match, maybe the backend already filtered, use all data
-        setPlantations(myPlantations.length > 0 ? myPlantations : data);
-      } else {
-        setPlantations(data);
-      }
+
+      const data = await plantationService.getByMandor(userInfo.id);
+      setPlantations(data);
       
       // Load user details for supirs
       try {
-        const users = await identityService.listUsers();
         const map: Record<string, string> = {};
-        users.forEach((u: User) => {
-          map[String(u.id)] = u.name || u.username || 'Anggota';
-        });
+        await Promise.all(data.map(async (plantation) => {
+          const details = await plantationService.getSupirDetails(plantation.id);
+          details.forEach((supir) => {
+            const id = supir.id ?? supir.userId;
+            if (id) map[String(id)] = supir.name || 'Supir';
+          });
+        }));
         setSupirUsers(map);
       } catch {
         // Ignore user fetch errors

@@ -6,6 +6,7 @@ describe('api-config', () => {
     expect(API_ENDPOINTS.AUTH.LOGIN).toBe('/api/gateway/identity/api/auth/login');
     expect(API_ENDPOINTS.PLANTATIONS.BY_ID(12)).toBe('/api/gateway/plantation/api/plantations/12');
     expect(API_ENDPOINTS.PLANTATIONS.BY_OWNER(7)).toBe('/api/gateway/plantation/api/plantations/owner/7');
+    expect(API_ENDPOINTS.PLANTATIONS.BY_MANDOR('m-1')).toBe('/api/gateway/plantation/api/plantations/mandor/m-1');
     expect(API_ENDPOINTS.PLANTATIONS.ASSIGN_MANDOR(7)).toBe('/api/gateway/plantation/api/plantations/7/mandor');
     expect(API_ENDPOINTS.PLANTATIONS.TRANSFER_MANDOR).toBe('/api/gateway/plantation/api/plantations/transfer-mandor');
     expect(API_ENDPOINTS.HARVESTS.BY_ID(3)).toBe('/api/gateway/harvest/harvests/3');

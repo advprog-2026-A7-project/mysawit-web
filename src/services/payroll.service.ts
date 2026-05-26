@@ -1,6 +1,15 @@
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-config';
-import { Payroll, PayrollRequest, PayrollSearchParams, WageConfig, WageConfigRequest } from '@/types';
+import {
+  PaymentTransaction,
+  Payroll,
+  PayrollRequest,
+  PayrollSearchParams,
+  WageConfig,
+  WageConfigRequest,
+  Wallet,
+  WalletTopUpRequest,
+} from '@/types';
 
 const toLocalDateTime = (value: string) =>
   /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
@@ -102,4 +111,22 @@ export const wageConfigService = {
     return apiClient.delete(API_ENDPOINTS.WAGE_CONFIGS.BY_ID(id));
   },
 
+};
+
+export const walletService = {
+  async getWallet(userId: string): Promise<Wallet> {
+    return apiClient.get(API_ENDPOINTS.WALLETS.BY_USER(userId));
+  },
+
+  async getTransactions(userId: string): Promise<PaymentTransaction[]> {
+    return apiClient.get(API_ENDPOINTS.WALLETS.TRANSACTIONS(userId));
+  },
+
+  async topUpSandbox(userId: string, data: WalletTopUpRequest): Promise<PaymentTransaction> {
+    return apiClient.post(API_ENDPOINTS.WALLETS.TOP_UP_SANDBOX(userId), data);
+  },
+
+  async settleSandbox(transactionId: string, status = 'PAID'): Promise<PaymentTransaction> {
+    return apiClient.post(API_ENDPOINTS.WALLETS.SETTLE_SANDBOX(transactionId), { status });
+  },
 };

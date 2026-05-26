@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { shipmentService } from '@/services/shipment.service';
 import { authService } from '@/services/auth.service';
 import { Shipment, ShipmentStatus } from '@/types';
+import { Filter, RefreshCw } from 'lucide-react';
 import {
   formatShipmentStatus,
   shipmentStatusBadge,
@@ -36,36 +37,39 @@ export default function WorkerShipmentHistoryPage() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
 
   const userInfo = authService.getUserInfo();
 
+  const fetchHistory = async (date = dateFilter) => {
+    try {
+      setLoading(true);
+      if (!userInfo?.id) return;
+
+      const data = await shipmentService.getAll({
+        supirUserId: userInfo.id,
+        date: date || undefined,
+      });
+
+      const history = data.filter((s) =>
+        HISTORY_STATUSES.includes(s.status as ShipmentStatus),
+      );
+
+      history.sort(
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      );
+
+      setShipments(history);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal memuat riwayat pengiriman');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        setLoading(true);
-        if (!userInfo?.id) return;
-
-        const data = await shipmentService.getAll({
-          supirUserId: userInfo.id,
-        });
-
-        const history = data.filter((s) =>
-          HISTORY_STATUSES.includes(s.status as ShipmentStatus),
-        );
-
-        history.sort(
-          (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-        );
-
-        setShipments(history);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Gagal memuat riwayat pengiriman');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchHistory();
+    void fetchHistory('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userInfo?.id]);
 
   if (loading) {
@@ -88,6 +92,39 @@ export default function WorkerShipmentHistoryPage() {
       </header>
 
       {error && <div className="alert-error"><span>{error}</span></div>}
+
+      <section className="surface-panel p-4">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void fetchHistory(dateFilter);
+          }}
+          className="flex flex-col gap-3 sm:flex-row sm:items-end"
+        >
+          <div className="flex-1">
+            <label className="label-sm">Tanggal Pengiriman</label>
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(event) => setDateFilter(event.target.value)}
+              className="ms-input"
+            />
+          </div>
+          <button type="submit" className="btn-primary justify-center">
+            <Filter size={15} aria-hidden="true" />Filter
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setDateFilter('');
+              void fetchHistory('');
+            }}
+            className="btn-ghost justify-center"
+          >
+            <RefreshCw size={15} aria-hidden="true" />Reset
+          </button>
+        </form>
+      </section>
 
       {/* Summary */}
       {shipments.length > 0 && (

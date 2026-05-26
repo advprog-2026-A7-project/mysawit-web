@@ -75,7 +75,12 @@ describe('harvest.service', () => {
       API_ENDPOINTS.HARVESTS.BASE,
       expect.objectContaining({
         method: 'POST',
-        headers: { Authorization: 'Bearer token-1' },
+        headers: expect.objectContaining({
+          Authorization: 'Bearer token-1',
+          'X-User-Id': 'token-1',
+          'X-Requester-Id': 'token-1',
+          'X-User-Role': 'token-1',
+        }),
         body: expect.any(FormData),
       })
     );
@@ -159,6 +164,18 @@ describe('harvest.service', () => {
     await harvestService.getMine({ date: '2026-01-01' });
     expect(apiClient.get).toHaveBeenCalledWith(
       `${API_ENDPOINTS.HARVESTS.MY}?date=2026-01-01`
+    );
+  });
+
+  it('getMine appends PRD history filters for date range and status', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue([]);
+    await harvestService.getMine({
+      startDate: '2026-05-01',
+      endDate: '2026-05-31',
+      status: 'REJECTED',
+    });
+    expect(apiClient.get).toHaveBeenCalledWith(
+      `${API_ENDPOINTS.HARVESTS.MY}?startDate=2026-05-01T00%3A00%3A00&endDate=2026-05-31T00%3A00%3A00&status=REJECTED`
     );
   });
 

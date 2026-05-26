@@ -1,10 +1,11 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { harvestService } from '@/services/harvest.service';
 import { authService } from '@/services/auth.service';
-import { Harvest } from '@/types';
-import { Camera, Send } from 'lucide-react';
+import { plantationService } from '@/services/plantation.service';
+import { Harvest, HarvestStatus, Plantation } from '@/types';
+import { Camera, Filter, RefreshCw, Send } from 'lucide-react';
 
 const formatDate = (value?: string) => {
   if (!value) return '-';
@@ -32,22 +33,49 @@ export default function WorkerHarvestPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [plantationsLoading, setPlantationsLoading] = useState(true);
+  const [plantationMessage, setPlantationMessage] = useState('');
+  const [assignedPlantations, setAssignedPlantations] = useState<Plantation[]>([]);
   const [form, setForm] = useState({
     plantationId: '',
     weight: '',
     news: '',
     files: null as FileList | null,
   });
+  const [filters, setFilters] = useState<{
+    startDate: string;
+    endDate: string;
+    status: HarvestStatus | '';
+  }>({
+    startDate: '',
+    endDate: '',
+    status: '',
+  });
 
   const userInfo = authService.getUserInfo();
+  const mandorId = userInfo?.mandorId;
 
-  const fetchHarvests = async () => {
+  const hasLoggedToday = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return harvests.some((harvest) => {
+      const sourceDate = harvest.harvestDate || harvest.createdAt;
+      if (!sourceDate) return false;
+      const parsed = new Date(sourceDate);
+      return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === today;
+    });
+  }, [harvests]);
+
+  const fetchHarvests = async (nextFilters = filters) => {
     try {
       setLoading(true);
       if (!userInfo?.id) return;
 
       try {
-        const data = await harvestService.getMine();
+        const data = await harvestService.getMine({
+          startDate: nextFilters.startDate || undefined,
+          endDate: nextFilters.endDate || undefined,
+          status: nextFilters.status || undefined,
+        });
         setHarvests(data);
       } catch {
         const data = await harvestService.getAll();
@@ -63,14 +91,79 @@ export default function WorkerHarvestPage() {
     }
   };
 
+  const fetchAssignedPlantations = async () => {
+    try {
+      setPlantationsLoading(true);
+      setPlantationMessage('');
+      setAssignedPlantations([]);
+
+      if (!userInfo?.id) return;
+
+      if (!mandorId) {
+        setPlantationMessage('Anda belum ditugaskan ke Mandor. Hubungi Admin untuk menyelesaikan penugasan.');
+        return;
+      }
+
+      const mine = await plantationService.getByMandor(mandorId);
+      setAssignedPlantations(mine);
+
+      if (mine.length === 0) {
+        setPlantationMessage('Mandor Anda belum ditugaskan ke kebun manapun.');
+        setForm((current) => ({ ...current, plantationId: '' }));
+        return;
+      }
+
+      setForm((current) => (
+        current.plantationId
+          ? current
+          : { ...current, plantationId: mine.length === 1 ? String(mine[0].id) : '' }
+      ));
+    } catch (err) {
+      setPlantationMessage(err instanceof Error ? err.message : 'Gagal memuat kebun yang ditugaskan');
+    } finally {
+      setPlantationsLoading(false);
+    }
+  };
+
   useEffect(() => {
     void fetchHarvests();
-  }, [userInfo?.id]);
+    void fetchAssignedPlantations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userInfo?.id, mandorId]);
+
+  const handleFilter = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (filters.startDate && filters.endDate && filters.endDate < filters.startDate) {
+      setError('Tanggal akhir tidak boleh sebelum tanggal mulai');
+      return;
+    }
+
+    setError('');
+    await fetchHarvests(filters);
+  };
+
+  const handleResetFilter = async () => {
+    const emptyFilters = { startDate: '', endDate: '', status: '' as HarvestStatus | '' };
+    setFilters(emptyFilters);
+    setError('');
+    await fetchHarvests(emptyFilters);
+  };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError('');
     setSuccess('');
+
+    if (hasLoggedToday) {
+      setError('Anda sudah mencatat panen hari ini. Silakan tunggu hari berikutnya.');
+      return;
+    }
+
+    if (!form.plantationId) {
+      setError('Pilih kebun yang ditugaskan sebelum mengirim log panen.');
+      return;
+    }
 
     const weight = Number(form.weight);
     if (!Number.isFinite(weight) || weight <= 0) {
@@ -92,10 +185,15 @@ export default function WorkerHarvestPage() {
         files: form.files,
       });
       setSuccess('Log panen berhasil dikirim dan menunggu validasi mandor.');
-      setForm({ plantationId: '', weight: '', news: '', files: null });
+      setForm({
+        plantationId: assignedPlantations.length === 1 ? String(assignedPlantations[0].id) : '',
+        weight: '',
+        news: '',
+        files: null,
+      });
       const fileInput = document.getElementById('harvest-photos') as HTMLInputElement | null;
       if (fileInput) fileInput.value = '';
-      await fetchHarvests();
+      await fetchHarvests(filters);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal mengirim log panen');
     } finally {
@@ -135,19 +233,38 @@ export default function WorkerHarvestPage() {
             <p className="text-sm text-slate-500 mt-1">Kirim hasil panen harian untuk divalidasi mandor.</p>
           </div>
         </div>
+        {hasLoggedToday && (
+          <div className="mb-4 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            Catatan panen hari ini sudah tersimpan. Form akan aktif lagi besok.
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {plantationMessage && (
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+              {plantationMessage}
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="harvest-plantation" className="label-sm">ID Kebun</label>
-              <input
+              <label htmlFor="harvest-plantation" className="label-sm">Kebun</label>
+              <select
                 id="harvest-plantation"
-                type="text"
+                data-testid="harvest-plantation-select"
                 value={form.plantationId}
                 onChange={(event) => setForm({ ...form, plantationId: event.target.value })}
                 className="ms-input"
-                placeholder="Contoh: 1"
+                disabled={plantationsLoading || assignedPlantations.length === 0}
                 required
-              />
+              >
+                <option value="">
+                  {plantationsLoading ? 'Memuat kebun...' : '-- Pilih Kebun --'}
+                </option>
+                {assignedPlantations.map((plantation) => (
+                  <option key={String(plantation.id)} value={String(plantation.id)}>
+                    {plantation.code ? `${plantation.code} - ` : ''}{plantation.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label htmlFor="harvest-weight" className="label-sm">Berat Panen (kg)</label>
@@ -180,6 +297,7 @@ export default function WorkerHarvestPage() {
             <label htmlFor="harvest-photos" className="label-sm">Foto Hasil Panen</label>
             <input
               id="harvest-photos"
+              data-testid="harvest-photo-input"
               type="file"
               accept="image/*"
               multiple
@@ -188,9 +306,53 @@ export default function WorkerHarvestPage() {
               required
             />
           </div>
-          <button type="submit" disabled={saving} className="btn-primary w-full justify-center py-3">
+          <button type="submit" disabled={saving || hasLoggedToday || plantationsLoading || assignedPlantations.length === 0} data-testid="harvest-create-button" className="btn-primary w-full justify-center py-3">
             <Send size={16} aria-hidden="true" />{saving ? 'Mengirim...' : 'Kirim Log Panen'}
           </button>
+        </form>
+      </section>
+
+      <section className="surface-panel p-5">
+        <form onSubmit={handleFilter} className="grid grid-cols-1 gap-4 md:grid-cols-4 md:items-end">
+          <div>
+            <label className="label-sm">Tanggal Mulai</label>
+            <input
+              type="date"
+              value={filters.startDate}
+              onChange={(event) => setFilters({ ...filters, startDate: event.target.value })}
+              className="ms-input"
+            />
+          </div>
+          <div>
+            <label className="label-sm">Tanggal Akhir</label>
+            <input
+              type="date"
+              value={filters.endDate}
+              onChange={(event) => setFilters({ ...filters, endDate: event.target.value })}
+              className="ms-input"
+            />
+          </div>
+          <div>
+            <label className="label-sm">Status</label>
+            <select
+              value={filters.status}
+              onChange={(event) => setFilters({ ...filters, status: event.target.value as HarvestStatus | '' })}
+              className="ms-input"
+            >
+              <option value="">Semua Status</option>
+              <option value="PENDING">Menunggu</option>
+              <option value="APPROVED">Disetujui</option>
+              <option value="REJECTED">Ditolak</option>
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button type="submit" className="btn-primary flex-1 justify-center">
+              <Filter size={15} aria-hidden="true" />Filter
+            </button>
+            <button type="button" onClick={handleResetFilter} className="btn-ghost justify-center">
+              <RefreshCw size={15} aria-hidden="true" />
+            </button>
+          </div>
         </form>
       </section>
 

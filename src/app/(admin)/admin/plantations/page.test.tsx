@@ -98,4 +98,33 @@ describe('Admin plantations page', () => {
       expect(adminService.assignMandor).toHaveBeenCalledWith('buruh-1', 'mandor-1');
     });
   });
+
+  it('blocks invalid plantation area before calling the API', async () => {
+    render(<PlantationsPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: '+ Tambah Kebun' }));
+    fireEvent.change(screen.getByPlaceholderText('KB-A-001'), { target: { value: 'KB-NEG-001' } });
+    fireEvent.change(screen.getByPlaceholderText('Kebun Blok A'), { target: { value: 'Kebun Negatif' } });
+    fireEvent.change(screen.getByPlaceholderText('Kalimantan Selatan'), { target: { value: 'Riau' } });
+    fireEvent.change(screen.getByPlaceholderText('25.5'), { target: { value: '-1' } });
+    fireEvent.submit(screen.getByTestId('kebun-create-button').closest('form')!);
+
+    expect(await screen.findByText('Luas kebun harus lebih dari 0 hektare')).toBeInTheDocument();
+    expect(plantationService.create).not.toHaveBeenCalled();
+  });
+
+  it('blocks incomplete plantation coordinates before calling the API', async () => {
+    render(<PlantationsPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: '+ Tambah Kebun' }));
+    fireEvent.change(screen.getByPlaceholderText('KB-A-001'), { target: { value: 'KB-NEG-002' } });
+    fireEvent.change(screen.getByPlaceholderText('Kebun Blok A'), { target: { value: 'Kebun Koordinat' } });
+    fireEvent.change(screen.getByPlaceholderText('Kalimantan Selatan'), { target: { value: 'Riau' } });
+    fireEvent.change(screen.getByPlaceholderText('25.5'), { target: { value: '12' } });
+    fireEvent.change(screen.getAllByPlaceholderText('Lat')[0], { target: { value: '' } });
+    fireEvent.submit(screen.getByTestId('kebun-create-button').closest('form')!);
+
+    expect(await screen.findByText('Koordinat 4 sudut wajib lengkap dan valid')).toBeInTheDocument();
+    expect(plantationService.create).not.toHaveBeenCalled();
+  });
 });

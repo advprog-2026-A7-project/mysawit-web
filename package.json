@@ -9,7 +9,11 @@
     "lint": "eslint",
     "type-check": "tsc --noEmit",
     "test": "jest",
+    "test:e2e:flow": "node e2e/flow-audit.selenium.mjs",
     "test:e2e:real": "node e2e/real-integration.selenium.mjs",
+    "test:e2e:prd": "node e2e/prd-real-flow.selenium.mjs",
+    "test:e2e:positive": "node e2e/manual-full-positive-ui-check.selenium.mjs",
+    "test:e2e:negative": "node e2e/manual-full-negative-ui-check.selenium.mjs",
     "test:watch": "jest --watch",
     "test:coverage": "jest --ci --coverage --reporters=default --reporters=jest-junit"
   },

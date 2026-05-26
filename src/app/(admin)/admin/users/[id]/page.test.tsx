@@ -43,7 +43,7 @@ describe('AdminUserDetailPage', () => {
 
     render(<AdminUserDetailPage />);
 
-    expect(screen.getByText(/loading user detail/i)).toBeInTheDocument();
+    expect(screen.getByText(/memuat detail pengguna/i)).toBeInTheDocument();
 
     await waitFor(() => {
       expect(adminService.getUserById).toHaveBeenCalledWith('user-1');
@@ -54,7 +54,7 @@ describe('AdminUserDetailPage', () => {
     expect(screen.getByText('BURUH')).toBeInTheDocument();
     expect(screen.getByText('mandor-1')).toBeInTheDocument();
     expect(screen.getByText('kebun-1')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /back to users/i })).toHaveAttribute('href', '/admin/users');
+    expect(screen.getByRole('link', { name: /kembali ke pengguna/i })).toHaveAttribute('href', '/admin/users');
   });
 
   it('shows an error when loading user detail fails', async () => {

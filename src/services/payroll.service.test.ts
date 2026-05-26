@@ -1,4 +1,4 @@
-import { payrollService, wageConfigService } from './payroll.service';
+import { payrollService, wageConfigService, walletService } from './payroll.service';
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-config';
 
@@ -221,5 +221,40 @@ describe('wageConfigService', () => {
     (apiClient.delete as jest.Mock).mockResolvedValue(undefined);
     await wageConfigService.delete(1);
     expect(apiClient.delete).toHaveBeenCalledWith(API_ENDPOINTS.WAGE_CONFIGS.BY_ID(1));
+  });
+});
+
+describe('walletService', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('getWallet calls wallet by-user endpoint', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue({ userId: USER_ID, balance: 10 });
+    const result = await walletService.getWallet(USER_ID);
+    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.WALLETS.BY_USER(USER_ID));
+    expect(result).toEqual({ userId: USER_ID, balance: 10 });
+  });
+
+  it('getTransactions calls wallet transactions endpoint', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue([{ transactionId: 'tx-1' }]);
+    const result = await walletService.getTransactions(USER_ID);
+    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.WALLETS.TRANSACTIONS(USER_ID));
+    expect(result).toEqual([{ transactionId: 'tx-1' }]);
+  });
+
+  it('topUpSandbox posts amount and gateway to sandbox endpoint', async () => {
+    const body = { amountSawitDollar: 25, gateway: 'MIDTRANS_SANDBOX' };
+    (apiClient.post as jest.Mock).mockResolvedValue({ transactionId: 'tx-2' });
+    const result = await walletService.topUpSandbox(USER_ID, body);
+    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.WALLETS.TOP_UP_SANDBOX(USER_ID), body);
+    expect(result).toEqual({ transactionId: 'tx-2' });
+  });
+
+  it('settleSandbox posts paid status to transaction settle endpoint', async () => {
+    (apiClient.post as jest.Mock).mockResolvedValue({ transactionId: 'tx-3', status: 'PAID' });
+    const result = await walletService.settleSandbox('tx-3');
+    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.WALLETS.SETTLE_SANDBOX('tx-3'), { status: 'PAID' });
+    expect(result).toEqual({ transactionId: 'tx-3', status: 'PAID' });
   });
 });

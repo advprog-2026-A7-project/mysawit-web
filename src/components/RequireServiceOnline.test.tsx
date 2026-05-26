@@ -24,7 +24,7 @@ describe('RequireServiceOnline', () => {
 
     const indicator = screen.getByTestId('service-loading');
     expect(indicator).toHaveAttribute('data-status', 'loading');
-    expect(screen.getByText(/connecting to harvest service/i)).toBeInTheDocument();
+    expect(screen.getByText(/menghubungkan ke harvest service/i)).toBeInTheDocument();
     expect(screen.queryByText('child')).not.toBeInTheDocument();
   });
 
@@ -64,7 +64,7 @@ describe('RequireServiceOnline', () => {
     await waitFor(() =>
       expect(screen.getByTestId('service-loading')).toHaveAttribute('data-status', 'offline')
     );
-    expect(screen.getByText(/harvest service is offline/i)).toBeInTheDocument();
+    expect(screen.getByText(/harvest service sedang offline/i)).toBeInTheDocument();
 
     await act(async () => {
       jest.advanceTimersByTime(1000);

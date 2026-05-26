@@ -5,6 +5,7 @@ import { payrollService } from '@/services/payroll.service';
 import { authService } from '@/services/auth.service';
 import { identityService } from '@/services/identity.service';
 import { Payroll, User } from '@/types';
+import { Filter, RefreshCw } from 'lucide-react';
 
 const STATUS_BADGE: Record<string, string> = {
   PENDING: 'badge badge-yellow',
@@ -47,32 +48,39 @@ export default function MandorPayrollPage() {
   
   const [filterType, setFilterType] = useState<'ALL' | 'MINE' | 'SUBORDINATE'>('ALL');
   const [filterStatus, setFilterStatus] = useState<string>('');
+  const [dateFilter, setDateFilter] = useState({ from: '', to: '' });
 
   const userInfo = authService.getUserInfo();
 
+  const loadPayrolls = async (filters = dateFilter) => {
+    try {
+      setLoading(true);
+      const data = await payrollService.getAll({
+        from: filters.from || undefined,
+        to: filters.to || undefined,
+      });
+      setPayrolls(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal memuat data slip gaji');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const init = async () => {
+      await loadPayrolls({ from: '', to: '' });
       try {
-        setLoading(true);
-        const data = await payrollService.getAll();
-        
-        try {
-          const users = await identityService.listUsers();
-          const map: Record<string, User> = {};
-          users.forEach((u) => { map[String(u.id)] = u; });
-          setUsersMap(map);
-        } catch {
-          // Ignore
-        }
-        
-        setPayrolls(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Gagal memuat data slip gaji');
-      } finally {
-        setLoading(false);
+        const users = await identityService.listUsers();
+        const map: Record<string, User> = {};
+        users.forEach((u) => { map[String(u.id)] = u; });
+        setUsersMap(map);
+      } catch {
+        // user labels are optional for this dashboard
       }
     };
     void init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAction = async (id: string | number, action: 'ACCEPT' | 'REJECT', reason?: string) => {
@@ -82,8 +90,7 @@ export default function MandorPayrollPage() {
       } else {
         await payrollService.reject(Number(id), reason);
       }
-      const data = await payrollService.getAll();
-      setPayrolls(data);
+      await loadPayrolls(dateFilter);
     } catch (err) {
       setError(err instanceof Error ? err.message : `Gagal melakukan aksi ${action}`);
     }
@@ -174,6 +181,53 @@ export default function MandorPayrollPage() {
         </select>
       </div>
 
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (dateFilter.from && dateFilter.to && dateFilter.to < dateFilter.from) {
+            setError('Tanggal akhir tidak boleh sebelum tanggal mulai');
+            return;
+          }
+          void loadPayrolls(dateFilter);
+        }}
+        className="surface-panel p-4 grid grid-cols-1 gap-4 md:grid-cols-3 md:items-end"
+      >
+        <div>
+          <label className="label-sm">Tanggal Mulai</label>
+          <input
+            type="date"
+            value={dateFilter.from}
+            onChange={(event) => setDateFilter({ ...dateFilter, from: event.target.value })}
+            className="ms-input"
+          />
+        </div>
+        <div>
+          <label className="label-sm">Tanggal Akhir</label>
+          <input
+            type="date"
+            value={dateFilter.to}
+            onChange={(event) => setDateFilter({ ...dateFilter, to: event.target.value })}
+            className="ms-input"
+          />
+        </div>
+        <div className="flex gap-2">
+          <button type="submit" className="btn-primary flex-1 justify-center">
+            <Filter size={15} aria-hidden="true" />Filter
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const empty = { from: '', to: '' };
+              setDateFilter(empty);
+              void loadPayrolls(empty);
+            }}
+            className="btn-ghost justify-center"
+          >
+            <RefreshCw size={15} aria-hidden="true" />Reset
+          </button>
+        </div>
+      </form>
+
       {filteredPayrolls.length === 0 ? (
         <div className="empty-state">
           <p className="font-medium text-white text-lg">Belum ada data slip gaji</p>
@@ -240,10 +294,16 @@ export default function MandorPayrollPage() {
                       >
                         Validasi
                       </button>
-                      <button 
+                      <button
                         onClick={() => {
                           const reason = prompt('Masukkan alasan penolakan gaji:');
-                          if (reason !== null) handleAction(payroll.id, 'REJECT', reason);
+                          if (reason === null) return;
+                          const trimmedReason = reason.trim();
+                          if (!trimmedReason) {
+                            setError('Alasan penolakan gaji wajib diisi');
+                            return;
+                          }
+                          handleAction(payroll.id, 'REJECT', trimmedReason);
                         }}
                         className="flex-1 btn-secondary border-red-500/30 text-red-400 hover:bg-red-500/10 justify-center"
                       >

@@ -26,8 +26,8 @@ export function RequireRole({ allow, children }: RequireRoleProps) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h2>
-          <p className="text-gray-600">You do not have permission to access this page.</p>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Akses Ditolak</h2>
+          <p className="text-gray-600">Anda tidak memiliki izin untuk membuka halaman ini.</p>
         </div>
       </div>
     );

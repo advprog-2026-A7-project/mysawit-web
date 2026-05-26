@@ -38,6 +38,8 @@ export interface AuthResponse {
   username: string;
   email: string;
   role: UserRole;
+  mandorId?: string | null;
+  kebunId?: string | null;
   googleLinked: boolean;
   hasPassword: boolean;
 }
@@ -112,6 +114,7 @@ export interface Plantation {
 }
 
 export interface PlantationRequest {
+  code?: string;
   name: string;
   location: string;
   area: number;
@@ -127,6 +130,12 @@ export interface AssignPlantationMandorRequest {
 
 export interface TransferPlantationMandorRequest {
   mandorId: string;
+  fromPlantationId: EntityId;
+  toPlantationId: EntityId;
+}
+
+export interface TransferPlantationSupirRequest {
+  supirId: string;
   fromPlantationId: EntityId;
   toPlantationId: EntityId;
 }
@@ -260,6 +269,14 @@ export interface SupirAssignment {
   plantationId: EntityId;
 }
 
+export interface SupirDetail {
+  id?: EntityId;
+  userId?: EntityId;
+  name: string;
+  email?: string;
+  plantationId?: EntityId;
+}
+
 // Payroll Types
 
 // Mirror of an Auth user that the payroll service stores locally.
@@ -341,6 +358,36 @@ export interface WageConfigRequest {
   effectiveDate: string;
   description?: string;
   createdBy?: string;
+}
+
+// Wallet Types
+export interface Wallet {
+  id: EntityId;
+  userId: string;
+  balance: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type PaymentTransactionStatus = 'PENDING' | 'PAID' | 'EXPIRED' | 'FAILED';
+
+export interface PaymentTransaction {
+  id: EntityId;
+  transactionId: string;
+  userId: string;
+  gateway: string;
+  status: PaymentTransactionStatus | string;
+  amountSawitDollar: number;
+  amountIdr: number;
+  checkoutUrl?: string;
+  gatewayTransactionId?: string;
+  createdAt?: string;
+  paidAt?: string;
+}
+
+export interface WalletTopUpRequest {
+  amountSawitDollar: number;
+  gateway?: string;
 }
 
 // API Response Types

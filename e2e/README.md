@@ -10,14 +10,26 @@ Start the real backend services first, then run:
 npm run test:e2e:real
 ```
 
+For the PRD workflow suite, provide a real default admin account and run:
+
+```bash
+REAL_ADMIN_EMAIL=admin@mysawit.com REAL_ADMIN_PASSWORD='...' npm run test:e2e:prd
+```
+
+`test:e2e:prd` uses the real browser UI for registration, login, kebun creation,
+assignment, harvest upload, harvest approval, admin wallet top-up, and payroll
+approval. It talks to the same real Spring Boot service URLs listed below and
+intentionally fails if a required backend capability is missing instead of
+replacing it with an internal mock.
+
 By default it expects local services:
 
 ```txt
-identity    http://localhost:8081
-plantation  http://localhost:8082
-harvest     http://localhost:8083
-shipment    http://localhost:8084
-payroll     http://localhost:8085
+identity    http://127.0.0.1:8081
+plantation  http://127.0.0.1:8082
+harvest     http://127.0.0.1:8083
+shipment    http://127.0.0.1:8084
+payroll     http://127.0.0.1:8085
 ```
 
 For deployed/Elastic IP services, set these before running:
@@ -35,13 +47,29 @@ Shipment is included in the test too:
 REAL_SHIPMENT_SERVICE_URL=http://<shipment-host>:8084
 ```
 
-The runner starts the frontend on `http://127.0.0.1:3100` and a recording proxy on `http://127.0.0.1:3999`.
+The PRD runner starts the frontend on `http://127.0.0.1:3102` by default. Override
+it with `E2E_FRONTEND_PORT` if that port is already in use.
+
+All services must pass their health preflight. If one service is down, the suite fails immediately instead of falling back to mocks.
+
+For admin pages, the suite can either log in with a real admin account:
+
+```bash
+REAL_ADMIN_EMAIL=admin@mysawit.com REAL_ADMIN_PASSWORD='...' npm run test:e2e:real
+```
+
+Or, if those variables are not provided, it signs an admin JWT with `REAL_JWT_SECRET`/`JWT_SECRET` and uses that only for admin page authorization checks. The backend calls are still sent to the real services.
 
 ## What It Verifies
 
-- Register and login trigger Identity API calls.
-- Plantation, harvest, shipment, employee, and payroll UI actions trigger the expected backend routes.
-- Created records are readable back from the real backend APIs, which means the real database path is exercised.
-- Payroll approve and pay buttons persist status changes through the Payroll backend.
+- Register and login trigger real Identity API calls for BURUH, MANDOR, and SUPIR.
+- Worker pages call real Harvest, Payroll, and Shipment APIs.
+- Mandor pages call real Plantation, Harvest, Shipment, Payroll, and Identity APIs.
+- Admin pages call real Identity, Plantation, Shipment, Payroll, wage config, and dashboard APIs.
+- Every asserted call must return the expected real backend HTTP status.
 
-The runner creates test data with an `E2E` prefix and deletes created plantation, harvest, shipment, employee, and payroll records at the end. Identity currently has no delete-user endpoint, so the generated test user remains in the real database.
+The PRD runner creates temporary Identity users with an `e2e_` prefix, two
+plantations, a harvest report, and payroll/wallet records generated from the real
+service flow. It deletes the users and plantations at the end through real admin
+endpoints. Use an isolated test database when asserting wallet balances or event
+side effects.
