@@ -72,7 +72,7 @@ describe('RegisterPage', () => {
     fireEvent.change(screen.getByPlaceholderText(/minimal 6 karakter/i), {
       target: { value: password },
     });
-    fireEvent.change(screen.getByPlaceholderText(/ulangi password/i), {
+    fireEvent.change(screen.getByPlaceholderText(/ulangi kata sandi/i), {
       target: { value: confirmPassword },
     });
   };
@@ -159,7 +159,7 @@ describe('RegisterPage', () => {
     render(<RegisterPage />);
     fillRequiredFields('secret123', 'secret123');
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'MANDOR' } });
-    fireEvent.change(screen.getByPlaceholderText(/cert-001/i), { target: { value: 'CERT-99' } });
+    fireEvent.change(screen.getByPlaceholderText(/contoh: CERT-001/i), { target: { value: 'CERT-99' } });
     fireEvent.click(screen.getByRole('button', { name: /^daftar$/i }));
 
     await waitFor(() => {
@@ -203,7 +203,7 @@ describe('RegisterPage', () => {
 
   describe('Google sign-up mode', () => {
     const switchToGoogle = () => {
-      fireEvent.click(screen.getByRole('button', { name: /sign up with google/i }));
+      fireEvent.click(screen.getByRole('button', { name: /daftar dengan google/i }));
     };
 
     it('toggling to Google mode hides the email form and shows the Google widget', () => {
@@ -214,15 +214,15 @@ describe('RegisterPage', () => {
       expect(screen.queryByPlaceholderText(/enter your email/i)).not.toBeInTheDocument();
       expect(screen.getByTestId('google-login')).toBeInTheDocument();
       // Username is re-rendered in Google mode; resetForm should have blanked it.
-      expect(screen.getByPlaceholderText(/choose a username/i)).toHaveValue('');
+      expect(screen.getByPlaceholderText(/budi\.mandor/i)).toHaveValue('');
     });
 
     it('toggling back to Email mode resets the Google form fields', () => {
       render(<RegisterPage />);
       switchToGoogle();
-      fireEvent.change(screen.getByPlaceholderText(/choose a username/i), { target: { value: 'budi' } });
-      fireEvent.click(screen.getByRole('button', { name: /sign up with email/i }));
-      expect(screen.getByPlaceholderText(/choose a username/i)).toHaveValue('');
+      fireEvent.change(screen.getByPlaceholderText(/budi\.mandor/i), { target: { value: 'budi' } });
+      fireEvent.click(screen.getByRole('button', { name: /daftar dengan email/i }));
+      expect(screen.getByPlaceholderText(/budi\.mandor/i)).toHaveValue('');
       expect(screen.queryByTestId('google-login')).not.toBeInTheDocument();
     });
 
@@ -230,7 +230,7 @@ describe('RegisterPage', () => {
       (authService.googleLogin as jest.Mock).mockResolvedValue(undefined);
       render(<RegisterPage />);
       switchToGoogle();
-      fireEvent.change(screen.getByPlaceholderText(/choose a username/i), { target: { value: 'budi' } });
+      fireEvent.change(screen.getByPlaceholderText(/budi\.mandor/i), { target: { value: 'budi' } });
       await act(async () => {
         fireEvent.click(screen.getByTestId('google-ok'));
       });
@@ -251,9 +251,9 @@ describe('RegisterPage', () => {
       (authService.googleLogin as jest.Mock).mockResolvedValue(undefined);
       render(<RegisterPage />);
       switchToGoogle();
-      fireEvent.change(screen.getByPlaceholderText(/choose a username/i), { target: { value: 'mandor1' } });
+      fireEvent.change(screen.getByPlaceholderText(/budi\.mandor/i), { target: { value: 'mandor1' } });
       fireEvent.change(screen.getByRole('combobox'), { target: { value: 'MANDOR' } });
-      fireEvent.change(screen.getByPlaceholderText(/enter certification number/i), { target: { value: 'CERT-7' } });
+      fireEvent.change(screen.getByPlaceholderText(/contoh: CERT-001/i), { target: { value: 'CERT-7' } });
       await act(async () => {
         fireEvent.click(screen.getByTestId('google-ok'));
       });
@@ -273,9 +273,9 @@ describe('RegisterPage', () => {
     it('shows error when Google returns no credential', () => {
       render(<RegisterPage />);
       switchToGoogle();
-      fireEvent.change(screen.getByPlaceholderText(/choose a username/i), { target: { value: 'budi' } });
+      fireEvent.change(screen.getByPlaceholderText(/budi\.mandor/i), { target: { value: 'budi' } });
       fireEvent.click(screen.getByTestId('google-no-cred'));
-      expect(screen.getByText(/google sign-up failed: no credential received/i)).toBeInTheDocument();
+      expect(screen.getByText(/daftar dengan google gagal: credential tidak diterima/i)).toBeInTheDocument();
       expect(authService.googleLogin).not.toHaveBeenCalled();
     });
 
@@ -283,7 +283,7 @@ describe('RegisterPage', () => {
       (authService.googleLogin as jest.Mock).mockRejectedValue(new Error('Google upstream down'));
       render(<RegisterPage />);
       switchToGoogle();
-      fireEvent.change(screen.getByPlaceholderText(/choose a username/i), { target: { value: 'budi' } });
+      fireEvent.change(screen.getByPlaceholderText(/budi\.mandor/i), { target: { value: 'budi' } });
       await act(async () => {
         fireEvent.click(screen.getByTestId('google-ok'));
       });
@@ -294,19 +294,19 @@ describe('RegisterPage', () => {
       (authService.googleLogin as jest.Mock).mockRejectedValue('boom');
       render(<RegisterPage />);
       switchToGoogle();
-      fireEvent.change(screen.getByPlaceholderText(/choose a username/i), { target: { value: 'budi' } });
+      fireEvent.change(screen.getByPlaceholderText(/budi\.mandor/i), { target: { value: 'budi' } });
       await act(async () => {
         fireEvent.click(screen.getByTestId('google-ok'));
       });
-      expect(await screen.findByText(/google registration failed/i)).toBeInTheDocument();
+      expect(await screen.findByText(/pendaftaran google gagal/i)).toBeInTheDocument();
     });
 
     it('shows the GoogleLogin onError canned message', () => {
       render(<RegisterPage />);
       switchToGoogle();
-      fireEvent.change(screen.getByPlaceholderText(/choose a username/i), { target: { value: 'budi' } });
+      fireEvent.change(screen.getByPlaceholderText(/budi\.mandor/i), { target: { value: 'budi' } });
       fireEvent.click(screen.getByTestId('google-err'));
-      expect(screen.getByText(/google authentication failed/i)).toBeInTheDocument();
+      expect(screen.getByText(/autentikasi google gagal/i)).toBeInTheDocument();
     });
 
     it('shows "Creating account..." while Google sign-up is pending and hides the Google widget', async () => {
@@ -314,11 +314,11 @@ describe('RegisterPage', () => {
       (authService.googleLogin as jest.Mock).mockReturnValue(new Promise((r) => { resolve = r; }));
       render(<RegisterPage />);
       switchToGoogle();
-      fireEvent.change(screen.getByPlaceholderText(/choose a username/i), { target: { value: 'budi' } });
+      fireEvent.change(screen.getByPlaceholderText(/budi\.mandor/i), { target: { value: 'budi' } });
       await act(async () => {
         fireEvent.click(screen.getByTestId('google-ok'));
       });
-      expect(screen.getByText(/creating account\.\.\./i)).toBeInTheDocument();
+      expect(screen.getByText(/membuat akun\.\.\./i)).toBeInTheDocument();
       expect(screen.queryByTestId('google-login')).not.toBeInTheDocument();
       await act(async () => {
         resolve?.(undefined);

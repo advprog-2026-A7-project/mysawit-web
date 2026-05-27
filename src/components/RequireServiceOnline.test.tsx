@@ -128,7 +128,7 @@ describe('RequireServiceOnline', () => {
     );
 
     expect(screen.getByTestId('service-loading')).toHaveAttribute('data-status', 'loading');
-    expect(screen.getByText(/connecting to svc b/i)).toBeInTheDocument();
+    expect(screen.getByText(/menghubungkan ke svc b/i)).toBeInTheDocument();
   });
 
   it('ignores a resolved fetch that returns after unmount', async () => {
