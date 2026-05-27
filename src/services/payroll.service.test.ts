@@ -93,6 +93,16 @@ describe('payrollService', () => {
     expect(result).toEqual([{ id: 15 }]);
   });
 
+  it('getUserHistory rethrows the primary error when fallback also fails', async () => {
+    const primaryError = new Error('user endpoint down');
+    (apiClient.get as jest.Mock)
+      .mockRejectedValueOnce(primaryError)
+      .mockRejectedValueOnce(new Error('search endpoint also down'));
+
+    await expect(payrollService.getUserHistory(USER_ID)).rejects.toBe(primaryError);
+    expect(apiClient.get).toHaveBeenCalledTimes(2);
+  });
+
   it('getByStatus calls payrolls by-status endpoint', async () => {
     (apiClient.get as jest.Mock).mockResolvedValue([{ id: 13 }]);
     const result = await payrollService.getByStatus('PENDING');
