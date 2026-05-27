@@ -80,7 +80,7 @@ describe('Admin plantations page', () => {
   it('assigns a plantation mandor to a buruh from the admin plantations page', async () => {
     render(<PlantationsPage />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Penugasan Buruh' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Penugasan Buruh' }));
 
     expect(await screen.findByRole('heading', { name: 'Assign Mandor ke Buruh' })).toBeInTheDocument();
     expect(screen.getByText('Mandor mengikuti penugasan pada kebun yang dipilih.')).toBeInTheDocument();
@@ -102,7 +102,7 @@ describe('Admin plantations page', () => {
   it('blocks invalid plantation area before calling the API', async () => {
     render(<PlantationsPage />);
 
-    fireEvent.click(await screen.findByRole('button', { name: '+ Tambah Kebun' }));
+    fireEvent.click(await screen.findByRole('tab', { name: '+ Tambah Kebun' }));
     fireEvent.change(screen.getByPlaceholderText('KB-A-001'), { target: { value: 'KB-NEG-001' } });
     fireEvent.change(screen.getByPlaceholderText('Kebun Blok A'), { target: { value: 'Kebun Negatif' } });
     fireEvent.change(screen.getByPlaceholderText('Kalimantan Selatan'), { target: { value: 'Riau' } });
@@ -116,7 +116,7 @@ describe('Admin plantations page', () => {
   it('blocks incomplete plantation coordinates before calling the API', async () => {
     render(<PlantationsPage />);
 
-    fireEvent.click(await screen.findByRole('button', { name: '+ Tambah Kebun' }));
+    fireEvent.click(await screen.findByRole('tab', { name: '+ Tambah Kebun' }));
     fireEvent.change(screen.getByPlaceholderText('KB-A-001'), { target: { value: 'KB-NEG-002' } });
     fireEvent.change(screen.getByPlaceholderText('Kebun Blok A'), { target: { value: 'Kebun Koordinat' } });
     fireEvent.change(screen.getByPlaceholderText('Kalimantan Selatan'), { target: { value: 'Riau' } });

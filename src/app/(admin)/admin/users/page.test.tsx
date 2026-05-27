@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import AdminUsersPage from './page';
 import { adminService } from '@/services/admin.service';
 import { useAuth } from '@/contexts/auth-context';
@@ -61,7 +61,8 @@ describe('Admin users negative guards', () => {
     render(<AdminUsersPage />);
 
     await screen.findByText('Buruh Test');
-    fireEvent.click(screen.getByText('Buruh Test').closest('tr')!.querySelector('button')!);
+    const buruhRow = screen.getByText('Buruh Test').closest('tr')!;
+    fireEvent.click(within(buruhRow).getByRole('button', { name: 'Hapus' }));
 
     await waitFor(() => {
       expect(adminService.deleteUser).toHaveBeenCalledWith('buruh-1');
