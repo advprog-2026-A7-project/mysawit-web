@@ -210,6 +210,25 @@ describe('harvest.service', () => {
       .rejects.toThrow('plain failure');
   });
 
+  it('create falls back to generic message when both error body and statusText are empty', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      statusText: '',
+      text: jest.fn().mockResolvedValue(''),
+    });
+
+    await expect(harvestService.create({ plantationId: 1, weight: 10, files: [file] }))
+      .rejects.toThrow('Request failed');
+  });
+
+  it('getMine preserves startDate values that already include time without re-appending T00:00:00', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue([]);
+    await harvestService.getMine({ startDate: '2026-05-01T08:30:00' });
+    expect(apiClient.get).toHaveBeenCalledWith(
+      `${API_ENDPOINTS.HARVESTS.MY}?startDate=2026-05-01T08%3A30%3A00`
+    );
+  });
+
   it('getMine without filters hits MY endpoint', async () => {
     (apiClient.get as jest.Mock).mockResolvedValue([]);
     await harvestService.getMine();

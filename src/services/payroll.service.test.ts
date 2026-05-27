@@ -26,6 +26,12 @@ describe('payrollService', () => {
     expect(result).toEqual([{ id: 10 }]);
   });
 
+  it('getAll calls base endpoint when an empty params object is passed', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue([]);
+    await payrollService.getAll({});
+    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLLS.BASE);
+  });
+
   it('getAll appends supported search params', async () => {
     (apiClient.get as jest.Mock).mockResolvedValue([{ id: 10 }]);
 

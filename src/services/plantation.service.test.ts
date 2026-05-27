@@ -164,6 +164,14 @@ describe('plantation.service', () => {
     expect(result).toEqual(payload);
   });
 
+  it('getSupirDetails omits the query string when name is not provided', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue([]);
+
+    await plantationService.getSupirDetails(4);
+
+    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.PLANTATIONS.SUPIRS_DETAILS(4));
+  });
+
   it('assignSupir posts supir id to plantation supirs endpoint', async () => {
     const payload = { id: 4, supirIds: ['supir-1'] };
     (apiClient.post as jest.Mock).mockResolvedValue(payload);
