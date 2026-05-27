@@ -400,6 +400,35 @@ describe('api-client (browser)', () => {
     expect(localStorage.getItem('refreshToken')).toBeNull();
   });
 
+  it('saveAuth persists kebunId when present and clears it when absent', () => {
+    apiClient.saveAuth({
+      token: 'jwt',
+      type: 'Bearer',
+      id: '20',
+      username: 'mandor',
+      email: 'mandor@mail.com',
+      role: 'MANDOR',
+      kebunId: 'kebun-42',
+      googleLinked: false,
+      hasPassword: false,
+    });
+
+    expect(localStorage.getItem('kebunId')).toBe('kebun-42');
+
+    apiClient.saveAuth({
+      token: 'jwt',
+      type: 'Bearer',
+      id: '20',
+      username: 'mandor',
+      email: 'mandor@mail.com',
+      role: 'MANDOR',
+      googleLinked: false,
+      hasPassword: false,
+    });
+
+    expect(localStorage.getItem('kebunId')).toBeNull();
+  });
+
   describe('401 → refresh → retry', () => {
     const ok = (body: unknown) => ({
       ok: true,
