@@ -59,6 +59,7 @@ export default function AdminUserDetailPage() {
   const [payrolls, setPayrolls] = useState<Payroll[]>([]);
   const [payrollFilters, setPayrollFilters] = useState({ from: '', to: '', status: '' });
   const [loading, setLoading] = useState(true);
+  const [payrollLoading, setPayrollLoading] = useState(false);
   const [error, setError] = useState('');
   const [payrollError, setPayrollError] = useState('');
 
@@ -84,15 +85,18 @@ export default function AdminUserDetailPage() {
     if (!userId) return;
 
     try {
+      setPayrollLoading(true);
       setPayrollError('');
-      setPayrolls(await payrollService.getAll({
-        userId,
+      setPayrolls(await payrollService.getUserHistory(userId, {
         from: filters.from || undefined,
         to: filters.to || undefined,
         status: filters.status || undefined,
       }));
     } catch (err) {
       setPayrollError(err instanceof Error ? err.message : 'Gagal memuat data gaji pengguna');
+      setPayrolls([]);
+    } finally {
+      setPayrollLoading(false);
     }
   };
 
@@ -177,8 +181,8 @@ export default function AdminUserDetailPage() {
           <section className="surface-panel p-6">
             <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <h2 className="section-title mb-1">Gaji Pengguna</h2>
-                <p className="text-sm text-slate-500">Daftar gaji untuk profil ini dengan filter tanggal dan status.</p>
+                <h2 className="section-title mb-1">History Gaji</h2>
+                <p className="text-sm text-slate-500">Daftar gaji pengguna ini dengan filter tanggal dan status.</p>
               </div>
             </div>
 
@@ -246,7 +250,9 @@ export default function AdminUserDetailPage() {
               </div>
             </form>
 
-            {payrolls.length === 0 ? (
+            {payrollLoading ? (
+              <div className="empty-state py-8">Memuat history gaji...</div>
+            ) : payrolls.length === 0 ? (
               <div className="empty-state py-8">Belum ada data gaji untuk pengguna ini.</div>
             ) : (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
