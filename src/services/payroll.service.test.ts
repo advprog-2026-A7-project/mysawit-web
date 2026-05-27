@@ -1,4 +1,4 @@
-import { payrollService, wageConfigService } from './payroll.service';
+import { payrollService, wageConfigService, walletService } from './payroll.service';
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-config';
 
@@ -24,6 +24,27 @@ describe('payrollService', () => {
     const result = await payrollService.getAll();
     expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLLS.BASE);
     expect(result).toEqual([{ id: 10 }]);
+  });
+
+  it('getAll calls base endpoint when an empty params object is passed', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue([]);
+    await payrollService.getAll({});
+    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLLS.BASE);
+  });
+
+  it('getAll appends supported search params', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue([{ id: 10 }]);
+
+    await payrollService.getAll({
+      userId: USER_ID,
+      status: 'PENDING',
+      from: '2026-05-01',
+      to: '2026-05-31T23:59:59',
+    });
+
+    expect(apiClient.get).toHaveBeenCalledWith(
+      `${API_ENDPOINTS.PAYROLLS.BASE}?userId=${USER_ID}&status=PENDING&from=2026-05-01T00%3A00%3A00&to=2026-05-31T23%3A59%3A59`
+    );
   });
 
   it('getById calls payrolls by-id endpoint', async () => {
@@ -94,8 +115,17 @@ describe('payrollService', () => {
   it('approve patches payrolls approve endpoint', async () => {
     (apiClient.patch as jest.Mock).mockResolvedValue({ id: 16, status: 'APPROVED' });
     const result = await payrollService.approve(16);
-    expect(apiClient.patch).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLLS.APPROVE(16));
+    expect(apiClient.patch).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLLS.APPROVE(16), undefined);
     expect(result).toEqual({ id: 16, status: 'APPROVED' });
+  });
+
+  it('approve sends adminId when provided', async () => {
+    (apiClient.patch as jest.Mock).mockResolvedValue({ id: 16, status: 'APPROVED' });
+    await payrollService.approve(16, 'admin-1');
+    expect(apiClient.patch).toHaveBeenCalledWith(
+      API_ENDPOINTS.PAYROLLS.APPROVE(16),
+      { adminId: 'admin-1' }
+    );
   });
 
   it('accept patches payrolls accept endpoint', async () => {
@@ -120,7 +150,7 @@ describe('payrollService', () => {
   it('pay patches payrolls pay endpoint with default method', async () => {
     (apiClient.patch as jest.Mock).mockResolvedValue({ id: 19, status: 'PAID' });
     await payrollService.pay(19);
-    expect(apiClient.patch).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLLS.PAY(19), { paymentMethod: 'BANK_TRANSFER' });
+    expect(apiClient.patch).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLLS.PAY(19), { paymentMethod: 'SANDBOX' });
   });
 
   it('pay patches payrolls pay endpoint with custom method', async () => {
@@ -197,5 +227,40 @@ describe('wageConfigService', () => {
     (apiClient.delete as jest.Mock).mockResolvedValue(undefined);
     await wageConfigService.delete(1);
     expect(apiClient.delete).toHaveBeenCalledWith(API_ENDPOINTS.WAGE_CONFIGS.BY_ID(1));
+  });
+});
+
+describe('walletService', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('getWallet calls wallet by-user endpoint', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue({ userId: USER_ID, balance: 10 });
+    const result = await walletService.getWallet(USER_ID);
+    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.WALLETS.BY_USER(USER_ID));
+    expect(result).toEqual({ userId: USER_ID, balance: 10 });
+  });
+
+  it('getTransactions calls wallet transactions endpoint', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue([{ transactionId: 'tx-1' }]);
+    const result = await walletService.getTransactions(USER_ID);
+    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.WALLETS.TRANSACTIONS(USER_ID));
+    expect(result).toEqual([{ transactionId: 'tx-1' }]);
+  });
+
+  it('topUpSandbox posts amount and gateway to sandbox endpoint', async () => {
+    const body = { amountSawitDollar: 25, gateway: 'MIDTRANS_SANDBOX' };
+    (apiClient.post as jest.Mock).mockResolvedValue({ transactionId: 'tx-2' });
+    const result = await walletService.topUpSandbox(USER_ID, body);
+    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.WALLETS.TOP_UP_SANDBOX(USER_ID), body);
+    expect(result).toEqual({ transactionId: 'tx-2' });
+  });
+
+  it('settleSandbox posts paid status to transaction settle endpoint', async () => {
+    (apiClient.post as jest.Mock).mockResolvedValue({ transactionId: 'tx-3', status: 'PAID' });
+    const result = await walletService.settleSandbox('tx-3');
+    expect(apiClient.post).toHaveBeenCalledWith(API_ENDPOINTS.WALLETS.SETTLE_SANDBOX('tx-3'), { status: 'PAID' });
+    expect(result).toEqual({ transactionId: 'tx-3', status: 'PAID' });
   });
 });

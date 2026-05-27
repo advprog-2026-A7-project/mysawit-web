@@ -21,8 +21,10 @@ describe('Home page', () => {
   it('renders login and register links', () => {
     render(<Home />);
 
-    expect(screen.getByRole('link', { name: /masuk ke dashboard/i })).toHaveAttribute('href', '/login');
-    expect(screen.getByRole('link', { name: /daftar akun baru/i })).toHaveAttribute('href', '/register');
+    expect(screen.getByRole('link', { name: /^masuk$/i })).toHaveAttribute('href', '/login');
+    expect(screen.getByRole('link', { name: /^daftar$/i })).toHaveAttribute('href', '/register');
+    expect(screen.queryByRole('link', { name: /masuk ke dashboard/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /daftar akun baru/i })).not.toBeInTheDocument();
   });
 
   it('does not render decorative role, version, or module badges', () => {

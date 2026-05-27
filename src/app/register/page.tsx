@@ -49,6 +49,11 @@ export default function RegisterPage() {
     setIsGoogleMode(nextIsGoogleMode);
   };
 
+  const handleRegistrationSuccess = () => {
+    authService.logout();
+    router.push('/login');
+  };
+
   const handleEmailSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
@@ -80,7 +85,7 @@ export default function RegisterPage() {
         mandorId: undefined,
         kebunId: undefined,
       });
-      router.push('/dashboard');
+      handleRegistrationSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal membuat akun');
     } finally {
@@ -90,7 +95,7 @@ export default function RegisterPage() {
 
   const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     if (!credentialResponse.credential) {
-      setError('Google sign-up failed: no credential received');
+      setError('Daftar dengan Google gagal: credential tidak diterima');
       return;
     }
 
@@ -111,9 +116,9 @@ export default function RegisterPage() {
         role,
         ...(role === 'MANDOR' ? { certificationNumber: certificationNumber.trim() } : {}),
       });
-      router.push('/dashboard');
+      handleRegistrationSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Google registration failed');
+      setError(err instanceof Error ? err.message : 'Pendaftaran Google gagal');
     } finally {
       setLoading(false);
     }
@@ -140,7 +145,7 @@ export default function RegisterPage() {
           <div className="mb-5 grid grid-cols-2 gap-2">
             <button
               type="button"
-              aria-label="Sign up with Email"
+              aria-label="Daftar dengan Email"
               onClick={() => setRegistrationMode(false)}
               className={`tab-button justify-center ${!isGoogleMode ? 'active' : ''}`}
             >
@@ -148,7 +153,7 @@ export default function RegisterPage() {
             </button>
             <button
               type="button"
-              aria-label="Sign up with Google"
+              aria-label="Daftar dengan Google"
               onClick={() => setRegistrationMode(true)}
               className={`tab-button justify-center ${isGoogleMode ? 'active' : ''}`}
             >
@@ -174,13 +179,13 @@ export default function RegisterPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className={fieldClassName}
-                  placeholder="Enter your email, contoh: nama@email.com"
+                  placeholder="Masukkan email, contoh: nama@email.com"
                   required
                 />
               </div>
 
               <div>
-                <label className="label-sm">Password</label>
+                <label className="label-sm">Kata Sandi</label>
                 <input
                   type="password"
                   value={password}
@@ -193,19 +198,19 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="label-sm">Konfirmasi Password</label>
+                <label className="label-sm">Konfirmasi Kata Sandi</label>
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className={fieldClassName}
-                  placeholder="Ulangi password"
+                  placeholder="Ulangi kata sandi"
                   required
                   minLength={6}
                 />
               </div>
 
-              <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-3">
+              <button type="submit" disabled={loading} data-testid="user-create-button" className="btn-primary w-full justify-center py-3">
                 {loading ? 'Membuat akun...' : 'Daftar'}
               </button>
             </form>
@@ -222,11 +227,11 @@ export default function RegisterPage() {
 
               <div className="flex justify-center">
                 {loading ? (
-                  <div className="text-sm text-slate-400">Creating account...</div>
+                  <div className="text-sm text-slate-400">Membuat akun...</div>
                 ) : (
                   <GoogleLogin
                     onSuccess={handleGoogleSuccess}
-                    onError={() => setError('Google authentication failed')}
+                    onError={() => setError('Autentikasi Google gagal')}
                   />
                 )}
               </div>
@@ -271,7 +276,7 @@ function AccountFields({
           value={username}
           onChange={(e) => onUsernameChange(e.target.value)}
           className={fieldClassName}
-          placeholder="Choose a username, contoh: budi.mandor"
+          placeholder="Pilih nama pengguna, contoh: budi.mandor"
           required
           minLength={3}
         />
@@ -300,7 +305,7 @@ function AccountFields({
             value={certificationNumber}
             onChange={(e) => onCertificationNumberChange(e.target.value)}
             className={fieldClassName}
-            placeholder="Enter certification number, contoh: CERT-001"
+            placeholder="Masukkan nomor sertifikasi, contoh: CERT-001"
             required
           />
         </div>

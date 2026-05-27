@@ -25,7 +25,7 @@ describe('RequireRole', () => {
         <p>secret</p>
       </RequireRole>,
     );
-    expect(screen.getByText(/access denied/i)).toBeInTheDocument();
+    expect(screen.getByText(/akses ditolak/i)).toBeInTheDocument();
     expect(screen.queryByText('secret')).not.toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
   });
@@ -49,6 +49,6 @@ describe('RequireRole', () => {
       </RequireRole>,
     );
     expect(pushMock).toHaveBeenCalledWith('/dashboard');
-    expect(screen.getByText(/access denied/i)).toBeInTheDocument();
+    expect(screen.getByText(/akses ditolak/i)).toBeInTheDocument();
   });
 });

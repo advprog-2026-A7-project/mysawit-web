@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { authService } from '@/services/auth.service';
+import { getPostAuthRedirectPath } from '@/lib/role-redirect';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,22 +15,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const handleRedirect = (role: string) => {
-    switch (role) {
-      case 'ADMIN':
-        router.push('/admin/dashboard');
-        break;
-      case 'MANDOR':
-        router.push('/mandor/plantations');
-        break;
-      case 'BURUH':
-        router.push('/harvest');
-        break;
-      case 'SUPIR':
-        router.push('/shipment/active');
-        break;
-      default:
-        router.push('/login');
-    }
+    router.push(getPostAuthRedirectPath(role));
   };
 
   const handleSubmit = async (e: { preventDefault: () => void }) => {
@@ -49,7 +35,7 @@ export default function LoginPage() {
 
   const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     if (!credentialResponse.credential) {
-      setError('Google login failed: no credential received');
+      setError('Login Google gagal: credential tidak diterima');
       return;
     }
 
@@ -60,9 +46,9 @@ export default function LoginPage() {
       const response = await authService.googleLogin({ idToken: credentialResponse.credential });
       handleRedirect(response.role);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Google login failed';
+      const message = err instanceof Error ? err.message : 'Login Google gagal';
       if (message.toLowerCase().includes('already registered') || message.toLowerCase().includes('conflict')) {
-        setError('This email is already registered with a password. Please log in with your email and password, then link your Google account from Settings.');
+        setError('Email ini sudah terdaftar dengan password. Masuk memakai email dan password, lalu hubungkan akun Google dari pengaturan.');
       } else {
         setError(message);
       }
@@ -72,7 +58,7 @@ export default function LoginPage() {
   };
 
   const handleGoogleError = () => {
-    setError('Google login failed');
+    setError('Login Google gagal');
   };
 
   return (
@@ -100,6 +86,7 @@ export default function LoginPage() {
               </label>
               <input
                 id="email"
+                data-testid="login-email-input"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -111,20 +98,21 @@ export default function LoginPage() {
 
             <div>
               <label htmlFor="password" className="label-sm">
-                Password
+                Kata Sandi
               </label>
               <input
                 id="password"
+                data-testid="login-password-input"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="ms-input"
-                placeholder="Password"
+                placeholder="Kata sandi"
                 required
               />
             </div>
 
-            <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-3">
+            <button type="submit" disabled={loading} data-testid="login-submit-button" className="btn-primary w-full justify-center py-3">
               {loading ? 'Masuk...' : 'Masuk'}
             </button>
 

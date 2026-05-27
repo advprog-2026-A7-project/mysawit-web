@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { harvestService } from '@/services/harvest.service';
 import { authService } from '@/services/auth.service';
-import { Harvest } from '@/types';
+import { plantationService } from '@/services/plantation.service';
+import { Harvest, HarvestStatus, Plantation } from '@/types';
+import { Camera, Filter, RefreshCw, Send } from 'lucide-react';
 
 const formatDate = (value?: string) => {
   if (!value) return '-';
@@ -28,35 +30,176 @@ const statusConfig: Record<string, { label: string; badge: string }> = {
 export default function WorkerHarvestPage() {
   const [harvests, setHarvests] = useState<Harvest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [plantationsLoading, setPlantationsLoading] = useState(true);
+  const [plantationMessage, setPlantationMessage] = useState('');
+  const [assignedPlantations, setAssignedPlantations] = useState<Plantation[]>([]);
+  const [form, setForm] = useState({
+    plantationId: '',
+    weight: '',
+    news: '',
+    files: null as FileList | null,
+  });
+  const [filters, setFilters] = useState<{
+    startDate: string;
+    endDate: string;
+    status: HarvestStatus | '';
+  }>({
+    startDate: '',
+    endDate: '',
+    status: '',
+  });
 
   const userInfo = authService.getUserInfo();
+  const mandorId = userInfo?.mandorId;
+
+  const hasLoggedToday = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return harvests.some((harvest) => {
+      const sourceDate = harvest.harvestDate || harvest.createdAt;
+      if (!sourceDate) return false;
+      const parsed = new Date(sourceDate);
+      return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === today;
+    });
+  }, [harvests]);
+
+  const fetchHarvests = async (nextFilters = filters) => {
+    try {
+      setLoading(true);
+      if (!userInfo?.id) return;
+
+      try {
+        const data = await harvestService.getMine({
+          startDate: nextFilters.startDate || undefined,
+          endDate: nextFilters.endDate || undefined,
+          status: nextFilters.status || undefined,
+        });
+        setHarvests(data);
+      } catch {
+        const data = await harvestService.getAll();
+        const myHarvests = data.filter(
+          (h) => String(h.harvesterId) === String(userInfo.id),
+        );
+        setHarvests(myHarvests);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal memuat data panen');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAssignedPlantations = async () => {
+    try {
+      setPlantationsLoading(true);
+      setPlantationMessage('');
+      setAssignedPlantations([]);
+
+      if (!userInfo?.id) return;
+
+      if (!mandorId) {
+        setPlantationMessage('Anda belum ditugaskan ke Mandor. Hubungi Admin untuk menyelesaikan penugasan.');
+        return;
+      }
+
+      const mine = await plantationService.getByMandor(mandorId);
+      setAssignedPlantations(mine);
+
+      if (mine.length === 0) {
+        setPlantationMessage('Mandor Anda belum ditugaskan ke kebun manapun.');
+        setForm((current) => ({ ...current, plantationId: '' }));
+        return;
+      }
+
+      setForm((current) => (
+        current.plantationId
+          ? current
+          : { ...current, plantationId: mine.length === 1 ? String(mine[0].id) : '' }
+      ));
+    } catch (err) {
+      setPlantationMessage(err instanceof Error ? err.message : 'Gagal memuat kebun yang ditugaskan');
+    } finally {
+      setPlantationsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchHarvests = async () => {
-      try {
-        setLoading(true);
-        if (!userInfo?.id) return;
+    void fetchHarvests();
+    void fetchAssignedPlantations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userInfo?.id, mandorId]);
 
-        try {
-          const data = await harvestService.getMine();
-          setHarvests(data);
-        } catch {
-          const data = await harvestService.getAll();
-          const myHarvests = data.filter(
-            (h) => String(h.harvesterId) === String(userInfo.id),
-          );
-          setHarvests(myHarvests);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Gagal memuat data panen');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const handleFilter = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
-    fetchHarvests();
-  }, [userInfo?.id]);
+    if (filters.startDate && filters.endDate && filters.endDate < filters.startDate) {
+      setError('Tanggal akhir tidak boleh sebelum tanggal mulai');
+      return;
+    }
+
+    setError('');
+    await fetchHarvests(filters);
+  };
+
+  const handleResetFilter = async () => {
+    const emptyFilters = { startDate: '', endDate: '', status: '' as HarvestStatus | '' };
+    setFilters(emptyFilters);
+    setError('');
+    await fetchHarvests(emptyFilters);
+  };
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (hasLoggedToday) {
+      setError('Anda sudah mencatat panen hari ini. Silakan tunggu hari berikutnya.');
+      return;
+    }
+
+    if (!form.plantationId) {
+      setError('Pilih kebun yang ditugaskan sebelum mengirim log panen.');
+      return;
+    }
+
+    const weight = Number(form.weight);
+    if (!Number.isFinite(weight) || weight <= 0) {
+      setError('Berat panen harus lebih dari 0 kg');
+      return;
+    }
+
+    if (!form.files || form.files.length === 0) {
+      setError('Minimal 1 foto hasil panen harus dilampirkan');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await harvestService.create({
+        plantationId: form.plantationId,
+        weight,
+        news: form.news.trim(),
+        files: form.files,
+      });
+      setSuccess('Log panen berhasil dikirim dan menunggu validasi mandor.');
+      setForm({
+        plantationId: assignedPlantations.length === 1 ? String(assignedPlantations[0].id) : '',
+        weight: '',
+        news: '',
+        files: null,
+      });
+      const fileInput = document.getElementById('harvest-photos') as HTMLInputElement | null;
+      if (fileInput) fileInput.value = '';
+      await fetchHarvests(filters);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal mengirim log panen');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -78,6 +221,140 @@ export default function WorkerHarvestPage() {
       </header>
 
       {error && <div className="alert-error"><span>{error}</span></div>}
+      {success && <div className="alert-success"><span>{success}</span></div>}
+
+      <section className="surface-panel p-5">
+        <div className="flex items-start gap-3 mb-5">
+          <div className="w-10 h-10 rounded-lg bg-green-500/15 text-green-300 flex items-center justify-center shrink-0">
+            <Camera size={18} aria-hidden="true" />
+          </div>
+          <div>
+            <h2 className="section-title">Log Panen Baru</h2>
+            <p className="text-sm text-slate-500 mt-1">Kirim hasil panen harian untuk divalidasi mandor.</p>
+          </div>
+        </div>
+        {hasLoggedToday && (
+          <div className="mb-4 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            Catatan panen hari ini sudah tersimpan. Form akan aktif lagi besok.
+          </div>
+        )}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {plantationMessage && (
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+              {plantationMessage}
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="harvest-plantation" className="label-sm">Kebun</label>
+              <select
+                id="harvest-plantation"
+                data-testid="harvest-plantation-select"
+                value={form.plantationId}
+                onChange={(event) => setForm({ ...form, plantationId: event.target.value })}
+                className="ms-input"
+                disabled={plantationsLoading || assignedPlantations.length === 0}
+                required
+              >
+                <option value="">
+                  {plantationsLoading ? 'Memuat kebun...' : '-- Pilih Kebun --'}
+                </option>
+                {assignedPlantations.map((plantation) => (
+                  <option key={String(plantation.id)} value={String(plantation.id)}>
+                    {plantation.code ? `${plantation.code} - ` : ''}{plantation.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="harvest-weight" className="label-sm">Berat Panen (kg)</label>
+              <input
+                id="harvest-weight"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={form.weight}
+                onChange={(event) => setForm({ ...form, weight: event.target.value })}
+                className="ms-input"
+                placeholder="120"
+                required
+              />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="harvest-news" className="label-sm">Catatan Panen</label>
+            <textarea
+              id="harvest-news"
+              rows={3}
+              value={form.news}
+              onChange={(event) => setForm({ ...form, news: event.target.value })}
+              className="ms-input resize-none"
+              placeholder="Kondisi buah, blok panen, atau catatan lapangan"
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="harvest-photos" className="label-sm">Foto Hasil Panen</label>
+            <input
+              id="harvest-photos"
+              data-testid="harvest-photo-input"
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(event) => setForm({ ...form, files: event.target.files })}
+              className="ms-input file:mr-3 file:rounded-md file:border-0 file:bg-green-500/20 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-green-200"
+              required
+            />
+          </div>
+          <button type="submit" disabled={saving || hasLoggedToday || plantationsLoading || assignedPlantations.length === 0} data-testid="harvest-create-button" className="btn-primary w-full justify-center py-3">
+            <Send size={16} aria-hidden="true" />{saving ? 'Mengirim...' : 'Kirim Log Panen'}
+          </button>
+        </form>
+      </section>
+
+      <section className="surface-panel p-5">
+        <form onSubmit={handleFilter} className="grid grid-cols-1 gap-4 md:grid-cols-4 md:items-end">
+          <div>
+            <label className="label-sm">Tanggal Mulai</label>
+            <input
+              type="date"
+              value={filters.startDate}
+              onChange={(event) => setFilters({ ...filters, startDate: event.target.value })}
+              className="ms-input"
+            />
+          </div>
+          <div>
+            <label className="label-sm">Tanggal Akhir</label>
+            <input
+              type="date"
+              value={filters.endDate}
+              onChange={(event) => setFilters({ ...filters, endDate: event.target.value })}
+              className="ms-input"
+            />
+          </div>
+          <div>
+            <label className="label-sm">Status</label>
+            <select
+              value={filters.status}
+              onChange={(event) => setFilters({ ...filters, status: event.target.value as HarvestStatus | '' })}
+              className="ms-input"
+            >
+              <option value="">Semua Status</option>
+              <option value="PENDING">Menunggu</option>
+              <option value="APPROVED">Disetujui</option>
+              <option value="REJECTED">Ditolak</option>
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button type="submit" className="btn-primary flex-1 justify-center">
+              <Filter size={15} aria-hidden="true" />Filter
+            </button>
+            <button type="button" onClick={handleResetFilter} className="btn-ghost justify-center">
+              <RefreshCw size={15} aria-hidden="true" />
+            </button>
+          </div>
+        </form>
+      </section>
 
       {harvests.length === 0 ? (
         <div className="empty-state">

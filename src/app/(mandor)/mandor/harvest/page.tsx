@@ -86,12 +86,26 @@ export default function MandorHarvestsPage() {
 
   const handleAction = async (harvestId: string | number, status: HarvestStatus, reason?: string) => {
     try {
-      await harvestService.updateStatus({
+      const updatedHarvest = await harvestService.updateStatus({
         id: String(harvestId),
         status: status,
         rejectionReason: reason || undefined,
       });
-      await loadHarvests(filters);
+      setHarvests((current) =>
+        current.map((harvest) =>
+          String(harvest.id) === String(harvestId)
+            ? { ...harvest, ...updatedHarvest }
+            : harvest,
+        ),
+      );
+
+      const nextFilters = filters.status && filters.status !== status
+        ? { ...filters, status: '' as const }
+        : filters;
+
+      if (nextFilters !== filters) {
+        setFilters(nextFilters);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal memperbarui status panen');
     }
@@ -230,6 +244,7 @@ export default function MandorHarvestsPage() {
                     <div className="p-4 border-t border-[#152e2a] bg-black/20 flex gap-3">
                       <button 
                         onClick={() => handleAction(harvest.id, 'APPROVED')}
+                        data-testid="harvest-approve-button"
                         className="flex-1 btn-primary bg-green-600 hover:bg-green-500 text-white justify-center py-2"
                       >
                         Setujui
@@ -237,7 +252,14 @@ export default function MandorHarvestsPage() {
                       <button 
                         onClick={() => {
                           const reason = prompt('Masukkan alasan penolakan:');
-                          if (reason !== null) handleAction(harvest.id, 'REJECTED', reason);
+                          if (reason !== null) {
+                            const trimmedReason = reason.trim();
+                            if (!trimmedReason) {
+                              setError('Alasan penolakan wajib diisi');
+                              return;
+                            }
+                            handleAction(harvest.id, 'REJECTED', trimmedReason);
+                          }
                         }}
                         className="flex-1 btn-secondary border-red-500/30 text-red-400 hover:bg-red-500/10 justify-center py-2"
                       >

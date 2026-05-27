@@ -40,13 +40,18 @@ export const API_ENDPOINTS = {
     BY_ID: (id: number | string) => gatewayUrl('plantation', `/api/plantations/${id}`),
     BY_OWNER: (ownerId: number | string) =>
       gatewayUrl('plantation', `/api/plantations/owner/${ownerId}`),
+    BY_MANDOR: (mandorId: number | string) =>
+      gatewayUrl('plantation', `/api/plantations/mandor/${mandorId}`),
     ASSIGN_MANDOR: (id: number | string) =>
       gatewayUrl('plantation', `/api/plantations/${id}/mandor`),
     UNASSIGN_MANDOR: (id: number | string) =>
       gatewayUrl('plantation', `/api/plantations/${id}/mandor`),
     TRANSFER_MANDOR: gatewayUrl('plantation', '/api/plantations/transfer-mandor'),
+    TRANSFER_SUPIR: gatewayUrl('plantation', '/api/plantations/transfer-supir'),
     SUPIRS: (id: number | string) =>
       gatewayUrl('plantation', `/api/plantations/${id}/supirs`),
+    SUPIRS_DETAILS: (id: number | string) =>
+      gatewayUrl('plantation', `/api/plantations/${id}/supirs/details`),
     UNASSIGN_SUPIR: (id: number | string, supirId: string) =>
       gatewayUrl('plantation', `/api/plantations/${id}/supirs/${supirId}`),
     HEALTH: gatewayUrl('plantation', '/actuator/health'),
@@ -108,10 +113,19 @@ export const API_ENDPOINTS = {
   },
 
   WAGE_CONFIGS: {
-    BASE: gatewayUrl('payroll', '/api/wage-configs'),
-    BY_ID: (id: number | string) => gatewayUrl('payroll', `/api/wage-configs/${id}`),
-    BY_ROLE: (role: string) => gatewayUrl('payroll', `/api/wage-configs/role/${role}`),
+    BASE: gatewayUrl('payroll', '/api/admin/wage-configs'),
+    BY_ID: (id: number | string) => gatewayUrl('payroll', `/api/admin/wage-configs/${id}`),
+    BY_ROLE: (role: string) => gatewayUrl('payroll', `/api/admin/wage-configs/role/${role}`),
     BY_ROLE_ACTIVE: (role: string) =>
-      gatewayUrl('payroll', `/api/wage-configs/role/${role}/active`),
+      gatewayUrl('payroll', `/api/admin/wage-configs/role/${role}/active`),
+  },
+
+  WALLETS: {
+    BY_USER: (userId: string) => gatewayUrl('payroll', `/api/wallets/${userId}`),
+    TRANSACTIONS: (userId: string) => gatewayUrl('payroll', `/api/wallets/${userId}/transactions`),
+    TOP_UP_SANDBOX: (userId: string) =>
+      gatewayUrl('payroll', `/api/wallets/${userId}/top-up/sandbox`),
+    SETTLE_SANDBOX: (transactionId: string) =>
+      gatewayUrl('payroll', `/api/wallets/transactions/${transactionId}/settle-sandbox`),
   },
 };

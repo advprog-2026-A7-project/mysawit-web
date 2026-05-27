@@ -5,6 +5,8 @@ import { EntityId, Harvest, HarvestStatus, UpdateHarvestStatusRequest } from '@/
 interface HarvestFilters {
   harvesterName?: string;
   date?: string;
+  startDate?: string;
+  endDate?: string;
   status?: HarvestStatus;
 }
 
@@ -30,9 +32,55 @@ const appendFilters = (url: string, filters?: HarvestFilters): string => {
   const params = new URLSearchParams();
   if (filters?.harvesterName) params.set('harvesterName', filters.harvesterName);
   if (filters?.date) params.set('date', filters.date);
+  if (filters?.startDate) params.set('startDate', toLocalDateTime(filters.startDate));
+  if (filters?.endDate) params.set('endDate', toLocalDateTime(filters.endDate));
   if (filters?.status) params.set('status', filters.status);
   const query = params.toString();
   return query ? `${url}?${query}` : url;
+};
+
+const toLocalDateTime = (value: string) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
+
+const getMultipartAuthHeaders = (): HeadersInit => {
+  if (typeof window === 'undefined') return {};
+
+  const token = localStorage.getItem('authToken');
+  const userId = localStorage.getItem('userId');
+  const username = localStorage.getItem('username');
+  const role = localStorage.getItem('userRole');
+  const headers: Record<string, string> = {};
+
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (userId) {
+    headers['X-User-Id'] = userId;
+    headers['X-Requester-Id'] = userId;
+  }
+  if (username) headers['X-User-Name'] = username;
+  if (role) {
+    headers['X-User-Role'] = role;
+    if (userId && role === 'BURUH') {
+      headers['X-Harvester-Id'] = userId;
+      headers['X-Harvester-Name'] = username || userId;
+    }
+    if (userId && role === 'MANDOR') {
+      headers['X-Foreman-Id'] = userId;
+    }
+  }
+
+  return headers;
+};
+
+const parseFetchError = async (response: Response): Promise<string> => {
+  const text = await response.text();
+  if (!text) return response.statusText || 'Request failed';
+
+  try {
+    const body = JSON.parse(text) as { message?: string; error?: string };
+    return body.message || body.error || text;
+  } catch {
+    return text;
+  }
 };
 
 export const harvestService = {
@@ -65,9 +113,6 @@ export const harvestService = {
    *   - files: one or more photo files
    */
   async create(data: CreateHarvestData): Promise<{ message: string; id: string }> {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
-    console.log('token from localStorage:', token);
-    console.log('authorization header:', token ? `Bearer ${token}` : 'NO TOKEN');
     const requestBlob = new Blob(
       [JSON.stringify({
         plantationId: data.plantationId,
@@ -86,15 +131,12 @@ export const harvestService = {
 
     const response = await fetch(API_ENDPOINTS.HARVESTS.BASE, {
       method: 'POST',
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      headers: getMultipartAuthHeaders(),
       body: formData,
     });
 
     if (!response.ok) {
-      const text = await response.text();
-      try { const j = JSON.parse(text); throw new Error(j.message || j.error || text); } catch { throw new Error(text || response.statusText); }
+      throw new Error(await parseFetchError(response));
     }
 
     return response.json() as Promise<{ message: string; id: string }>;

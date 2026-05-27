@@ -75,7 +75,12 @@ describe('harvest.service', () => {
       API_ENDPOINTS.HARVESTS.BASE,
       expect.objectContaining({
         method: 'POST',
-        headers: { Authorization: 'Bearer token-1' },
+        headers: expect.objectContaining({
+          Authorization: 'Bearer token-1',
+          'X-User-Id': 'token-1',
+          'X-Requester-Id': 'token-1',
+          'X-User-Role': 'token-1',
+        }),
         body: expect.any(FormData),
       })
     );
@@ -92,6 +97,63 @@ describe('harvest.service', () => {
       API_ENDPOINTS.HARVESTS.BASE,
       expect.objectContaining({ headers: {} })
     );
+  });
+
+  it('create attaches BURUH harvester headers when role is BURUH', async () => {
+    (Storage.prototype.getItem as jest.Mock).mockImplementation((key: string) => {
+      switch (key) {
+        case 'authToken': return 'tok';
+        case 'userId': return 'user-1';
+        case 'username': return 'budi';
+        case 'userRole': return 'BURUH';
+        default: return null;
+      }
+    });
+
+    await harvestService.create({ plantationId: 1, weight: 10, files: [file] });
+
+    const headers = fetchMock.mock.calls[0][1].headers;
+    expect(headers).toEqual({
+      Authorization: 'Bearer tok',
+      'X-User-Id': 'user-1',
+      'X-Requester-Id': 'user-1',
+      'X-User-Name': 'budi',
+      'X-User-Role': 'BURUH',
+      'X-Harvester-Id': 'user-1',
+      'X-Harvester-Name': 'budi',
+    });
+  });
+
+  it('create falls back to user id for harvester name when BURUH username is missing', async () => {
+    (Storage.prototype.getItem as jest.Mock).mockImplementation((key: string) => {
+      switch (key) {
+        case 'userId': return 'user-2';
+        case 'userRole': return 'BURUH';
+        default: return null;
+      }
+    });
+
+    await harvestService.create({ plantationId: 1, weight: 10, files: [file] });
+
+    const headers = fetchMock.mock.calls[0][1].headers;
+    expect(headers['X-Harvester-Name']).toBe('user-2');
+    expect(headers['X-User-Name']).toBeUndefined();
+  });
+
+  it('create attaches foreman header when role is MANDOR', async () => {
+    (Storage.prototype.getItem as jest.Mock).mockImplementation((key: string) => {
+      switch (key) {
+        case 'userId': return 'mandor-9';
+        case 'userRole': return 'MANDOR';
+        default: return null;
+      }
+    });
+
+    await harvestService.create({ plantationId: 1, weight: 10, files: [file] });
+
+    const headers = fetchMock.mock.calls[0][1].headers;
+    expect(headers['X-Foreman-Id']).toBe('mandor-9');
+    expect(headers['X-Harvester-Id']).toBeUndefined();
   });
 
   it('create rejects empty file lists before calling fetch', async () => {
@@ -148,6 +210,25 @@ describe('harvest.service', () => {
       .rejects.toThrow('plain failure');
   });
 
+  it('create falls back to generic message when both error body and statusText are empty', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      statusText: '',
+      text: jest.fn().mockResolvedValue(''),
+    });
+
+    await expect(harvestService.create({ plantationId: 1, weight: 10, files: [file] }))
+      .rejects.toThrow('Request failed');
+  });
+
+  it('getMine preserves startDate values that already include time without re-appending T00:00:00', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue([]);
+    await harvestService.getMine({ startDate: '2026-05-01T08:30:00' });
+    expect(apiClient.get).toHaveBeenCalledWith(
+      `${API_ENDPOINTS.HARVESTS.MY}?startDate=2026-05-01T08%3A30%3A00`
+    );
+  });
+
   it('getMine without filters hits MY endpoint', async () => {
     (apiClient.get as jest.Mock).mockResolvedValue([]);
     await harvestService.getMine();
@@ -159,6 +240,18 @@ describe('harvest.service', () => {
     await harvestService.getMine({ date: '2026-01-01' });
     expect(apiClient.get).toHaveBeenCalledWith(
       `${API_ENDPOINTS.HARVESTS.MY}?date=2026-01-01`
+    );
+  });
+
+  it('getMine appends PRD history filters for date range and status', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue([]);
+    await harvestService.getMine({
+      startDate: '2026-05-01',
+      endDate: '2026-05-31',
+      status: 'REJECTED',
+    });
+    expect(apiClient.get).toHaveBeenCalledWith(
+      `${API_ENDPOINTS.HARVESTS.MY}?startDate=2026-05-01T00%3A00%3A00&endDate=2026-05-31T00%3A00%3A00&status=REJECTED`
     );
   });
 

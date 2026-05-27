@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { plantationService } from '@/services/plantation.service';
 import { authService } from '@/services/auth.service';
+import { adminService } from '@/services/admin.service';
 import { identityService } from '@/services/identity.service';
-import { Coordinate, EntityId, Plantation, PlantationRequest, User } from '@/types';
+import { Coordinate, EntityId, Plantation, PlantationRequest, SupirDetail, User } from '@/types';
 import {
   BadgeCheck,
   CalendarDays,
@@ -34,8 +35,8 @@ const DEF_COORDS: CoordForm[] = [
   { latitude: '-6.210', longitude: '106.826' }, { latitude: '-6.210', longitude: '106.816' },
 ];
 
-interface FormState { id: string; name: string; location: string; area: string; ownerId: string; description: string; plantDate: string; coordinates: CoordForm[]; }
-const EMPTY: FormState = { id: '', name: '', location: '', area: '', ownerId: '', description: '', plantDate: '', coordinates: DEF_COORDS };
+interface FormState { id: string; code: string; name: string; location: string; area: string; ownerId: string; description: string; plantDate: string; coordinates: CoordForm[]; }
+const EMPTY: FormState = { id: '', code: '', name: '', location: '', area: '', ownerId: '', description: '', plantDate: '', coordinates: DEF_COORDS };
 
 export default function PlantationsPage() {
   const [plantations, setPlantations] = useState<Plantation[]>([]);
@@ -43,20 +44,25 @@ export default function PlantationsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [tab, setTab] = useState<'list' | 'form' | 'mandor' | 'supir'>('list');
+  const [tab, setTab] = useState<'list' | 'form' | 'mandor' | 'buruh' | 'supir'>('list');
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<FormState>({ ...EMPTY, ownerId: authService.getUserInfo()?.id || '' });
-  const [ownerFilter, setOwnerFilter] = useState('');
+  const [nameFilter, setNameFilter] = useState('');
+  const [codeFilter, setCodeFilter] = useState('');
   const [assignment, setAssignment] = useState({ plantationId: '', mandorId: '' });
   const [transfer, setTransfer] = useState({ mandorId: '', fromPlantationId: '', toPlantationId: '' });
 
   // Supir management state
   const [supirForm, setSupirForm] = useState({ plantationId: '', supirId: '' });
-  const [unassignSupirForm, setUnassignSupirForm] = useState({ plantationId: '', supirId: '' });
-  const [supirList, setSupirList] = useState<string[]>([]);
+  const [transferSupirForm, setTransferSupirForm] = useState({ supirId: '', fromPlantationId: '', toPlantationId: '' });
+  const [supirList, setSupirList] = useState<SupirDetail[]>([]);
   const [viewSupirPlantationId, setViewSupirPlantationId] = useState('');
+  const [supirNameFilter, setSupirNameFilter] = useState('');
   const [allSupirs, setAllSupirs] = useState<User[]>([]);
   const [allMandors, setAllMandors] = useState<User[]>([]);
+  const [allBuruhs, setAllBuruhs] = useState<User[]>([]);
+  const [buruhForm, setBuruhForm] = useState({ plantationId: '', mandorId: '', buruhId: '' });
+  const [viewBuruhPlantationId, setViewBuruhPlantationId] = useState('');
 
   const summary = useMemo(() => ({
     total: plantations.length,
@@ -65,7 +71,7 @@ export default function PlantationsPage() {
     withSupir: plantations.filter(p => p.supirIds && p.supirIds.length > 0).length,
   }), [plantations]);
   const filteredPlantations = useMemo(() => {
-    const term = ownerFilter.trim().toLowerCase();
+    const term = `${nameFilter} ${codeFilter}`.trim().toLowerCase();
     if (!term) return plantations;
     return plantations.filter((plantation) => [
       plantation.name,
@@ -73,29 +79,49 @@ export default function PlantationsPage() {
       plantation.code,
       plantation.description,
     ].some(value => String(value || '').toLowerCase().includes(term)));
-  }, [ownerFilter, plantations]);
+  }, [nameFilter, codeFilter, plantations]);
   const visiblePlantations = useMemo(() => filteredPlantations.slice(0, 24), [filteredPlantations]);
-  const userNameById = useMemo(() => [...allMandors, ...allSupirs].reduce<Record<string, string>>((acc, user) => {
+  const userNameById = useMemo(() => [...allMandors, ...allSupirs, ...allBuruhs].reduce<Record<string, string>>((acc, user) => {
     acc[String(user.id)] = user.name || user.username || user.email || 'Anggota';
     return acc;
-  }, {}), [allMandors, allSupirs]);
+  }, {}), [allMandors, allSupirs, allBuruhs]);
+  const selectedBuruhPlantation = useMemo(
+    () => plantations.find((plantation) => String(plantation.id) === viewBuruhPlantationId),
+    [plantations, viewBuruhPlantationId]
+  );
+  const selectedBuruhAssignmentPlantation = useMemo(
+    () => plantations.find((plantation) => String(plantation.id) === buruhForm.plantationId),
+    [buruhForm.plantationId, plantations]
+  );
+  const buruhsInSelectedPlantation = useMemo(() => {
+    if (!selectedBuruhPlantation?.mandorId) return [];
+    return allBuruhs.filter((buruh) => String(buruh.mandorId || '') === String(selectedBuruhPlantation.mandorId));
+  }, [allBuruhs, selectedBuruhPlantation?.mandorId]);
+  const availableBuruhs = useMemo(
+    () => allBuruhs.filter((buruh) => !buruh.mandorId),
+    [allBuruhs]
+  );
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await plantationService.getAll();
+      const data = await plantationService.getAll({
+        name: nameFilter || undefined,
+        code: codeFilter || undefined,
+      });
       setPlantations(data); setError('');
     } catch (err) { setError(err instanceof Error ? err.message : 'Gagal memuat plantasi'); }
     finally { setLoading(false); }
-  }, []);
+  }, [nameFilter, codeFilter]);
 
   useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
-    if (tab === 'mandor' || tab === 'supir') {
+    if (tab === 'mandor' || tab === 'supir' || tab === 'buruh') {
       identityService.listUsers().then((users: User[]) => {
         setAllSupirs(users.filter((u: User) => u.role === 'SUPIR'));
         setAllMandors(users.filter((u: User) => u.role === 'MANDOR'));
+        setAllBuruhs(users.filter((u: User) => u.role === 'BURUH'));
       }).catch(() => {});
     }
   }, [tab]);
@@ -103,17 +129,20 @@ export default function PlantationsPage() {
   const resetForm = () => { setForm({ ...EMPTY, ownerId: authService.getUserInfo()?.id || '' }); setEditing(false); setTab('list'); };
 
   const openEdit = (p: Plantation) => {
-    setForm({ id: String(p.id), name: p.name, location: p.location, area: String(p.area), ownerId: p.ownerId ? String(p.ownerId) : '', description: p.description || '', plantDate: toDateLocal(p.plantDate), coordinates: p.coordinates?.length === 4 ? p.coordinates.map(c => ({ latitude: String(c.latitude), longitude: String(c.longitude) })) : DEF_COORDS });
+    setForm({ id: String(p.id), code: p.code || '', name: p.name, location: p.location, area: String(p.area), ownerId: p.ownerId ? String(p.ownerId) : '', description: p.description || '', plantDate: toDateLocal(p.plantDate), coordinates: p.coordinates?.length === 4 ? p.coordinates.map(c => ({ latitude: String(c.latitude), longitude: String(c.longitude) })) : DEF_COORDS });
     setEditing(true); setTab('form');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const coords: Coordinate[] = form.coordinates.map(c => ({ latitude: parseFloat(c.latitude), longitude: parseFloat(c.longitude) }));
-    if (coords.some(c => !isFinite(c.latitude) || !isFinite(c.longitude))) { setError('Koordinat tidak valid'); return; }
+    const area = parseFloat(form.area);
+    if (!Number.isFinite(area) || area <= 0) { setError('Luas kebun harus lebih dari 0 hektare'); return; }
+    if (form.coordinates.length !== 4 || coords.some(c => !isFinite(c.latitude) || !isFinite(c.longitude))) { setError('Koordinat 4 sudut wajib lengkap dan valid'); return; }
     try {
       setSaving(true);
-      const req: PlantationRequest = { name: form.name, location: form.location, area: parseFloat(form.area), ownerId: form.ownerId || undefined, description: form.description || undefined, plantDate: form.plantDate || undefined, coordinates: coords };
+      if (!editing && !form.code.trim()) { setError('Kode kebun wajib diisi'); return; }
+      const req: PlantationRequest = { code: editing ? undefined : form.code.trim(), name: form.name, location: form.location, area, ownerId: form.ownerId || undefined, description: form.description || undefined, plantDate: form.plantDate || undefined, coordinates: coords };
       if (editing) await plantationService.update(form.id, req); else await plantationService.create(req);
       setSuccess(editing ? 'Kebun diperbarui!' : 'Kebun berhasil dibuat!');
       resetForm(); await load();
@@ -145,22 +174,67 @@ export default function PlantationsPage() {
     catch (err) { setError(err instanceof Error ? err.message : 'Gagal copot mandor'); }
   };
 
+  const handleAssignBuruh = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const plantation = plantations.find((item) => String(item.id) === buruhForm.plantationId);
+    const mandorId = buruhForm.mandorId || plantation?.mandorId;
+
+    if (!mandorId) {
+      setError('Kebun harus punya mandor dulu sebelum buruh bisa ditugaskan');
+      return;
+    }
+
+    try {
+      await adminService.assignMandor(buruhForm.buruhId, String(mandorId));
+      setSuccess('Mandor berhasil ditugaskan ke buruh!');
+      setBuruhForm({ plantationId: '', mandorId: '', buruhId: '' });
+      const users = await identityService.listUsers();
+      setAllBuruhs(users.filter((u: User) => u.role === 'BURUH'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal assign mandor ke buruh');
+    }
+  };
+
+  const handleUnassignBuruh = async (buruhId: string) => {
+    if (!confirm('Copot buruh ini dari kebun?')) return;
+
+    try {
+      await adminService.unassignMandor(buruhId);
+      setSuccess('Buruh dicopot dari kebun');
+      const users = await identityService.listUsers();
+      setAllBuruhs(users.filter((u: User) => u.role === 'BURUH'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal copot buruh dari kebun');
+    }
+  };
+
   const handleAssignSupir = async (e: React.FormEvent) => {
     e.preventDefault();
     try { await plantationService.assignSupir(supirForm.plantationId, supirForm.supirId); setSuccess('Supir berhasil ditugaskan!'); setSupirForm({ plantationId: '', supirId: '' }); await load(); }
     catch (err) { setError(err instanceof Error ? err.message : 'Gagal assign supir'); }
   };
 
-  const handleUnassignSupir = async (e: React.FormEvent) => {
+  const handleTransferSupir = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!confirm(`Copot supir ini? Segera tugaskan ke kebun lain.`)) return;
-    try { await plantationService.unassignSupir(unassignSupirForm.plantationId, unassignSupirForm.supirId); setSuccess('Supir dicopot!'); setUnassignSupirForm({ plantationId: '', supirId: '' }); await load(); }
-    catch (err) { setError(err instanceof Error ? err.message : 'Gagal copot supir'); }
+    if (transferSupirForm.fromPlantationId === transferSupirForm.toPlantationId) {
+      setError('Kebun asal dan tujuan harus berbeda');
+      return;
+    }
+    try {
+      await plantationService.transferSupir(transferSupirForm);
+      setSuccess('Supir berhasil dipindahkan!');
+      setTransferSupirForm({ supirId: '', fromPlantationId: '', toPlantationId: '' });
+      await load();
+      if (viewSupirPlantationId) {
+        setSupirList(await plantationService.getSupirDetails(viewSupirPlantationId, supirNameFilter));
+      }
+    }
+    catch (err) { setError(err instanceof Error ? err.message : 'Gagal transfer supir'); }
   };
 
   const handleViewSupirs = async (e: React.FormEvent) => {
     e.preventDefault();
-    try { const list = await plantationService.getSupirs(viewSupirPlantationId); setSupirList(list); }
+    try { const list = await plantationService.getSupirDetails(viewSupirPlantationId, supirNameFilter); setSupirList(list); }
     catch (err) { setError(err instanceof Error ? err.message : 'Gagal ambil daftar supir'); }
   };
 
@@ -171,6 +245,7 @@ export default function PlantationsPage() {
     { id: 'list' as const, label: 'Daftar Kebun' },
     { id: 'form' as const, label: editing ? 'Edit Kebun' : '+ Tambah Kebun' },
     { id: 'mandor' as const, label: 'Penugasan Mandor' },
+    { id: 'buruh' as const, label: 'Penugasan Buruh' },
     { id: 'supir' as const, label: 'Penugasan Supir' },
   ];
 
@@ -207,9 +282,9 @@ export default function PlantationsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="tab-bar">
+      <div className="tab-bar" role="tablist" aria-label="Navigasi manajemen kebun">
         {TABS.map(t => (
-          <button key={t.id} onClick={() => { setTab(t.id); if (t.id !== 'form') { setEditing(false); setForm({ ...EMPTY, ownerId: authService.getUserInfo()?.id || '' }); } }}
+          <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => { setTab(t.id); if (t.id !== 'form') { setEditing(false); setForm({ ...EMPTY, ownerId: authService.getUserInfo()?.id || '' }); } }}
             className={`tab-button ${tab === t.id ? 'active' : ''}`}>
             {t.label}
           </button>
@@ -219,10 +294,11 @@ export default function PlantationsPage() {
       {/* List Tab */}
       {tab === 'list' && (
         <>
-          <form onSubmit={e => { e.preventDefault(); }} className="surface-panel p-4 flex flex-wrap gap-2">
-            <input type="text" value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)} placeholder="Cari nama atau lokasi kebun..." className="ms-input w-64" />
+          <form onSubmit={e => { e.preventDefault(); void load(); }} className="surface-panel p-4 flex flex-wrap gap-2">
+            <input type="text" value={nameFilter} onChange={e => setNameFilter(e.target.value)} placeholder="Cari nama kebun..." className="ms-input w-64" />
+            <input type="text" value={codeFilter} onChange={e => setCodeFilter(e.target.value)} placeholder="Cari kode kebun..." className="ms-input w-48" />
             <button type="submit" className="btn-primary"><Search size={15} aria-hidden="true" />Cari</button>
-            <button type="button" onClick={() => setOwnerFilter('')} className="btn-ghost"><RefreshCw size={15} aria-hidden="true" />Reset</button>
+            <button type="button" onClick={() => { setNameFilter(''); setCodeFilter(''); }} className="btn-ghost"><RefreshCw size={15} aria-hidden="true" />Reset</button>
           </form>
           {loading ? (
             <div className="surface-panel p-12 text-center text-slate-500">
@@ -292,8 +368,9 @@ export default function PlantationsPage() {
       {tab === 'form' && (
         <div className="glass-card surface-panel p-6 max-w-2xl">
           <h2 className="section-title mb-5">{editing ? `Edit: ${form.name}` : 'Tambah Kebun Baru'}</h2>
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} noValidate className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div><label className="label-sm">Kode Unik Kebun</label><input type="text" value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} className="ms-input" placeholder="KB-A-001" required={!editing} disabled={editing} /></div>
               <div><label className="label-sm">Nama Kebun</label><input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="ms-input" placeholder="Kebun Blok A" required /></div>
               <div><label className="label-sm">Lokasi</label><input type="text" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} className="ms-input" placeholder="Kalimantan Selatan" required /></div>
               <div><label className="label-sm">Luas (hektare)</label><input type="number" step="0.01" min="0.01" value={form.area} onChange={e => setForm({ ...form, area: e.target.value })} className="ms-input" placeholder="25.5" required /></div>
@@ -315,7 +392,7 @@ export default function PlantationsPage() {
               </div>
             </div>
             <div className="flex gap-3">
-              <button type="submit" disabled={saving} className="btn-primary flex-1 justify-center py-3">
+              <button type="submit" disabled={saving} data-testid="kebun-create-button" className="btn-primary flex-1 justify-center py-3">
                 {saving ? 'Menyimpan...' : editing ? <><Save size={16} aria-hidden="true" />Update Kebun</> : <><Map size={16} aria-hidden="true" />Buat Kebun</>}
               </button>
               <button type="button" onClick={resetForm} className="btn-ghost px-5"><X size={15} aria-hidden="true" />Batal</button>
@@ -379,27 +456,162 @@ export default function PlantationsPage() {
         </div>
       )}
 
+      {/* Buruh Management Tab */}
+      {tab === 'buruh' && (
+        <div className="space-y-5 max-w-3xl">
+          <div className="glass-card surface-panel p-5">
+            <h3 className="font-bold text-white mb-1">Assign Mandor ke Buruh</h3>
+            <p className="text-xs text-slate-500 mb-4">Pilih kebun untuk mengambil mandor aktif, lalu tugaskan mandor tersebut ke buruh.</p>
+            <form onSubmit={handleAssignBuruh} className="space-y-3">
+              <div>
+                <label className="label-sm">Kebun</label>
+                <select
+                  value={buruhForm.plantationId}
+                  onChange={e => {
+                    const plantation = plantations.find(p => String(p.id) === e.target.value);
+                    setBuruhForm({
+                      ...buruhForm,
+                      plantationId: e.target.value,
+                      mandorId: plantation?.mandorId ? String(plantation.mandorId) : '',
+                    });
+                  }}
+                  className="ms-input"
+                  required
+                >
+                  <option value="">Pilih kebun</option>
+                  {plantations.map(p => (
+                    <option key={p.id} value={String(p.id)} disabled={!p.mandorId}>
+                      {p.name} - {p.location}{p.mandorId ? '' : ' (belum ada mandor)'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label-sm">Mandor</label>
+                <select
+                  value={buruhForm.mandorId}
+                  onChange={e => setBuruhForm({ ...buruhForm, mandorId: e.target.value })}
+                  className="ms-input"
+                  required
+                  disabled={!selectedBuruhAssignmentPlantation?.mandorId}
+                >
+                  <option value="">
+                    {buruhForm.plantationId ? 'Kebun belum punya mandor' : 'Pilih kebun terlebih dahulu'}
+                  </option>
+                  {selectedBuruhAssignmentPlantation?.mandorId && (
+                    <option value={String(selectedBuruhAssignmentPlantation.mandorId)}>
+                      {userNameById[String(selectedBuruhAssignmentPlantation.mandorId)] || 'Mandor kebun'}
+                    </option>
+                  )}
+                </select>
+                <p className="text-xs text-slate-500 mt-2">Mandor mengikuti penugasan pada kebun yang dipilih.</p>
+              </div>
+              <div>
+                <label className="label-sm">Buruh</label>
+                <select
+                  value={buruhForm.buruhId}
+                  onChange={e => setBuruhForm({ ...buruhForm, buruhId: e.target.value })}
+                  className="ms-input"
+                  required
+                >
+                  <option value="">Pilih buruh</option>
+                  {availableBuruhs.map(u => (
+                    <option key={u.id} value={String(u.id)}>{u.name || u.username} - {u.email}</option>
+                  ))}
+                </select>
+                {availableBuruhs.length === 0 && (
+                  <p className="text-xs text-slate-500 mt-2">Tidak ada buruh tanpa kebun/mandor saat ini.</p>
+                )}
+              </div>
+              <button type="submit" className="btn-primary w-full justify-center">
+                <UserPlus size={16} aria-hidden="true" />Simpan Penugasan Mandor
+              </button>
+            </form>
+          </div>
+
+          <div className="glass-card surface-panel p-5">
+            <h3 className="font-bold text-white mb-1">Lihat Buruh di Kebun</h3>
+            <p className="text-xs text-slate-500 mb-4">Daftar ini mengikuti buruh yang ditugaskan ke mandor kebun.</p>
+            <select
+              value={viewBuruhPlantationId}
+              onChange={e => setViewBuruhPlantationId(e.target.value)}
+              className="ms-input mb-4"
+            >
+              <option value="">Pilih kebun</option>
+              {plantations.map(p => <option key={p.id} value={String(p.id)}>{p.name} - {p.location}</option>)}
+            </select>
+
+            {!viewBuruhPlantationId ? (
+              <p className="text-sm text-slate-500">Pilih kebun untuk melihat buruh yang ditugaskan.</p>
+            ) : !selectedBuruhPlantation?.mandorId ? (
+              <p className="text-sm text-slate-500">Kebun ini belum punya mandor, jadi belum bisa memiliki buruh.</p>
+            ) : buruhsInSelectedPlantation.length === 0 ? (
+              <p className="text-sm text-slate-500">Belum ada buruh di kebun ini.</p>
+            ) : (
+              <div className="space-y-2">
+                {buruhsInSelectedPlantation.map((buruh) => (
+                  <div key={buruh.id} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                    <div>
+                      <p className="text-sm font-medium text-slate-200">{buruh.name || buruh.username}</p>
+                      <p className="text-xs text-slate-500">{buruh.email}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleUnassignBuruh(String(buruh.id))}
+                      className="text-xs text-red-400 hover:text-red-300"
+                    >
+                      Copot
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Supir Management Tab */}
       {tab === 'supir' && (
         <div className="space-y-5 max-w-3xl">
           {/* Lihat supir di kebun */}
           <div className="glass-card surface-panel p-5">
             <h3 className="font-bold text-white mb-1">Lihat Supir di Kebun</h3>
-            <form onSubmit={handleViewSupirs} className="flex gap-3 mb-4">
-              <select value={viewSupirPlantationId} onChange={e => setViewSupirPlantationId(e.target.value)} className="ms-input flex-1" required>
-                <option value="">Pilih kebun</option>
-                {plantations.map(p => <option key={p.id} value={String(p.id)}>{p.name} - {p.location}</option>)}
-              </select>
-              <button type="submit" className="btn-primary"><Eye size={15} aria-hidden="true" />Lihat</button>
+            <form onSubmit={handleViewSupirs} className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end mb-4">
+              <div>
+                <label className="label-sm">Area yang Dilihat</label>
+                <select value={viewSupirPlantationId} onChange={e => setViewSupirPlantationId(e.target.value)} className="ms-input" required>
+                  <option value="">Pilih kebun</option>
+                  {plantations.map(p => <option key={p.id} value={String(p.id)}>{p.name} - {p.location}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label-sm">Nama Supir</label>
+                <input
+                  type="text"
+                  value={supirNameFilter}
+                  onChange={e => setSupirNameFilter(e.target.value)}
+                  className="ms-input"
+                  placeholder="Cari nama supir..."
+                />
+              </div>
+              <button type="submit" className="btn-primary justify-center"><Eye size={15} aria-hidden="true" />Lihat</button>
             </form>
             {supirList.length > 0 && (
               <div className="space-y-2">
-                {supirList.map(id => (
-                  <div key={id} className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                    <span className="text-xs text-slate-300">{userNameById[String(id)] || 'Supir ditugaskan'}</span>
-                    <button onClick={() => setUnassignSupirForm({ plantationId: viewSupirPlantationId, supirId: id })} className="text-xs text-red-400 hover:text-red-300">Copot</button>
+                {supirList.map(supir => {
+                  const supirId = String(supir.userId || supir.id || '');
+                  return (
+                  <div key={supirId} className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                    <span className="text-xs text-slate-300">{supir.name || userNameById[supirId] || 'Supir ditugaskan'}</span>
+                    <button
+                      onClick={() => setTransferSupirForm({ ...transferSupirForm, fromPlantationId: viewSupirPlantationId, supirId })}
+                      className="text-xs text-amber-400 hover:text-amber-300"
+                    >
+                      Pindahkan
+                    </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -428,26 +640,33 @@ export default function PlantationsPage() {
               </form>
             </div>
 
-            {/* Unassign supir */}
+            {/* Transfer supir */}
             <div className="glass-card surface-panel p-5">
-              <h3 className="font-bold text-white mb-1">Copot Supir dari Kebun</h3>
-              <p className="text-xs text-slate-500 mb-4">Segera tugaskan supir ke kebun lain setelah dicopot</p>
-              <form onSubmit={handleUnassignSupir} className="space-y-3">
-                <div>
-                  <label className="label-sm">Kebun</label>
-                  <select value={unassignSupirForm.plantationId} onChange={e => setUnassignSupirForm({ ...unassignSupirForm, plantationId: e.target.value })} className="ms-input" required>
-                    <option value="">Pilih kebun</option>
-                    {plantations.map(p => <option key={p.id} value={String(p.id)}>{p.name} - {p.location}</option>)}
-                  </select>
-                </div>
+              <h3 className="font-bold text-white mb-1">Transfer Supir Antar Kebun</h3>
+              <p className="text-xs text-slate-500 mb-4">Pindahkan supir secara atomik supaya tidak ada supir tanpa kebun</p>
+              <form onSubmit={handleTransferSupir} className="space-y-3">
                 <div>
                   <label className="label-sm">Supir</label>
-                  <select value={unassignSupirForm.supirId} onChange={e => setUnassignSupirForm({ ...unassignSupirForm, supirId: e.target.value })} className="ms-input" required>
+                  <select value={transferSupirForm.supirId} onChange={e => setTransferSupirForm({ ...transferSupirForm, supirId: e.target.value })} className="ms-input" required>
                     <option value="">Pilih supir</option>
                     {allSupirs.map(u => <option key={u.id} value={String(u.id)}>{u.name || u.username} - {u.email}</option>)}
                   </select>
                 </div>
-                <button type="submit" className="btn-danger w-full justify-center"><UserMinus size={16} aria-hidden="true" />Copot Supir</button>
+                <div>
+                  <label className="label-sm">Dari Kebun</label>
+                  <select value={transferSupirForm.fromPlantationId} onChange={e => setTransferSupirForm({ ...transferSupirForm, fromPlantationId: e.target.value })} className="ms-input" required>
+                    <option value="">Pilih kebun asal</option>
+                    {plantations.map(p => <option key={p.id} value={String(p.id)}>{p.name} - {p.location}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label-sm">Ke Kebun</label>
+                  <select value={transferSupirForm.toPlantationId} onChange={e => setTransferSupirForm({ ...transferSupirForm, toPlantationId: e.target.value })} className="ms-input" required>
+                    <option value="">Pilih kebun tujuan</option>
+                    {plantations.map(p => <option key={p.id} value={String(p.id)}>{p.name} - {p.location}</option>)}
+                  </select>
+                </div>
+                <button type="submit" className="btn-primary w-full justify-center"><Repeat size={16} aria-hidden="true" />Pindahkan Supir</button>
               </form>
             </div>
           </div>

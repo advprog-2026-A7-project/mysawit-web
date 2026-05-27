@@ -172,6 +172,7 @@ export default function WorkerShipmentActivePage() {
                     <button
                       onClick={() => handleUpdateStatus(shipment.id, nextAction.next)}
                       disabled={isUpdating}
+                      data-testid="shipment-status-select"
                       className="btn-primary w-full justify-center py-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isUpdating ? 'Memperbarui...' : nextAction.label}

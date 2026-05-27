@@ -390,6 +390,7 @@ describe('api-client (browser)', () => {
       username: 'user',
       email: 'user@mail.com',
       role: 'BURUH',
+      mandorId: 'mandor-1',
       googleLinked: false,
       hasPassword: false,
     });
@@ -397,6 +398,35 @@ describe('api-client (browser)', () => {
     expect(localStorage.getItem('refreshToken')).toBe('refresh-1');
     apiClient.clearAuth();
     expect(localStorage.getItem('refreshToken')).toBeNull();
+  });
+
+  it('saveAuth persists kebunId when present and clears it when absent', () => {
+    apiClient.saveAuth({
+      token: 'jwt',
+      type: 'Bearer',
+      id: '20',
+      username: 'mandor',
+      email: 'mandor@mail.com',
+      role: 'MANDOR',
+      kebunId: 'kebun-42',
+      googleLinked: false,
+      hasPassword: false,
+    });
+
+    expect(localStorage.getItem('kebunId')).toBe('kebun-42');
+
+    apiClient.saveAuth({
+      token: 'jwt',
+      type: 'Bearer',
+      id: '20',
+      username: 'mandor',
+      email: 'mandor@mail.com',
+      role: 'MANDOR',
+      googleLinked: false,
+      hasPassword: false,
+    });
+
+    expect(localStorage.getItem('kebunId')).toBeNull();
   });
 
   describe('401 → refresh → retry', () => {
@@ -518,6 +548,7 @@ describe('api-client (browser)', () => {
       username: 'user',
       email: 'user@mail.com',
       role: 'BURUH',
+      mandorId: 'mandor-1',
       googleLinked: false,
       hasPassword: false,
     });
@@ -526,12 +557,15 @@ describe('api-client (browser)', () => {
     expect(localStorage.getItem('userId')).toBe('10');
     expect(localStorage.getItem('username')).toBe('user');
     expect(localStorage.getItem('userRole')).toBe('BURUH');
+    expect(localStorage.getItem('mandorId')).toBe('mandor-1');
     expect(apiClient.isAuthenticated()).toBe(true);
     expect(apiClient.getUserInfo()).toEqual({
       id: '10',
       username: 'user',
       email: 'user@mail.com',
       role: 'BURUH',
+      mandorId: 'mandor-1',
+      kebunId: null,
       googleLinked: false,
       hasPassword: false,
     });
@@ -542,6 +576,7 @@ describe('api-client (browser)', () => {
     expect(localStorage.getItem('userId')).toBeNull();
     expect(localStorage.getItem('username')).toBeNull();
     expect(localStorage.getItem('userRole')).toBeNull();
+    expect(localStorage.getItem('mandorId')).toBeNull();
     expect(apiClient.isAuthenticated()).toBe(false);
   });
 });
