@@ -69,7 +69,7 @@ describe('LoginPage', () => {
     fireEvent.change(screen.getByPlaceholderText(/nama@email\.com/i), {
       target: { value: 'user@example.com' },
     });
-    fireEvent.change(screen.getByPlaceholderText(/password/i), {
+    fireEvent.change(screen.getByPlaceholderText(/kata sandi/i), {
       target: { value: 'secret' },
     });
 
@@ -81,6 +81,30 @@ describe('LoginPage', () => {
 
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith('/admin/dashboard');
+    });
+  });
+
+  it.each([
+    ['ADMIN', '/admin/dashboard'],
+    ['MANDOR', '/mandor/plantations'],
+    ['BURUH', '/harvest'],
+    ['SUPIR', '/shipment/active'],
+  ])('redirects %s credential login to the matching role landing page', async (role, path) => {
+    (authService.login as jest.Mock).mockResolvedValue({ role });
+
+    render(<LoginPage />);
+
+    fireEvent.change(screen.getByPlaceholderText(/nama@email\.com/i), {
+      target: { value: 'user@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/kata sandi/i), {
+      target: { value: 'secret' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^masuk$/i }));
+
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith(path);
     });
   });
 
@@ -98,7 +122,7 @@ describe('LoginPage', () => {
     fireEvent.change(screen.getByPlaceholderText(/nama@email\.com/i), {
       target: { value: 'user@example.com' },
     });
-    fireEvent.change(screen.getByPlaceholderText(/password/i), {
+    fireEvent.change(screen.getByPlaceholderText(/kata sandi/i), {
       target: { value: 'secret' },
     });
 
@@ -120,7 +144,7 @@ describe('LoginPage', () => {
     fireEvent.change(screen.getByPlaceholderText(/nama@email\.com/i), {
       target: { value: 'user@example.com' },
     });
-    fireEvent.change(screen.getByPlaceholderText(/password/i), {
+    fireEvent.change(screen.getByPlaceholderText(/kata sandi/i), {
       target: { value: 'wrong' },
     });
 
@@ -137,7 +161,7 @@ describe('LoginPage', () => {
     fireEvent.change(screen.getByPlaceholderText(/nama@email\.com/i), {
       target: { value: 'user@example.com' },
     });
-    fireEvent.change(screen.getByPlaceholderText(/password/i), {
+    fireEvent.change(screen.getByPlaceholderText(/kata sandi/i), {
       target: { value: 'wrong' },
     });
 
@@ -162,17 +186,35 @@ describe('LoginPage', () => {
     });
   });
 
+  it.each([
+    ['ADMIN', '/admin/dashboard'],
+    ['MANDOR', '/mandor/plantations'],
+    ['BURUH', '/harvest'],
+    ['SUPIR', '/shipment/active'],
+  ])('Google login redirects %s users to the matching role landing page', async (role, path) => {
+    (authService.googleLogin as jest.Mock).mockResolvedValue({ role });
+    render(<LoginPage />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('google-ok'));
+    });
+
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith(path);
+    });
+  });
+
   it('Google login: shows error when credential is missing', () => {
     render(<LoginPage />);
     fireEvent.click(screen.getByTestId('google-no-cred'));
-    expect(screen.getByText(/google login failed: no credential received/i)).toBeInTheDocument();
+    expect(screen.getByText(/login google gagal: credential tidak diterima/i)).toBeInTheDocument();
     expect(authService.googleLogin).not.toHaveBeenCalled();
   });
 
   it('Google login: GoogleLogin onError sets the canned error message', () => {
     render(<LoginPage />);
     fireEvent.click(screen.getByTestId('google-err'));
-    expect(screen.getByText(/^google login failed$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^login google gagal$/i)).toBeInTheDocument();
   });
 
   it('Google login: rewrites "already registered" errors with linking guidance', async () => {
@@ -184,7 +226,7 @@ describe('LoginPage', () => {
       fireEvent.click(screen.getByTestId('google-ok'));
     });
     expect(
-      await screen.findByText(/already registered with a password.*link your google account/i),
+      await screen.findByText(/sudah terdaftar dengan password.*hubungkan akun google/i),
     ).toBeInTheDocument();
   });
 
@@ -195,7 +237,7 @@ describe('LoginPage', () => {
       fireEvent.click(screen.getByTestId('google-ok'));
     });
     expect(
-      await screen.findByText(/already registered with a password.*link your google account/i),
+      await screen.findByText(/sudah terdaftar dengan password.*hubungkan akun google/i),
     ).toBeInTheDocument();
   });
 
@@ -214,6 +256,6 @@ describe('LoginPage', () => {
     await act(async () => {
       fireEvent.click(screen.getByTestId('google-ok'));
     });
-    expect(await screen.findByText(/^google login failed$/i)).toBeInTheDocument();
+    expect(await screen.findByText(/^login google gagal$/i)).toBeInTheDocument();
   });
 });

@@ -12,7 +12,7 @@ const ADMIN_NAV_ITEMS = [
   { href: '/admin/users', label: 'Pengguna' },
   { href: '/admin/plantations', label: 'Perkebunan' },
   { href: '/admin/shipments', label: 'Pengiriman' },
-  { href: '/admin/payroll', label: 'Payroll' },
+  { href: '/admin/payroll', label: 'Gaji & Wallet' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -77,7 +77,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
             <button
               onClick={handleLogout}
-              title="Logout"
+              title="Keluar"
               className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-full transition"
             >
               <LogOut size={18} />

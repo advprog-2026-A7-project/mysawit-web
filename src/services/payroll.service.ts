@@ -1,6 +1,15 @@
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-config';
-import { Payroll, PayrollRequest, WageConfig, WageConfigRequest } from '@/types';
+import {
+  PaymentTransaction,
+  Payroll,
+  PayrollRequest,
+  PayrollSearchParams,
+  WageConfig,
+  WageConfigRequest,
+  Wallet,
+  WalletTopUpRequest,
+} from '@/types';
 
 const toLocalDateTime = (value: string) =>
   /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
@@ -13,8 +22,19 @@ const normalizePayrollRequest = (data: PayrollRequest): PayrollRequest => ({
 
 // Payroll operations
 export const payrollService = {
-  async getAll(): Promise<Payroll[]> {
-    return apiClient.get(API_ENDPOINTS.PAYROLLS.BASE);
+  async getAll(params?: PayrollSearchParams): Promise<Payroll[]> {
+    if (!params) {
+      return apiClient.get(API_ENDPOINTS.PAYROLLS.BASE);
+    }
+
+    const searchParams = new URLSearchParams();
+    if (params.userId) searchParams.set('userId', params.userId);
+    if (params.status) searchParams.set('status', params.status);
+    if (params.from) searchParams.set('from', toLocalDateTime(params.from));
+    if (params.to) searchParams.set('to', toLocalDateTime(params.to));
+    const qs = searchParams.toString();
+
+    return apiClient.get(qs ? `${API_ENDPOINTS.PAYROLLS.BASE}?${qs}` : API_ENDPOINTS.PAYROLLS.BASE);
   },
 
   async getById(id: number): Promise<Payroll> {
@@ -37,8 +57,11 @@ export const payrollService = {
     return apiClient.put(API_ENDPOINTS.PAYROLLS.BY_ID(id), normalizePayrollRequest(data));
   },
 
-  async approve(id: number): Promise<Payroll> {
-    return apiClient.patch(API_ENDPOINTS.PAYROLLS.APPROVE(id));
+  async approve(id: number, adminId?: string): Promise<Payroll> {
+    return apiClient.patch(
+      API_ENDPOINTS.PAYROLLS.APPROVE(id),
+      adminId ? { adminId } : undefined
+    );
   },
 
   async accept(id: number): Promise<Payroll> {
@@ -49,7 +72,7 @@ export const payrollService = {
     return apiClient.patch(API_ENDPOINTS.PAYROLLS.REJECT(id), reason ? { reason } : undefined);
   },
 
-  async pay(id: number, paymentMethod = 'BANK_TRANSFER'): Promise<Payroll> {
+  async pay(id: number, paymentMethod = 'SANDBOX'): Promise<Payroll> {
     return apiClient.patch(API_ENDPOINTS.PAYROLLS.PAY(id), { paymentMethod });
   },
 
@@ -88,4 +111,22 @@ export const wageConfigService = {
     return apiClient.delete(API_ENDPOINTS.WAGE_CONFIGS.BY_ID(id));
   },
 
+};
+
+export const walletService = {
+  async getWallet(userId: string): Promise<Wallet> {
+    return apiClient.get(API_ENDPOINTS.WALLETS.BY_USER(userId));
+  },
+
+  async getTransactions(userId: string): Promise<PaymentTransaction[]> {
+    return apiClient.get(API_ENDPOINTS.WALLETS.TRANSACTIONS(userId));
+  },
+
+  async topUpSandbox(userId: string, data: WalletTopUpRequest): Promise<PaymentTransaction> {
+    return apiClient.post(API_ENDPOINTS.WALLETS.TOP_UP_SANDBOX(userId), data);
+  },
+
+  async settleSandbox(transactionId: string, status = 'PAID'): Promise<PaymentTransaction> {
+    return apiClient.post(API_ENDPOINTS.WALLETS.SETTLE_SANDBOX(transactionId), { status });
+  },
 };

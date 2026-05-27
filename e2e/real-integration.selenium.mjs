@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import crypto from 'node:crypto';
 import http from 'node:http';
 import process from 'node:process';
 import { spawn } from 'node:child_process';
@@ -11,78 +12,139 @@ const { Builder, By, until } = webdriver;
 
 const FRONTEND_PORT = Number(process.env.E2E_FRONTEND_PORT || 3100);
 const PROXY_PORT = Number(process.env.E2E_PROXY_PORT || 3999);
-const FRONTEND_URL = process.env.E2E_FRONTEND_URL || `http://127.0.0.1:${FRONTEND_PORT}`;
+const FRONTEND_URL = `http://127.0.0.1:${FRONTEND_PORT}`;
 const PROXY_URL = `http://127.0.0.1:${PROXY_PORT}`;
 const HEADLESS = process.env.E2E_HEADLESS !== 'false';
-const KEEP_FRONTEND = Boolean(process.env.E2E_FRONTEND_URL);
+const WAIT_TIMEOUT_MS = Number(process.env.E2E_WAIT_TIMEOUT_MS || 30000);
 const REQUEST_TIMEOUT_MS = Number(process.env.E2E_REQUEST_TIMEOUT_MS || 10000);
-const WAIT_TIMEOUT_MS = Number(process.env.E2E_WAIT_TIMEOUT_MS || 20000);
+const JWT_SECRET = process.env.REAL_JWT_SECRET || process.env.JWT_SECRET || 'mysawit-secret-key-change-in-production-2026';
 
 const services = {
   identity: {
-    env: 'NEXT_PUBLIC_IDENTITY_SERVICE_URL',
-    target: process.env.REAL_IDENTITY_SERVICE_URL || process.env.NEXT_PUBLIC_IDENTITY_SERVICE_URL || 'http://localhost:8081',
+    target: process.env.REAL_IDENTITY_SERVICE_URL || process.env.IDENTITY_SERVICE_URL || 'http://127.0.0.1:8081',
     proxyPrefix: '/identity',
     healthPath: '/api/auth/health',
+    env: 'IDENTITY_SERVICE_URL',
   },
   plantation: {
-    env: 'NEXT_PUBLIC_PLANTATION_SERVICE_URL',
-    target: process.env.REAL_PLANTATION_SERVICE_URL || process.env.NEXT_PUBLIC_PLANTATION_SERVICE_URL || 'http://localhost:8082',
+    target: process.env.REAL_PLANTATION_SERVICE_URL || process.env.PLANTATION_SERVICE_URL || 'http://127.0.0.1:8082',
     proxyPrefix: '/plantation',
-    healthPath: '/api/plantations/health',
+    healthPath: '/actuator/health',
+    env: 'PLANTATION_SERVICE_URL',
   },
   harvest: {
-    env: 'NEXT_PUBLIC_HARVEST_SERVICE_URL',
-    target: process.env.REAL_HARVEST_SERVICE_URL || process.env.NEXT_PUBLIC_HARVEST_SERVICE_URL || 'http://localhost:8083',
+    target: process.env.REAL_HARVEST_SERVICE_URL || process.env.HARVEST_SERVICE_URL || 'http://127.0.0.1:8083',
     proxyPrefix: '/harvest',
-    healthPath: '/api/harvests/health',
+    healthPath: '/actuator/health',
+    env: 'HARVEST_SERVICE_URL',
   },
   shipment: {
-    env: 'NEXT_PUBLIC_SHIPMENT_SERVICE_URL',
-    target: process.env.REAL_SHIPMENT_SERVICE_URL || process.env.NEXT_PUBLIC_SHIPMENT_SERVICE_URL || 'http://localhost:8084',
+    target: process.env.REAL_SHIPMENT_SERVICE_URL || process.env.SHIPMENT_SERVICE_URL || 'http://127.0.0.1:8084',
     proxyPrefix: '/shipment',
     healthPath: '/api/shipments/health',
+    env: 'SHIPMENT_SERVICE_URL',
   },
   payroll: {
-    env: 'NEXT_PUBLIC_PAYROLL_SERVICE_URL',
-    target: process.env.REAL_PAYROLL_SERVICE_URL || process.env.NEXT_PUBLIC_PAYROLL_SERVICE_URL || 'http://localhost:8085',
+    target: process.env.REAL_PAYROLL_SERVICE_URL || process.env.PAYROLL_SERVICE_URL || 'http://127.0.0.1:8085',
     proxyPrefix: '/payroll',
     healthPath: '/actuator/health',
+    env: 'PAYROLL_SERVICE_URL',
   },
 };
 
-const created = {
-  plantationIds: [],
-  harvestIds: [],
-  shipmentIds: [],
-  employeeIds: [],
-  payrollIds: [],
+const roleLabels = {
+  BURUH: 'Pekerja Panen',
+  MANDOR: 'Mandor',
+  SUPIR: 'Supir',
+};
+
+const syntheticUsers = {
+  ADMIN: {
+    id: '00000000-0000-4000-8000-000000000001',
+    username: 'real-e2e-admin',
+    email: 'real-e2e-admin@mysawit.test',
+    role: 'ADMIN',
+  },
+  MANDOR: {
+    id: '00000000-0000-4000-8000-000000000002',
+    username: 'real-e2e-mandor',
+    email: 'real-e2e-mandor@mysawit.test',
+    role: 'MANDOR',
+  },
+  BURUH: {
+    id: '00000000-0000-4000-8000-000000000003',
+    username: 'real-e2e-buruh',
+    email: 'real-e2e-buruh@mysawit.test',
+    role: 'BURUH',
+  },
+  SUPIR: {
+    id: '00000000-0000-4000-8000-000000000004',
+    username: 'real-e2e-supir',
+    email: 'real-e2e-supir@mysawit.test',
+    role: 'SUPIR',
+  },
 };
 
 const runId = process.env.E2E_RUN_ID || new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
-const testUser = {
-  username: `e2e_${runId}`,
-  email: `e2e_${runId}@example.test`,
-  password: 'Password123!',
-};
+const password = process.env.REAL_E2E_PASSWORD || 'Password123!';
+const createdIdentityUsers = [];
+let adminAuth = null;
 
 function log(message) {
-  console.log(`[e2e] ${message}`);
+  console.log(`[real-e2e] ${message}`);
 }
 
 function assert(condition, message) {
-  if (!condition) {
-    throw new Error(message);
-  }
+  if (!condition) throw new Error(message);
+}
+
+function ensureTrailingSlash(value) {
+  return value.endsWith('/') ? value : `${value}/`;
 }
 
 function escapeXPath(value) {
-  if (!value.includes("'")) {
-    return `'${value}'`;
-  }
+  if (!value.includes("'")) return `'${value}'`;
+  return `concat(${value.split("'").map((part) => `'${part}'`).join(', "\"\'\"", ')})`;
+}
 
-  const parts = value.split("'").map((part) => `'${part}'`);
-  return `concat(${parts.join(', "\"\'\"", ')})`;
+function base64url(input) {
+  return Buffer.from(input)
+    .toString('base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+}
+
+function signJwt(userId, role) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const payload = {
+    sub: userId,
+    userId,
+    role,
+    iat: now,
+    exp: now + 60 * 60,
+  };
+  const unsigned = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(payload))}`;
+  const signature = crypto
+    .createHmac('sha256', JWT_SECRET)
+    .update(unsigned)
+    .digest('base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+  return `${unsigned}.${signature}`;
+}
+
+function syntheticAuth(role) {
+  const user = syntheticUsers[role];
+  return {
+    ...user,
+    token: signJwt(user.id, role),
+    refreshToken: `synthetic-refresh-${role.toLowerCase()}`,
+    googleLinked: false,
+    hasPassword: true,
+  };
 }
 
 async function fetchWithTimeout(url, init = {}) {
@@ -96,40 +158,10 @@ async function fetchWithTimeout(url, init = {}) {
   }
 }
 
-async function serviceFetch(serviceName, path, init = {}) {
-  const service = services[serviceName];
-  const url = new URL(path, ensureTrailingSlash(service.target)).toString();
-  return fetchWithTimeout(url, init);
-}
-
-async function serviceJson(serviceName, path, init = {}) {
-  const response = await serviceFetch(serviceName, path, init);
-  const text = await response.text();
-  let body = null;
-
-  if (text) {
-    try {
-      body = JSON.parse(text);
-    } catch {
-      body = text;
-    }
-  }
-
-  if (!response.ok) {
-    throw new Error(`${serviceName} ${path} returned ${response.status}: ${text}`);
-  }
-
-  return body;
-}
-
-function ensureTrailingSlash(value) {
-  return value.endsWith('/') ? value : `${value}/`;
-}
-
 async function checkBackends() {
   log('checking real backend health endpoints');
-
   const failures = [];
+
   for (const [name, service] of Object.entries(services)) {
     const healthUrl = new URL(service.healthPath, ensureTrailingSlash(service.target)).toString();
     try {
@@ -145,13 +177,21 @@ async function checkBackends() {
   }
 
   if (failures.length > 0) {
-    throw new Error(
-      [
-        'Backend preflight failed. Start the real services or set REAL_*_SERVICE_URL env vars.',
-        ...failures.map((failure) => `- ${failure}`),
-      ].join('\n'),
-    );
+    throw new Error([
+      'Real backend preflight failed. Start all Spring Boot services or set REAL_*_SERVICE_URL.',
+      'This test intentionally fails instead of falling back to mocks.',
+      ...failures.map((failure) => `- ${failure}`),
+    ].join('\n'));
   }
+}
+
+function readRequestBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
 }
 
 function startRecordingProxy() {
@@ -190,7 +230,6 @@ function startRecordingProxy() {
     const upstreamPath = incomingUrl.pathname.slice(service.proxyPrefix.length) || '/';
     const upstreamUrl = new URL(`${upstreamPath}${incomingUrl.search}`, ensureTrailingSlash(service.target)).toString();
     const headers = { ...req.headers };
-
     delete headers.host;
     delete headers.connection;
     delete headers['content-length'];
@@ -199,8 +238,8 @@ function startRecordingProxy() {
       service: serviceName,
       method: req.method,
       path: `${upstreamPath}${incomingUrl.search}`,
-      requestBody,
       status: null,
+      requestBody: requestBody.toString('utf8'),
       responseBody: '',
       upstreamUrl,
     };
@@ -211,24 +250,20 @@ function startRecordingProxy() {
         headers,
         body: requestBody.length > 0 ? requestBody : undefined,
       });
-
-      const responseBody = await upstream.text();
-      const responseHeaders = {
-        ...corsHeaders,
-        'Content-Type': upstream.headers.get('content-type') || 'application/json',
-      };
-
+      const responseBody = await upstream.arrayBuffer();
       call.status = upstream.status;
-      call.responseBody = responseBody;
+      call.responseBody = Buffer.from(responseBody).toString('utf8');
       calls.push(call);
 
-      res.writeHead(upstream.status, responseHeaders);
-      res.end(responseBody);
+      res.writeHead(upstream.status, {
+        ...corsHeaders,
+        'Content-Type': upstream.headers.get('content-type') || 'application/json',
+      });
+      res.end(Buffer.from(responseBody));
     } catch (error) {
       call.status = 502;
       call.responseBody = JSON.stringify({ error: error.message });
       calls.push(call);
-
       res.writeHead(502, { ...corsHeaders, 'Content-Type': 'application/json' });
       res.end(call.responseBody);
     }
@@ -247,37 +282,39 @@ function startRecordingProxy() {
   });
 }
 
-function readRequestBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    req.on('data', (chunk) => chunks.push(chunk));
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-    req.on('error', reject);
-  });
+async function waitForHttp(url, label) {
+  const deadline = Date.now() + WAIT_TIMEOUT_MS;
+  let lastError = null;
+
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetchWithTimeout(url);
+      if (response.status < 500) return;
+      lastError = new Error(`HTTP ${response.status}`);
+    } catch (error) {
+      lastError = error;
+    }
+    await delay(500);
+  }
+
+  throw new Error(`Timed out waiting for ${label} at ${url}: ${lastError?.message || 'no response'}`);
 }
 
 async function startFrontend() {
-  if (KEEP_FRONTEND) {
-    log(`using existing frontend at ${FRONTEND_URL}`);
-    await waitForHttp(FRONTEND_URL, 'frontend');
-    return { close: async () => {} };
-  }
+  const proxyEnv = Object.fromEntries(
+    Object.values(services).flatMap((service) => {
+      const url = `${PROXY_URL}${service.proxyPrefix}`;
+      return [
+        [service.env, url],
+        [`NEXT_PUBLIC_${service.env}`, url],
+      ];
+    }),
+  );
 
-  const env = {
-    ...process.env,
-    NEXT_PUBLIC_IDENTITY_SERVICE_URL: `${PROXY_URL}${services.identity.proxyPrefix}`,
-    NEXT_PUBLIC_PLANTATION_SERVICE_URL: `${PROXY_URL}${services.plantation.proxyPrefix}`,
-    NEXT_PUBLIC_HARVEST_SERVICE_URL: `${PROXY_URL}${services.harvest.proxyPrefix}`,
-    NEXT_PUBLIC_SHIPMENT_SERVICE_URL: `${PROXY_URL}${services.shipment.proxyPrefix}`,
-    NEXT_PUBLIC_PAYROLL_SERVICE_URL: `${PROXY_URL}${services.payroll.proxyPrefix}`,
-  };
-
-  const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  const child = spawn(npmCommand, ['run', 'dev', '--', '--hostname', '127.0.0.1', '--port', String(FRONTEND_PORT)], {
+  const child = spawn('npm', ['run', 'dev', '--', '--hostname', '127.0.0.1', '--port', String(FRONTEND_PORT)], {
     cwd: process.cwd(),
-    env,
+    env: { ...process.env, ...proxyEnv },
     stdio: ['ignore', 'pipe', 'pipe'],
-    shell: process.platform === 'win32',
     windowsHide: true,
   });
 
@@ -297,35 +334,11 @@ async function startFrontend() {
   };
 }
 
-async function waitForHttp(url, label) {
-  const deadline = Date.now() + WAIT_TIMEOUT_MS;
-  let lastError = null;
-
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetchWithTimeout(url);
-      if (response.status < 500) {
-        return;
-      }
-      lastError = new Error(`HTTP ${response.status}`);
-    } catch (error) {
-      lastError = error;
-    }
-
-    await delay(500);
-  }
-
-  throw new Error(`Timed out waiting for ${label} at ${url}: ${lastError?.message || 'no response'}`);
-}
-
 async function buildDriver() {
   const options = new chrome.Options();
   options.addArguments('--window-size=1440,1000');
   options.addArguments('--disable-dev-shm-usage');
-
-  if (HEADLESS) {
-    options.addArguments('--headless=new');
-  }
+  if (HEADLESS) options.addArguments('--headless=new');
 
   return new Builder()
     .forBrowser('chrome')
@@ -337,41 +350,32 @@ function markCalls(proxy) {
   return proxy.calls.length;
 }
 
+function pathMatches(actual, expected) {
+  if (expected instanceof RegExp) return expected.test(actual);
+  if (expected.includes('?')) return actual === expected;
+  return actual.split('?')[0] === expected;
+}
+
 async function waitForCall(proxy, afterIndex, expected) {
   const deadline = Date.now() + WAIT_TIMEOUT_MS;
+  const statuses = expected.statuses || (expected.status ? [expected.status] : null);
 
   while (Date.now() < deadline) {
     const match = proxy.calls.slice(afterIndex).find((call) => (
       call.service === expected.service &&
       call.method === expected.method &&
       pathMatches(call.path, expected.path) &&
-      (expected.status === undefined || call.status === expected.status)
+      (!statuses || statuses.includes(call.status))
     ));
 
-    if (match) {
-      return match;
-    }
-
+    if (match) return match;
     await delay(100);
   }
 
-  const recent = proxy.calls.slice(Math.max(0, proxy.calls.length - 12))
-    .map((call) => `${call.service} ${call.method} ${call.path} -> ${call.status}`)
+  const recent = proxy.calls.slice(Math.max(0, proxy.calls.length - 16))
+    .map((call) => `${call.service.padEnd(10)} ${call.method.padEnd(6)} ${String(call.status).padEnd(3)} ${call.path}`)
     .join('\n');
-
   throw new Error(`Timed out waiting for ${expected.service} ${expected.method} ${expected.path}. Recent calls:\n${recent}`);
-}
-
-function pathMatches(actual, expected) {
-  if (expected instanceof RegExp) {
-    return expected.test(actual);
-  }
-
-  if (expected.includes('?')) {
-    return actual === expected;
-  }
-
-  return actual.split('?')[0] === expected;
 }
 
 function responseJson(call) {
@@ -382,325 +386,232 @@ function responseJson(call) {
   }
 }
 
-async function clickText(driver, text) {
-  const xpath = `//*[self::button or self::a][contains(normalize-space(.), ${escapeXPath(text)})]`;
+async function findClickable(driver, xpath) {
   const element = await driver.wait(until.elementLocated(By.xpath(xpath)), WAIT_TIMEOUT_MS);
   await driver.executeScript('arguments[0].scrollIntoView({ block: "center", inline: "center" });', element);
   await driver.wait(until.elementIsVisible(element), WAIT_TIMEOUT_MS);
   await driver.wait(until.elementIsEnabled(element), WAIT_TIMEOUT_MS);
-  await element.click();
+  return element;
 }
 
-async function clickButtonInside(driver, containerText, buttonText) {
-  const xpath = [
-    `//*[contains(normalize-space(.), ${escapeXPath(containerText)})]`,
-    `/ancestor::div[.//button[contains(normalize-space(.), ${escapeXPath(buttonText)})]][1]`,
-    `//button[contains(normalize-space(.), ${escapeXPath(buttonText)})]`,
-  ].join('');
-  const element = await driver.wait(until.elementLocated(By.xpath(xpath)), WAIT_TIMEOUT_MS);
-  await driver.executeScript('arguments[0].scrollIntoView({ block: "center", inline: "center" });', element);
-  await driver.wait(until.elementIsVisible(element), WAIT_TIMEOUT_MS);
-  await driver.wait(until.elementIsEnabled(element), WAIT_TIMEOUT_MS);
-  await element.click();
+async function clickText(driver, text) {
+  const element = await findClickable(driver, `//*[self::button or self::a][contains(normalize-space(.), ${escapeXPath(text)})]`);
+  try {
+    await element.click();
+  } catch {
+    await driver.executeScript('arguments[0].click();', element);
+  }
 }
 
 async function fillByLabel(driver, label, value) {
-  const xpath = `//label[normalize-space(.)=${escapeXPath(label)}]/following::*[self::input or self::textarea or self::select][1]`;
-  const element = await driver.wait(until.elementLocated(By.xpath(xpath)), WAIT_TIMEOUT_MS);
-  await driver.executeScript('arguments[0].scrollIntoView({ block: "center", inline: "center" });', element);
-  await driver.wait(until.elementIsVisible(element), WAIT_TIMEOUT_MS);
-
-  const tagName = await element.getTagName();
-  if (tagName === 'select') {
-    await element.sendKeys(value);
-    return;
-  }
-
-  await element.clear();
+  const lowerLabel = label.toLowerCase();
+  const element = await findClickable(
+    driver,
+    `(//label[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), ${escapeXPath(lowerLabel)})]//*[self::input or self::textarea or self::select][1] | //label[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), ${escapeXPath(lowerLabel)})]/following::*[self::input or self::textarea or self::select][1])[1]`,
+  );
+  const tag = await element.getTagName();
+  if (tag !== 'select') await element.clear();
   await element.sendKeys(value);
 }
 
-async function waitForPageText(driver, text) {
+async function waitForText(driver, text) {
   const xpath = `//*[contains(normalize-space(.), ${escapeXPath(text)})]`;
   await driver.wait(until.elementLocated(By.xpath(xpath)), WAIT_TIMEOUT_MS);
 }
 
-async function registerAndLogin(driver, proxy) {
-  log('registering and logging in through the UI');
+async function setAuth(driver, auth) {
+  await driver.get(FRONTEND_URL);
+  await driver.executeScript(
+    `localStorage.clear();
+     localStorage.setItem('authToken', arguments[0].token);
+     localStorage.setItem('refreshToken', arguments[0].refreshToken || 'real-e2e-refresh');
+     localStorage.setItem('userId', String(arguments[0].id));
+     localStorage.setItem('username', arguments[0].username);
+     localStorage.setItem('userEmail', arguments[0].email);
+     localStorage.setItem('userRole', arguments[0].role);
+     localStorage.setItem('googleLinked', String(arguments[0].googleLinked ?? false));
+     localStorage.setItem('hasPassword', String(arguments[0].hasPassword ?? true));`,
+    auth,
+  );
+}
 
-  await driver.get(`${FRONTEND_URL}/register`);
-  await fillByLabel(driver, 'Username', testUser.username);
-  await fillByLabel(driver, 'Email', testUser.email);
-  await fillByLabel(driver, 'Password', testUser.password);
-  await fillByLabel(driver, 'Confirm Password', testUser.password);
-
-  let after = markCalls(proxy);
-  await clickText(driver, 'Register');
-  const registerCall = await waitForCall(proxy, after, {
-    service: 'identity',
-    method: 'POST',
-    path: '/api/auth/register',
-    status: 200,
-  });
-
-  const registeredUser = responseJson(registerCall);
-  assert(registeredUser.token, 'register response did not include an auth token');
-  await driver.wait(until.urlContains('/dashboard'), WAIT_TIMEOUT_MS);
-
-  await driver.executeScript('localStorage.clear();');
+async function loginWithCredentials(driver, proxy, email, userPassword) {
   await driver.get(`${FRONTEND_URL}/login`);
-  await fillByLabel(driver, 'Username', testUser.username);
-  await fillByLabel(driver, 'Password', testUser.password);
+  await fillByLabel(driver, 'Email', email);
+  await fillByLabel(driver, 'Password', userPassword);
 
-  after = markCalls(proxy);
-  await clickText(driver, 'Login');
+  const after = markCalls(proxy);
+  await clickText(driver, 'Masuk');
   const loginCall = await waitForCall(proxy, after, {
     service: 'identity',
     method: 'POST',
     path: '/api/auth/login',
-    status: 200,
+    statuses: [200],
   });
 
-  const loggedInUser = responseJson(loginCall);
-  assert(loggedInUser.token, 'login response did not include an auth token');
-  await driver.wait(until.urlContains('/dashboard'), WAIT_TIMEOUT_MS);
-
-  return loggedInUser;
+  return responseJson(loginCall);
 }
 
-async function createPlantation(driver, proxy) {
-  const name = `E2E Plantation ${runId}`;
+async function registerAndLoginRole(driver, proxy, role) {
+  const suffix = `${role.toLowerCase()}_${runId}`;
+  const user = {
+    username: `e2e_${suffix}`,
+    email: `e2e_${suffix}@example.test`,
+    password,
+    role,
+  };
 
-  log('creating plantation through the UI');
-  await driver.get(`${FRONTEND_URL}/dashboard/plantations`);
-  await waitForCall(proxy, markCalls(proxy), {
-    service: 'plantation',
-    method: 'GET',
-    path: '/api/plantations',
-    status: 200,
-  }).catch(() => {});
-
-  await waitForPageText(driver, 'Plantations Management');
-  await clickText(driver, 'Add Plantation');
-  await fillByLabel(driver, 'Plantation Name', name);
-  await fillByLabel(driver, 'Location', `E2E Location ${runId}`);
-  await fillByLabel(driver, 'Area (hectares)', '12.5');
-  await fillByLabel(driver, 'Description', `E2E plantation created ${runId}`);
-
-  const after = markCalls(proxy);
-  await clickText(driver, 'Create Plantation');
-  const createCall = await waitForCall(proxy, after, {
-    service: 'plantation',
-    method: 'POST',
-    path: '/api/plantations',
-    status: 201,
-  });
-
-  const plantation = responseJson(createCall);
-  created.plantationIds.push(plantation.id);
-  await waitForPageText(driver, name);
-
-  const persisted = await serviceJson('plantation', `/api/plantations/${plantation.id}`);
-  assert(persisted.name === name, 'created plantation was not readable from the real backend');
-  log(`plantation created and persisted with id ${plantation.id}`);
-
-  return plantation;
-}
-
-async function createHarvest(driver, proxy, plantation) {
-  log('creating harvest through the UI');
-  await driver.get(`${FRONTEND_URL}/dashboard/harvests`);
-  await waitForPageText(driver, 'Harvests Management');
-  await clickText(driver, 'Add Harvest');
-  await fillByLabel(driver, 'Plantation ID', String(plantation.id));
-  await fillByLabel(driver, 'Harvest Date', '2026-05-05');
-  await fillByLabel(driver, 'Weight (kg)', '88.75');
-  await fillByLabel(driver, 'Quality', 'PREMIUM');
-  await fillByLabel(driver, 'Notes (optional)', `E2E harvest ${runId}`);
-
-  const after = markCalls(proxy);
-  await clickText(driver, 'Create Harvest');
-  const createCall = await waitForCall(proxy, after, {
-    service: 'harvest',
-    method: 'POST',
-    path: '/api/harvests',
-    status: 201,
-  });
-
-  const harvest = responseJson(createCall);
-  created.harvestIds.push(harvest.id);
-  await waitForPageText(driver, `Harvest #${harvest.id}`);
-
-  const persisted = await serviceJson('harvest', `/api/harvests/${harvest.id}`);
-  assert(persisted.plantationId === plantation.id, 'created harvest was not readable from the real backend');
-  log(`harvest created and persisted with id ${harvest.id}`);
-
-  return harvest;
-}
-
-async function createShipment(driver, proxy, harvest) {
-  log('creating shipment through the UI');
-  await driver.get(`${FRONTEND_URL}/dashboard/shipments`);
-  await waitForPageText(driver, 'Shipments Management');
-  await clickText(driver, 'Add Shipment');
-  await fillByLabel(driver, 'Harvest ID', String(harvest.id));
-  await fillByLabel(driver, 'Destination', `E2E Destination ${runId}`);
-  await fillByLabel(driver, 'Weight (kg)', '44.5');
-  await fillByLabel(driver, 'Status', 'PENDING');
-  await fillByLabel(driver, 'Shipper Name (optional)', `E2E Shipper ${runId}`);
-  await fillByLabel(driver, 'Vehicle Number (optional)', `E2E-${runId.slice(-6)}`);
-  await fillByLabel(driver, 'Shipment Date (optional)', '2026-05-05');
-  await fillByLabel(driver, 'Notes (optional)', `E2E shipment ${runId}`);
-
-  const after = markCalls(proxy);
-  await clickText(driver, 'Create Shipment');
-  const createCall = await waitForCall(proxy, after, {
-    service: 'shipment',
-    method: 'POST',
-    path: '/api/shipments',
-    status: 201,
-  });
-
-  const shipment = responseJson(createCall);
-  created.shipmentIds.push(shipment.id);
-  await waitForPageText(driver, `Shipment #${shipment.id}`);
-
-  const persisted = await serviceJson('shipment', `/api/shipments/${shipment.id}`);
-  assert(persisted.harvestId === harvest.id, 'created shipment was not readable from the real backend');
-  log(`shipment created and persisted with id ${shipment.id}`);
-
-  return shipment;
-}
-
-async function createEmployeeAndPayroll(driver, proxy, plantation) {
-  const employeeName = `E2E Employee ${runId}`;
-  const employeeCode = `E2E${runId.slice(-10)}`;
-
-  log('creating employee through the UI');
-  await driver.get(`${FRONTEND_URL}/dashboard/payroll`);
-  await waitForPageText(driver, 'Payroll Management');
-  await clickText(driver, 'Add Employee');
-  await fillByLabel(driver, 'Full Name', employeeName);
-  await fillByLabel(driver, 'Employee Code', employeeCode);
-  await fillByLabel(driver, 'Position', 'HARVESTER');
-  await fillByLabel(driver, 'Base Salary (IDR)', '2500000');
-  await fillByLabel(driver, 'Plantation ID (optional)', String(plantation.id));
-  await fillByLabel(driver, 'Phone Number (optional)', '081234567890');
-  await fillByLabel(driver, 'Address (optional)', `E2E address ${runId}`);
+  log(`registering ${role} through Identity UI`);
+  await driver.get(`${FRONTEND_URL}/register`);
+  await fillByLabel(driver, 'Nama Pengguna', user.username);
+  await fillByLabel(driver, 'Daftar Sebagai', roleLabels[role]);
+  if (role === 'MANDOR') {
+    await fillByLabel(driver, 'Nomor Sertifikasi', `CERT-${runId}`);
+  }
+  await fillByLabel(driver, 'Email', user.email);
+  await fillByLabel(driver, 'Password', user.password);
+  await fillByLabel(driver, 'Konfirmasi Password', user.password);
 
   let after = markCalls(proxy);
-  await clickText(driver, 'Create Employee');
-  const employeeCall = await waitForCall(proxy, after, {
-    service: 'payroll',
+  await clickText(driver, 'Daftar');
+  const registerCall = await waitForCall(proxy, after, {
+    service: 'identity',
     method: 'POST',
-    path: '/api/employees',
-    status: 201,
+    path: '/api/auth/register',
+    statuses: [200, 201],
   });
+  const registered = responseJson(registerCall);
+  createdIdentityUsers.push(registered.id);
+  await waitForText(driver, 'Masuk');
 
-  const employee = responseJson(employeeCall);
-  created.employeeIds.push(employee.id);
-  await waitForPageText(driver, employeeName);
+  log(`logging in ${role} through Identity UI`);
+  const loggedIn = await loginWithCredentials(driver, proxy, user.email, user.password);
+  assert(loggedIn.token, `${role} login response did not include token`);
+  assert(loggedIn.role === role, `${role} login returned role ${loggedIn.role}`);
 
-  const persistedEmployee = await serviceJson('payroll', `/api/employees/${employee.id}`);
-  assert(persistedEmployee.employeeCode === employeeCode, 'created employee was not readable from the real backend');
-  log(`employee created and persisted with id ${employee.id}`);
-
-  log('creating payroll through the UI');
-  await clickText(driver, 'Payrolls');
-  await clickText(driver, 'Add Payroll');
-  await fillByLabel(driver, 'Employee ID', String(employee.id));
-  await fillByLabel(driver, 'Base Amount (IDR)', '2500000');
-  await fillByLabel(driver, 'Period Start', '2026-05-01');
-  await fillByLabel(driver, 'Period End', '2026-05-31');
-  await fillByLabel(driver, 'Bonus Amount (IDR)', '100000');
-  await fillByLabel(driver, 'Deduction Amount (IDR)', '25000');
-  await fillByLabel(driver, 'Payment Method', 'BANK_TRANSFER');
-  await fillByLabel(driver, 'Notes (optional)', `E2E payroll ${runId}`);
-
-  after = markCalls(proxy);
-  await clickText(driver, 'Create Payroll');
-  const payrollCall = await waitForCall(proxy, after, {
-    service: 'payroll',
-    method: 'POST',
-    path: '/api/payrolls',
-    status: 201,
-  });
-
-  const payroll = responseJson(payrollCall);
-  created.payrollIds.push(payroll.id);
-  await waitForPageText(driver, `Payroll #${payroll.id}`);
-
-  let persistedPayroll = await serviceJson('payroll', `/api/payrolls/${payroll.id}`);
-  assert(persistedPayroll.employeeId === employee.id, 'created payroll was not readable from the real backend');
-  log(`payroll created and persisted with id ${payroll.id}`);
-
-  after = markCalls(proxy);
-  await clickButtonInside(driver, `Payroll #${payroll.id}`, 'Approve');
-  await waitForCall(proxy, after, {
-    service: 'payroll',
-    method: 'PATCH',
-    path: `/api/payrolls/${payroll.id}/approve`,
-    status: 200,
-  });
-
-  persistedPayroll = await serviceJson('payroll', `/api/payrolls/${payroll.id}`);
-  assert(persistedPayroll.status === 'APPROVED', 'payroll approve action did not persist APPROVED status');
-  await waitForPageText(driver, 'APPROVED');
-  log(`payroll ${payroll.id} approved through the UI`);
-
-  after = markCalls(proxy);
-  await clickButtonInside(driver, `Payroll #${payroll.id}`, 'Mark as Paid');
-  await waitForCall(proxy, after, {
-    service: 'payroll',
-    method: 'PATCH',
-    path: `/api/payrolls/${payroll.id}/pay`,
-    status: 200,
-  });
-
-  persistedPayroll = await serviceJson('payroll', `/api/payrolls/${payroll.id}`);
-  assert(persistedPayroll.status === 'PAID', 'payroll pay action did not persist PAID status');
-  await waitForPageText(driver, 'PAID');
-  log(`payroll ${payroll.id} paid through the UI`);
-
-  return { employee, payroll };
+  return loggedIn;
 }
 
-async function cleanup() {
-  log('cleaning up created records');
-
-  for (const id of [...created.payrollIds].reverse()) {
-    await ignoreCleanupError(() => serviceFetch('payroll', `/api/payrolls/${id}`, { method: 'DELETE' }));
+async function resolveAdminAuth(driver, proxy) {
+  if (process.env.REAL_ADMIN_EMAIL && process.env.REAL_ADMIN_PASSWORD) {
+    log('logging in real admin from REAL_ADMIN_EMAIL/REAL_ADMIN_PASSWORD');
+    const loggedIn = await loginWithCredentials(
+      driver,
+      proxy,
+      process.env.REAL_ADMIN_EMAIL,
+      process.env.REAL_ADMIN_PASSWORD,
+    );
+    assert(loggedIn.role === 'ADMIN', `REAL_ADMIN_EMAIL logged in as ${loggedIn.role}, not ADMIN`);
+    return loggedIn;
   }
 
-  for (const id of [...created.employeeIds].reverse()) {
-    await ignoreCleanupError(() => serviceFetch('payroll', `/api/employees/${id}`, { method: 'DELETE' }));
-  }
+  log('using signed ADMIN JWT for admin pages; set REAL_ADMIN_EMAIL/REAL_ADMIN_PASSWORD to test real admin login too');
+  return syntheticAuth('ADMIN');
+}
 
-  for (const id of [...created.shipmentIds].reverse()) {
-    await ignoreCleanupError(() => serviceFetch('shipment', `/api/shipments/${id}`, { method: 'DELETE' }));
-  }
+async function openWithAuth(driver, proxy, auth, path, expectedText, expectedCalls) {
+  await setAuth(driver, auth);
+  const after = markCalls(proxy);
+  await driver.get(`${FRONTEND_URL}${path}`);
+  if (expectedText) await waitForText(driver, expectedText);
 
-  for (const id of [...created.harvestIds].reverse()) {
-    await ignoreCleanupError(() => serviceFetch('harvest', `/api/harvests/${id}`, { method: 'DELETE' }));
-  }
-
-  for (const id of [...created.plantationIds].reverse()) {
-    await ignoreCleanupError(() => serviceFetch('plantation', `/api/plantations/${id}`, { method: 'DELETE' }));
+  for (const expected of expectedCalls) {
+    await waitForCall(proxy, after, expected);
   }
 }
 
-async function ignoreCleanupError(action) {
-  try {
-    await action();
-  } catch (error) {
-    log(`cleanup warning: ${error.message}`);
+async function runReadOnlyServiceCoverage(driver, proxy, auths) {
+  log('covering worker pages against real harvest, payroll, and shipment services');
+  await openWithAuth(driver, proxy, auths.BURUH, '/harvest', 'Catatan Panen Saya', [
+    { service: 'harvest', method: 'GET', path: '/harvests/my', statuses: [200] },
+  ]);
+  await openWithAuth(driver, proxy, auths.BURUH, '/payroll', 'Slip Gaji Saya', [
+    { service: 'payroll', method: 'GET', path: /^\/api\/payrolls\?userId=/, statuses: [200] },
+  ]);
+  await openWithAuth(driver, proxy, auths.SUPIR, '/shipment/active', 'Pengiriman Aktif', [
+    { service: 'shipment', method: 'GET', path: /^\/api\/shipments\?supirUserId=/, statuses: [200] },
+  ]);
+  await openWithAuth(driver, proxy, auths.SUPIR, '/shipment/history', 'Riwayat Pengiriman', [
+    { service: 'shipment', method: 'GET', path: /^\/api\/shipments\?supirUserId=/, statuses: [200] },
+  ]);
+
+  log('covering mandor pages against real plantation, harvest, shipment, payroll, and identity services');
+  await openWithAuth(driver, proxy, auths.MANDOR, '/mandor/plantations', 'Kebun Saya', [
+    { service: 'plantation', method: 'GET', path: /^\/api\/plantations\/owner\//, statuses: [200] },
+  ]);
+  await openWithAuth(driver, proxy, auths.MANDOR, '/mandor/harvest', 'Persetujuan Panen', [
+    { service: 'harvest', method: 'GET', path: '/harvests', statuses: [200] },
+  ]);
+  await openWithAuth(driver, proxy, auths.MANDOR, '/mandor/shipment', 'Pengiriman Panen', [
+    { service: 'shipment', method: 'GET', path: '/api/shipments', statuses: [200] },
+  ]);
+  let after = markCalls(proxy);
+  await clickText(driver, '+ Buat Pengiriman');
+  await waitForText(driver, 'Tugaskan Pengiriman Baru');
+  await waitForCall(proxy, after, {
+    service: 'shipment',
+    method: 'GET',
+    path: '/api/shipments/available-supirs',
+    statuses: [200],
+  });
+  await waitForCall(proxy, after, {
+    service: 'harvest',
+    method: 'GET',
+    path: '/harvests?status=APPROVED',
+    statuses: [200],
+  });
+  await openWithAuth(driver, proxy, auths.MANDOR, '/mandor/payroll', 'Validasi Gaji', [
+    { service: 'payroll', method: 'GET', path: '/api/payrolls', statuses: [200] },
+    { service: 'identity', method: 'GET', path: '/api/admin/users', statuses: [200] },
+  ]);
+
+  log('covering admin pages against real identity, plantation, shipment, and payroll services');
+  await openWithAuth(driver, proxy, adminAuth, '/admin/users', 'Name', [
+    { service: 'identity', method: 'GET', path: '/api/admin/users', statuses: [200] },
+  ]);
+  await openWithAuth(driver, proxy, adminAuth, '/admin/plantations', 'Manajemen Kebun', [
+    { service: 'plantation', method: 'GET', path: '/api/plantations', statuses: [200] },
+  ]);
+  await openWithAuth(driver, proxy, adminAuth, '/admin/shipments', 'Pusat Persetujuan Admin', [
+    { service: 'shipment', method: 'GET', path: '/api/shipments?status=MANDOR_APPROVED', statuses: [200] },
+  ]);
+  await openWithAuth(driver, proxy, adminAuth, '/admin/payroll', 'Gaji dan Pembayaran', [
+    { service: 'payroll', method: 'GET', path: '/api/payrolls', statuses: [200] },
+    { service: 'identity', method: 'GET', path: '/api/admin/users', statuses: [200] },
+    { service: 'payroll', method: 'GET', path: '/api/admin/wage-configs', statuses: [200] },
+  ]);
+
+  after = markCalls(proxy);
+  await driver.get(`${FRONTEND_URL}/admin/dashboard`);
+  await waitForText(driver, 'Catatan Panen');
+  await waitForCall(proxy, after, { service: 'identity', method: 'GET', path: '/api/admin/users', statuses: [200] });
+  await waitForCall(proxy, after, { service: 'plantation', method: 'GET', path: '/api/plantations', statuses: [200] });
+  await waitForCall(proxy, after, { service: 'harvest', method: 'GET', path: '/harvests', statuses: [200] });
+  await waitForCall(proxy, after, { service: 'shipment', method: 'GET', path: '/api/shipments', statuses: [200] });
+}
+
+async function cleanupCreatedUsers() {
+  if (!adminAuth || createdIdentityUsers.length === 0) return;
+  log('cleaning up Identity users created by real E2E');
+
+  for (const id of [...createdIdentityUsers].reverse()) {
+    try {
+      const response = await fetchWithTimeout(
+        new URL(`/api/admin/users/${id}`, ensureTrailingSlash(services.identity.target)).toString(),
+        { method: 'DELETE', headers: { Authorization: `Bearer ${adminAuth.token}` } },
+      );
+      if (!response.ok && response.status !== 404) {
+        log(`cleanup warning: identity delete ${id} -> HTTP ${response.status}`);
+      }
+    } catch (error) {
+      log(`cleanup warning: identity delete ${id} -> ${error.message}`);
+    }
   }
 }
 
 function printRouteSummary(proxy) {
   const relevant = proxy.calls.filter((call) => call.method !== 'OPTIONS');
-  log('recorded backend calls:');
-
+  log(`recorded ${relevant.length} real backend calls:`);
   for (const call of relevant) {
     console.log(`  ${call.service.padEnd(10)} ${call.method.padEnd(6)} ${String(call.status).padEnd(3)} ${call.path}`);
   }
@@ -717,24 +628,21 @@ async function run() {
     frontend = await startFrontend();
     driver = await buildDriver();
 
-    await registerAndLogin(driver, proxy);
-    const plantation = await createPlantation(driver, proxy);
-    const harvest = await createHarvest(driver, proxy, plantation);
-    await createShipment(driver, proxy, harvest);
-    await createEmployeeAndPayroll(driver, proxy, plantation);
+    const auths = {
+      BURUH: await registerAndLoginRole(driver, proxy, 'BURUH'),
+      MANDOR: await registerAndLoginRole(driver, proxy, 'MANDOR'),
+      SUPIR: await registerAndLoginRole(driver, proxy, 'SUPIR'),
+    };
+    adminAuth = await resolveAdminAuth(driver, proxy);
+
+    await runReadOnlyServiceCoverage(driver, proxy, auths);
     printRouteSummary(proxy);
-    log('real frontend/backend/database integration passed');
+    log('real frontend/backend Selenium integration passed');
   } finally {
-    if (driver) {
-      await driver.quit().catch(() => {});
-    }
-    await cleanup().catch((error) => log(`cleanup failed: ${error.message}`));
-    if (frontend) {
-      await frontend.close();
-    }
-    if (proxy) {
-      await proxy.close();
-    }
+    if (driver) await driver.quit().catch(() => {});
+    await cleanupCreatedUsers().catch((error) => log(`cleanup failed: ${error.message}`));
+    if (frontend) await frontend.close();
+    if (proxy) await proxy.close();
   }
 }
 

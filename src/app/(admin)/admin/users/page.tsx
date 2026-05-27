@@ -11,6 +11,7 @@ import { UserDetailResponse, UserRole } from '@/types';
 export default function AdminUsersPage() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserDetailResponse[]>([]);
+  const [mandors, setMandors] = useState<UserDetailResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -19,6 +20,11 @@ export default function AdminUsersPage() {
   const [nameFilter, setNameFilter] = useState('');
   const [emailFilter, setEmailFilter] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserRole | ''>('');
+
+  // Assign-mandor modal state
+  const [assignTarget, setAssignTarget] = useState<UserDetailResponse | null>(null);
+  const [selectedMandorId, setSelectedMandorId] = useState('');
+  const [assigning, setAssigning] = useState(false);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -32,7 +38,7 @@ export default function AdminUsersPage() {
       const data = await adminService.getUsers(Object.keys(params).length > 0 ? params : undefined);
       setUsers(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load users');
+      setError(err instanceof Error ? err.message : 'Gagal memuat daftar pengguna');
     } finally {
       setLoading(false);
     }
@@ -42,17 +48,67 @@ export default function AdminUsersPage() {
     loadUsers();
   }, [loadUsers]);
 
+  // Load mandor list once for the assign modal
+  useEffect(() => {
+    adminService
+      .getUsers({ role: 'MANDOR' })
+      .then(setMandors)
+      .catch(() => {
+        // Non-fatal: the modal will just show an empty list
+      });
+  }, []);
+
+  const openAssignModal = (buruh: UserDetailResponse) => {
+    setAssignTarget(buruh);
+    setSelectedMandorId(buruh.mandorId ?? '');
+  };
+
+  const closeAssignModal = () => {
+    setAssignTarget(null);
+    setSelectedMandorId('');
+  };
+
+  const handleAssignMandor = async () => {
+    if (!assignTarget || !selectedMandorId) return;
+    try {
+      setAssigning(true);
+      setError('');
+      await adminService.assignMandor(assignTarget.id, selectedMandorId);
+      setSuccess(`Mandor berhasil ditugaskan ke "${assignTarget.name || assignTarget.username}".`);
+      setTimeout(() => setSuccess(''), 3000);
+      closeAssignModal();
+      loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal menugaskan mandor');
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleUnassignMandor = async (buruh: UserDetailResponse) => {
+    if (!confirm(`Lepas mandor dari "${buruh.name || buruh.username}"?`)) return;
+    try {
+      setError('');
+      await adminService.unassignMandor(buruh.id);
+      setSuccess(`Mandor dilepas dari "${buruh.name || buruh.username}".`);
+      setTimeout(() => setSuccess(''), 3000);
+      loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal melepas mandor');
+    }
+  };
+
   const handleDelete = async (userId: string, username: string) => {
-    if (!confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) return;
+    if (!confirm(`Yakin ingin menghapus pengguna "${username}"? Aksi ini tidak bisa dibatalkan.`)) return;
 
     try {
       setError('');
       await adminService.deleteUser(userId);
-      setSuccess(`User "${username}" deleted successfully.`);
+      setSuccess(`Pengguna "${username}" berhasil dihapus.`);
       setTimeout(() => setSuccess(''), 3000);
       loadUsers();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete user');
+      setError(err instanceof Error ? err.message : 'Gagal menghapus pengguna');
     }
   };
 
@@ -70,12 +126,12 @@ export default function AdminUsersPage() {
       <div className="surface-panel p-5 bg-white/[0.02]">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="label-sm">Name</label>
+            <label className="label-sm">Nama</label>
             <input
               type="text"
               value={nameFilter}
               onChange={(e) => setNameFilter(e.target.value)}
-              placeholder="Search by name..."
+              placeholder="Cari berdasarkan nama..."
               className="ms-input"
             />
           </div>
@@ -85,18 +141,18 @@ export default function AdminUsersPage() {
               type="text"
               value={emailFilter}
               onChange={(e) => setEmailFilter(e.target.value)}
-              placeholder="Search by email..."
+              placeholder="Cari berdasarkan email..."
               className="ms-input"
             />
           </div>
           <div>
-            <label className="label-sm">Role</label>
+            <label className="label-sm">Peran</label>
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value as UserRole | '')}
               className="ms-input"
             >
-              <option value="">All Roles</option>
+              <option value="">Semua Peran</option>
               <option value="BURUH">Buruh</option>
               <option value="MANDOR">Mandor</option>
               <option value="SUPIR">Supir</option>
@@ -108,7 +164,7 @@ export default function AdminUsersPage() {
               onClick={() => { setNameFilter(''); setEmailFilter(''); setRoleFilter(''); }}
               className="btn-secondary w-full justify-center py-2.5"
             >
-              Clear Filters
+              Bersihkan Filter
             </button>
           </div>
         </div>
@@ -116,12 +172,12 @@ export default function AdminUsersPage() {
 
       {/* Users Table */}
       {loading ? (
-        <div className="text-center py-12 text-slate-500">Loading users...</div>
+        <div className="text-center py-12 text-slate-500">Memuat daftar pengguna...</div>
       ) : users.length === 0 ? (
         <div className="surface-panel p-12 text-center border border-white/[0.05]">
           <div className="text-5xl mb-4 opacity-50">👥</div>
-          <h3 className="text-xl font-bold text-white mb-2">No Users Found</h3>
-          <p className="text-slate-400">Try adjusting your search filters</p>
+          <h3 className="text-xl font-bold text-white mb-2">Pengguna Tidak Ditemukan</h3>
+          <p className="text-slate-400">Coba ubah filter pencarian.</p>
         </div>
       ) : (
         <div className="surface-panel overflow-hidden border border-white/[0.05]">
@@ -129,11 +185,11 @@ export default function AdminUsersPage() {
             <table className="w-full text-sm text-left">
               <thead className="text-xs uppercase bg-black/40 text-slate-400 border-b border-white/[0.05]">
                 <tr>
-                  <th className="px-6 py-4 font-semibold tracking-wider">User</th>
-                  <th className="px-6 py-4 font-semibold tracking-wider">Role</th>
-                  <th className="px-6 py-4 font-semibold tracking-wider">Auth</th>
-                  <th className="px-6 py-4 font-semibold tracking-wider">Created</th>
-                  <th className="px-6 py-4 font-semibold tracking-wider text-right">Actions</th>
+                  <th className="px-6 py-4 font-semibold tracking-wider">Pengguna</th>
+                  <th className="px-6 py-4 font-semibold tracking-wider">Peran</th>
+                  <th className="px-6 py-4 font-semibold tracking-wider">Autentikasi</th>
+                  <th className="px-6 py-4 font-semibold tracking-wider">Dibuat</th>
+                  <th className="px-6 py-4 font-semibold tracking-wider text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.05]">
@@ -172,14 +228,32 @@ export default function AdminUsersPage() {
                           href={`/admin/users/${u.id}`}
                           className="text-brand-400 hover:text-brand-300 font-semibold transition-colors"
                         >
-                          View
+                          Detail
                         </Link>
+                        {u.role === 'BURUH' && (
+                          <>
+                            <button
+                              onClick={() => openAssignModal(u)}
+                              className="text-blue-400 hover:text-blue-300 font-semibold transition-colors"
+                            >
+                              {u.mandorId ? 'Reassign' : 'Assign'} Mandor
+                            </button>
+                            {u.mandorId && (
+                              <button
+                                onClick={() => handleUnassignMandor(u)}
+                                className="text-yellow-400 hover:text-yellow-300 font-semibold transition-colors"
+                              >
+                                Lepas
+                              </button>
+                            )}
+                          </>
+                        )}
                         {u.id !== currentUser?.id && (
                           <button
                             onClick={() => handleDelete(u.id, u.username)}
                             className="text-red-400 hover:text-red-300 font-semibold transition-colors"
                           >
-                            Delete
+                            Hapus
                           </button>
                         )}
                       </div>
@@ -188,6 +262,63 @@ export default function AdminUsersPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Mandor Modal */}
+      {assignTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={closeAssignModal}
+        >
+          <div
+            className="surface-panel max-w-md w-full p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <h2 className="text-lg font-bold text-white">Tugaskan Mandor</h2>
+              <p className="text-sm text-slate-400 mt-1">
+                Buruh: <span className="font-semibold text-white">{assignTarget.name || assignTarget.username}</span>
+              </p>
+            </div>
+
+            <div>
+              <label className="label-sm">Pilih Mandor</label>
+              <select
+                value={selectedMandorId}
+                onChange={(e) => setSelectedMandorId(e.target.value)}
+                className="ms-input"
+                disabled={assigning}
+              >
+                <option value="">— Pilih mandor —</option>
+                {mandors.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name || m.username} ({m.email})
+                  </option>
+                ))}
+              </select>
+              {mandors.length === 0 && (
+                <p className="text-xs text-yellow-400 mt-2">Tidak ada mandor tersedia.</p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={closeAssignModal}
+                className="btn-secondary"
+                disabled={assigning}
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleAssignMandor}
+                className="btn-primary"
+                disabled={!selectedMandorId || assigning}
+              >
+                {assigning ? 'Menyimpan...' : 'Simpan'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { AlertCircle, Route, ShieldCheck, Truck, Weight, X, AlertTriangle, XCircle, CheckCircle2 } from 'lucide-react';
-import { Shipment } from '@/types';
+import { AlertCircle, Route, ShieldCheck, Truck, Weight, X, AlertTriangle, XCircle, CheckCircle2, Filter, RefreshCw } from 'lucide-react';
+import { AdminApprovalRequest, Shipment, ShipmentStatus } from '@/types';
 import { shipmentService } from '@/services/shipment.service';
 import {
   formatShipmentStatus,
@@ -30,23 +30,36 @@ export default function AdminShipmentPage() {
   }>({ type: null, shipment: null });
   const [reason, setReason] = useState('');
   const [kgAccepted, setKgAccepted] = useState('');
+  const [filters, setFilters] = useState<{
+    mandorName: string;
+    date: string;
+    status: ShipmentStatus | '';
+  }>({
+    mandorName: '',
+    date: '',
+    status: 'MANDOR_APPROVED',
+  });
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (nextFilters = filters) => {
     try {
       setLoading(true);
       setError('');
-      const data = await shipmentService.getAll();
+      const data = await shipmentService.getAll({
+        mandorName: nextFilters.mandorName.trim() || undefined,
+        date: nextFilters.date || undefined,
+        status: nextFilters.status || undefined,
+      });
       setShipments(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal memuat daftar pengiriman');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filters]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    void loadData(filters);
+  }, [loadData, filters]);
 
   const totals = useMemo(() => {
     const totalKg = shipments.reduce((sum, shipment) => sum + getShipmentWeight(shipment), 0);
@@ -62,7 +75,7 @@ export default function AdminShipmentPage() {
       setUpdatingId(shipmentId);
       setUpdateError('');
       await shipmentService.approveByAdmin(shipmentId, 'ADMIN_APPROVED');
-      loadData();
+      void loadData(filters);
     } catch (err) {
       setUpdateError(err instanceof Error ? err.message : 'Gagal menyetujui pengiriman');
     } finally {
@@ -70,27 +83,49 @@ export default function AdminShipmentPage() {
     }
   };
 
-  const handleActionModalSubmit = async (e: React.FormEvent) => {
+  const handleActionModalSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!actionModal.shipment || !actionModal.type) return;
 
     try {
       setUpdatingId(actionModal.shipment.id as string);
       setUpdateError('');
+      const formData = new FormData(e.currentTarget);
+      const submittedReason = String(formData.get('reason') || '').trim();
+      const submittedKgAccepted = String(formData.get('kgAccepted') || '');
+      const totalShipmentKg = getShipmentWeight(actionModal.shipment);
+
+      if (!submittedReason) {
+        setUpdateError(actionModal.type === 'PARTIAL'
+          ? 'Alasan koreksi parsial wajib diisi'
+          : 'Alasan penolakan wajib diisi');
+        return;
+      }
+
+      if (actionModal.type === 'PARTIAL') {
+        const acceptedKg = Number.parseFloat(submittedKgAccepted);
+        if (!Number.isFinite(acceptedKg) || acceptedKg <= 0) {
+          setUpdateError('Kilogram sawit yang diakui wajib diisi dan harus lebih dari 0');
+          return;
+        }
+        if (acceptedKg > totalShipmentKg) {
+          setUpdateError('Kilogram sawit yang diakui tidak boleh melebihi total pengiriman');
+          return;
+        }
+      }
       
-      const payload = {
+      const payload: AdminApprovalRequest = {
         status: actionModal.type === 'PARTIAL' ? 'PARTIALLY_REJECTED' : 'ADMIN_REJECTED',
-        rejectionReason: reason || undefined,
-        kgAccepted: actionModal.type === 'PARTIAL' ? Number.parseFloat(kgAccepted) : undefined,
+        rejectionReason: submittedReason,
+        kgAccepted: actionModal.type === 'PARTIAL' ? Number.parseFloat(submittedKgAccepted) : undefined,
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await shipmentService.approveByAdmin(actionModal.shipment.id as string, payload as any);
+      await shipmentService.approveByAdmin(actionModal.shipment.id as string, payload);
       
       setActionModal({ type: null, shipment: null });
       setReason('');
       setKgAccepted('');
-      loadData();
+      void loadData(filters);
     } catch (err) {
       setUpdateError(err instanceof Error ? err.message : 'Gagal menyimpan keputusan');
     } finally {
@@ -127,6 +162,66 @@ export default function AdminShipmentPage() {
           <span>{error || updateError}</span>
         </div>
       )}
+
+      <section className="surface-panel p-4">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void loadData(filters);
+          }}
+          className="grid grid-cols-1 gap-4 md:grid-cols-4 md:items-end"
+        >
+          <div>
+            <label className="label-sm">Nama Mandor</label>
+            <input
+              type="text"
+              value={filters.mandorName}
+              onChange={(event) => setFilters({ ...filters, mandorName: event.target.value })}
+              className="ms-input"
+              placeholder="Cari mandor..."
+            />
+          </div>
+          <div>
+            <label className="label-sm">Tanggal</label>
+            <input
+              type="date"
+              value={filters.date}
+              onChange={(event) => setFilters({ ...filters, date: event.target.value })}
+              className="ms-input"
+            />
+          </div>
+          <div>
+            <label className="label-sm">Status</label>
+            <select
+              value={filters.status}
+              onChange={(event) => setFilters({ ...filters, status: event.target.value as ShipmentStatus | '' })}
+              className="ms-input"
+            >
+              <option value="MANDOR_APPROVED">Disetujui Mandor</option>
+              <option value="ADMIN_APPROVED">Disetujui Admin</option>
+              <option value="ADMIN_REJECTED">Ditolak Admin</option>
+              <option value="PARTIALLY_REJECTED">Koreksi Parsial</option>
+              <option value="">Semua Status</option>
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button type="submit" className="btn-primary flex-1 justify-center">
+              <Filter size={15} aria-hidden="true" />Filter
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const defaults = { mandorName: '', date: '', status: 'MANDOR_APPROVED' as ShipmentStatus | '' };
+                setFilters(defaults);
+                void loadData(defaults);
+              }}
+              className="btn-ghost justify-center"
+            >
+              <RefreshCw size={15} aria-hidden="true" />
+            </button>
+          </div>
+        </form>
+      </section>
 
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <div className="surface-panel bg-white p-4">
@@ -179,13 +274,15 @@ export default function AdminShipmentPage() {
               Pengiriman #{getShortId(actionModal.shipment.id)} (Total: {formatKg(getShipmentWeight(actionModal.shipment))})
             </p>
             
-            <form onSubmit={handleActionModalSubmit} className="space-y-4">
+            <form onSubmit={handleActionModalSubmit} noValidate className="space-y-4">
               {actionModal.type === 'PARTIAL' && (
                 <label className="block">
                   <span className="label-sm">Berat yang disetujui (Kg)</span>
                   <input
+                    name="kgAccepted"
                     type="number"
-                    min="0"
+                    min="0.01"
+                    max={getShipmentWeight(actionModal.shipment)}
                     step="0.01"
                     required
                     value={kgAccepted}
@@ -198,6 +295,7 @@ export default function AdminShipmentPage() {
               <label className="block">
                 <span className="label-sm">Alasan {actionModal.type === 'PARTIAL' ? 'Koreksi' : 'Penolakan'}</span>
                 <textarea
+                  name="reason"
                   required
                   rows={3}
                   value={reason}
@@ -306,7 +404,10 @@ export default function AdminShipmentPage() {
                         {updatingId === shipment.id ? 'Memproses...' : 'Setujui Penuh'}
                       </button>
                       <button
-                        onClick={() => setActionModal({ type: 'PARTIAL', shipment })}
+                        onClick={() => {
+                          setUpdateError('');
+                          setActionModal({ type: 'PARTIAL', shipment });
+                        }}
                         disabled={updatingId === shipment.id}
                         className="btn-secondary w-full justify-center border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
                       >
@@ -314,7 +415,10 @@ export default function AdminShipmentPage() {
                         Koreksi Parsial
                       </button>
                       <button
-                        onClick={() => setActionModal({ type: 'REJECT', shipment })}
+                        onClick={() => {
+                          setUpdateError('');
+                          setActionModal({ type: 'REJECT', shipment });
+                        }}
                         disabled={updatingId === shipment.id}
                         className="btn-secondary w-full justify-center border-red-500/30 text-red-400 hover:bg-red-500/10"
                       >

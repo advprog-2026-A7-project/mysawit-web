@@ -56,7 +56,7 @@ export default function WorkerLayout({ children }: { children: React.ReactNode }
               <Sprout size={18} />
             </span>
             <span className="font-bold text-white tracking-tight hidden sm:block">
-              MySawit<span className="text-green-400 font-normal"> {userInfo?.role === 'SUPIR' ? 'Driver' : 'Harvester'}</span>
+              MySawit<span className="text-green-400 font-normal"> {userInfo?.role === 'SUPIR' ? 'Supir' : 'Buruh'}</span>
             </span>
           </div>
 
@@ -84,11 +84,11 @@ export default function WorkerLayout({ children }: { children: React.ReactNode }
               <div className="w-6 h-6 rounded-full bg-green-900/50 flex items-center justify-center text-xs font-bold text-green-400">
                 {userInfo?.username?.[0]?.toUpperCase() || 'U'}
               </div>
-              <span className="text-sm font-medium text-slate-200 truncate max-w-[100px]">{userInfo?.username || 'User'}</span>
+              <span className="text-sm font-medium text-slate-200 truncate max-w-[100px]">{userInfo?.username || 'Pengguna'}</span>
             </div>
             <button
               onClick={handleLogout}
-              title="Logout"
+              title="Keluar"
               className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-full transition"
             >
               <LogOut size={18} />

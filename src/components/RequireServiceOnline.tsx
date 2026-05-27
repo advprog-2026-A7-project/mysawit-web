@@ -73,12 +73,12 @@ export function RequireServiceOnline({
           ●
         </div>
         <h2 className="text-2xl font-semibold text-gray-800 mb-2">
-          {isOffline ? `${serviceName} is offline` : `Connecting to ${serviceName}…`}
+          {isOffline ? `${serviceName} sedang offline` : `Menghubungkan ke ${serviceName}...`}
         </h2>
         <p className="text-gray-600">
           {isOffline
-            ? 'Retrying automatically. The page will load once the service is reachable.'
-            : 'Checking service availability. Please wait.'}
+            ? 'Aplikasi akan mencoba ulang otomatis sampai service bisa dijangkau.'
+            : 'Memeriksa ketersediaan service. Mohon tunggu.'}
         </p>
       </div>
     </div>

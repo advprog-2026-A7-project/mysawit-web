@@ -204,6 +204,16 @@ class ApiClient {
     localStorage.setItem('username', authResponse.username);
     localStorage.setItem('userEmail', authResponse.email);
     localStorage.setItem('userRole', authResponse.role);
+    if (authResponse.mandorId) {
+      localStorage.setItem('mandorId', String(authResponse.mandorId));
+    } else {
+      localStorage.removeItem('mandorId');
+    }
+    if (authResponse.kebunId) {
+      localStorage.setItem('kebunId', String(authResponse.kebunId));
+    } else {
+      localStorage.removeItem('kebunId');
+    }
     localStorage.setItem('googleLinked', String(authResponse.googleLinked ?? false));
     localStorage.setItem('hasPassword', String(authResponse.hasPassword ?? false));
   }
@@ -216,6 +226,8 @@ class ApiClient {
     localStorage.removeItem('username');
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userRole');
+    localStorage.removeItem('mandorId');
+    localStorage.removeItem('kebunId');
     localStorage.removeItem('googleLinked');
     localStorage.removeItem('hasPassword');
   }
@@ -231,6 +243,8 @@ class ApiClient {
       username: localStorage.getItem('username'),
       email: localStorage.getItem('userEmail'),
       role: localStorage.getItem('userRole'),
+      mandorId: localStorage.getItem('mandorId'),
+      kebunId: localStorage.getItem('kebunId'),
       googleLinked: localStorage.getItem('googleLinked') === 'true',
       hasPassword: localStorage.getItem('hasPassword') === 'true',
     };

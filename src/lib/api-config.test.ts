@@ -6,6 +6,7 @@ describe('api-config', () => {
     expect(API_ENDPOINTS.AUTH.LOGIN).toBe('/api/gateway/identity/api/auth/login');
     expect(API_ENDPOINTS.PLANTATIONS.BY_ID(12)).toBe('/api/gateway/plantation/api/plantations/12');
     expect(API_ENDPOINTS.PLANTATIONS.BY_OWNER(7)).toBe('/api/gateway/plantation/api/plantations/owner/7');
+    expect(API_ENDPOINTS.PLANTATIONS.BY_MANDOR('m-1')).toBe('/api/gateway/plantation/api/plantations/mandor/m-1');
     expect(API_ENDPOINTS.PLANTATIONS.ASSIGN_MANDOR(7)).toBe('/api/gateway/plantation/api/plantations/7/mandor');
     expect(API_ENDPOINTS.PLANTATIONS.TRANSFER_MANDOR).toBe('/api/gateway/plantation/api/plantations/transfer-mandor');
     expect(API_ENDPOINTS.HARVESTS.BY_ID(3)).toBe('/api/gateway/harvest/harvests/3');
@@ -24,7 +25,7 @@ describe('api-config', () => {
     expect(API_ENDPOINTS.HARVESTS.BASE).toBe('/api/gateway/harvest/harvests');
     expect(API_ENDPOINTS.SHIPMENTS.BASE).toBe('/api/gateway/shipment/api/shipments');
     expect(API_ENDPOINTS.PAYROLLS.BASE).toBe('/api/gateway/payroll/api/payrolls');
-    expect(API_ENDPOINTS.WAGE_CONFIGS.BASE).toBe('/api/gateway/payroll/api/wage-configs');
+    expect(API_ENDPOINTS.WAGE_CONFIGS.BASE).toBe('/api/gateway/payroll/api/admin/wage-configs');
   });
 
   it('builds identity admin endpoints', () => {
@@ -56,8 +57,8 @@ describe('api-config', () => {
     expect(API_ENDPOINTS.PAYROLLS.REJECT(5)).toBe('/api/gateway/payroll/api/payrolls/5/reject');
     expect(API_ENDPOINTS.PAYROLLS.PAY(5)).toBe('/api/gateway/payroll/api/payrolls/5/pay');
 
-    expect(API_ENDPOINTS.WAGE_CONFIGS.BY_ID(6)).toBe('/api/gateway/payroll/api/wage-configs/6');
-    expect(API_ENDPOINTS.WAGE_CONFIGS.BY_ROLE('BURUH')).toBe('/api/gateway/payroll/api/wage-configs/role/BURUH');
-    expect(API_ENDPOINTS.WAGE_CONFIGS.BY_ROLE_ACTIVE('BURUH')).toBe('/api/gateway/payroll/api/wage-configs/role/BURUH/active');
+    expect(API_ENDPOINTS.WAGE_CONFIGS.BY_ID(6)).toBe('/api/gateway/payroll/api/admin/wage-configs/6');
+    expect(API_ENDPOINTS.WAGE_CONFIGS.BY_ROLE('BURUH')).toBe('/api/gateway/payroll/api/admin/wage-configs/role/BURUH');
+    expect(API_ENDPOINTS.WAGE_CONFIGS.BY_ROLE_ACTIVE('BURUH')).toBe('/api/gateway/payroll/api/admin/wage-configs/role/BURUH/active');
   });
 });
