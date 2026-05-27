@@ -20,6 +20,22 @@ const normalizePayrollRequest = (data: PayrollRequest): PayrollRequest => ({
   periodEnd: toLocalDateTime(data.periodEnd),
 });
 
+const dateBoundary = (value: string, boundary: 'start' | 'end') => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date(value);
+  return new Date(`${value}T${boundary === 'start' ? '00:00:00' : '23:59:59'}`);
+};
+
+const filterPayrollHistory = (payrolls: Payroll[], params?: Omit<PayrollSearchParams, 'userId'>) =>
+  payrolls.filter((payroll) => {
+    if (params?.status && payroll.status !== params.status) return false;
+
+    const periodStart = new Date(payroll.periodStart);
+    if (params?.from && periodStart < dateBoundary(params.from, 'start')) return false;
+    if (params?.to && periodStart > dateBoundary(params.to, 'end')) return false;
+
+    return true;
+  });
+
 // Payroll operations
 export const payrollService = {
   async getAll(params?: PayrollSearchParams): Promise<Payroll[]> {
@@ -43,6 +59,19 @@ export const payrollService = {
 
   async getByUser(userId: string): Promise<Payroll[]> {
     return apiClient.get(API_ENDPOINTS.PAYROLLS.BY_USER(userId));
+  },
+
+  async getUserHistory(userId: string, params?: Omit<PayrollSearchParams, 'userId'>): Promise<Payroll[]> {
+    try {
+      const payrolls = await apiClient.get<Payroll[]>(API_ENDPOINTS.PAYROLLS.BY_USER(userId));
+      return filterPayrollHistory(payrolls, params);
+    } catch (primaryError) {
+      try {
+        return await this.getAll({ userId, ...params });
+      } catch {
+        throw primaryError;
+      }
+    }
   },
 
   async getByStatus(status: string): Promise<Payroll[]> {

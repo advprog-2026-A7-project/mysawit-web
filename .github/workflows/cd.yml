@@ -1,4 +1,4 @@
-name: Dummy CD (Guarded)
+name: CD (Guarded)
 
 on:
   workflow_run:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       simulated_quality_result:
-        description: Simulate CI quality result for this dummy CD
+        description: Simulate CI quality result for this CD run
         required: true
         default: pass
         type: choice
@@ -37,9 +37,9 @@ jobs:
             exit 1
           fi
 
-  dummy-deploy:
+  deploy:
     runs-on: ubuntu-latest
     needs: [quality-gate]
     steps:
-      - name: Dummy deployment
-        run: echo "Dummy CD executed because quality gate passed."
+      - name: Deployment placeholder
+        run: echo "CD executed because quality gate passed."

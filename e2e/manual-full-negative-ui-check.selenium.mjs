@@ -114,6 +114,17 @@ async function clearWithKeyboard(element) {
   await element.sendKeys(Key.BACK_SPACE);
 }
 
+async function setNativeInputValue(element, value) {
+  await driver.executeScript(`
+    const input = arguments[0];
+    const value = String(arguments[1]);
+    const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value');
+    descriptor.set.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  `, element, value);
+}
+
 async function acceptPromptBlank() {
   const alert = await driver.wait(until.alertIsPresent(), WAIT_MS);
   await alert.accept();
@@ -447,10 +458,8 @@ async function setCoordinates(coords) {
   const latInputs = await driver.findElements(By.css('input[placeholder="Lat"]'));
   const lonInputs = await driver.findElements(By.css('input[placeholder="Lon"]'));
   for (let i = 0; i < 4; i += 1) {
-    await latInputs[i].clear();
-    await latInputs[i].sendKeys(String(coords[i][0]));
-    await lonInputs[i].clear();
-    await lonInputs[i].sendKeys(String(coords[i][1]));
+    await setNativeInputValue(latInputs[i], coords[i][0]);
+    await setNativeInputValue(lonInputs[i], coords[i][1]);
   }
 }
 
@@ -610,10 +619,22 @@ async function buruhCannotOpenAdminPayroll() {
 async function buruhHarvestPlantationSelectAndDuplicateGuard() {
   await driver.get(`${BASE_URL}/harvest`);
   await waitForText('Log Panen Baru');
-  await waitForText('Catatan panen hari ini sudah tersimpan');
   const plantationSelect = await driver.wait(until.elementLocated(testId('harvest-plantation-select')), WAIT_MS);
   await driver.wait(async () => /KB-A-001 - Kebun test manual/.test(await plantationSelect.getText()), WAIT_MS);
   assert.equal(await plantationSelect.getTagName(), 'select');
+
+  if (!(await bodyText()).includes('Catatan panen hari ini sudah tersimpan')) {
+    await fillByLabel('Berat Panen', '1');
+    await fillByLabel('Catatan Panen', `Duplicate guard ${RUN_ID}`);
+    const fileInput = await driver.wait(until.elementLocated(By.css('input[type="file"]')), WAIT_MS);
+    await fileInput.sendKeys(path.resolve('e2e/fixtures/harvest-proof.svg'));
+    await clickElement(await driver.findElement(testId('harvest-create-button')));
+    await driver.wait(async () => /Log panen berhasil|Catatan panen hari ini sudah tersimpan|sudah membuat laporan/i.test(await bodyText()), WAIT_MS);
+    await driver.get(`${BASE_URL}/harvest`);
+    await waitForText('Log Panen Baru');
+  }
+
+  await waitForText('Catatan panen hari ini sudah tersimpan');
   const submitButton = await driver.findElement(testId('harvest-create-button'));
   assert.equal(await submitButton.isEnabled(), false);
   assert.doesNotMatch(await bodyText(), /\bEdit\b/i);

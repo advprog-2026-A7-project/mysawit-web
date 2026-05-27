@@ -61,6 +61,48 @@ describe('payrollService', () => {
     expect(result).toEqual([{ id: 12 }]);
   });
 
+  it('getUserHistory reads user endpoint and filters locally', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue([
+      { id: 12, status: 'PAID', periodStart: '2026-05-10T08:00:00' },
+      { id: 13, status: 'PENDING', periodStart: '2026-05-11T08:00:00' },
+      { id: 14, status: 'PAID', periodStart: '2026-06-01T08:00:00' },
+    ]);
+
+    const result = await payrollService.getUserHistory(USER_ID, {
+      status: 'PAID',
+      from: '2026-05-01',
+      to: '2026-05-31',
+    });
+
+    expect(apiClient.get).toHaveBeenCalledWith(API_ENDPOINTS.PAYROLLS.BY_USER(USER_ID));
+    expect(result).toEqual([{ id: 12, status: 'PAID', periodStart: '2026-05-10T08:00:00' }]);
+  });
+
+  it('getUserHistory falls back to payroll search when user endpoint fails', async () => {
+    (apiClient.get as jest.Mock)
+      .mockRejectedValueOnce(new Error('not found'))
+      .mockResolvedValueOnce([{ id: 15 }]);
+
+    const result = await payrollService.getUserHistory(USER_ID, { status: 'PAID' });
+
+    expect(apiClient.get).toHaveBeenNthCalledWith(1, API_ENDPOINTS.PAYROLLS.BY_USER(USER_ID));
+    expect(apiClient.get).toHaveBeenNthCalledWith(
+      2,
+      `${API_ENDPOINTS.PAYROLLS.BASE}?userId=${USER_ID}&status=PAID`
+    );
+    expect(result).toEqual([{ id: 15 }]);
+  });
+
+  it('getUserHistory rethrows the primary error when fallback also fails', async () => {
+    const primaryError = new Error('user endpoint down');
+    (apiClient.get as jest.Mock)
+      .mockRejectedValueOnce(primaryError)
+      .mockRejectedValueOnce(new Error('search endpoint also down'));
+
+    await expect(payrollService.getUserHistory(USER_ID)).rejects.toBe(primaryError);
+    expect(apiClient.get).toHaveBeenCalledTimes(2);
+  });
+
   it('getByStatus calls payrolls by-status endpoint', async () => {
     (apiClient.get as jest.Mock).mockResolvedValue([{ id: 13 }]);
     const result = await payrollService.getByStatus('PENDING');
